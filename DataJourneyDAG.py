@@ -1,5 +1,5 @@
-# Verwsion: 1.0.3
-# Last Update: 2023/12/20
+# Verwsion: 1.0.4
+# Last Update: 2023/12/21
 # Authoer: Tomio Kobayashi
 
 import numpy as np
@@ -13,6 +13,9 @@ class DataJourneyDAG:
         self.adjacency_matrix = []
         self.adjacency_matrix_T = []
         self.size_matrix = 0
+        
+        G = 0
+        G_T = 0
         
     def adjacency_matrix_to_edge_list(self, adc_matrix):
         """
@@ -35,9 +38,9 @@ class DataJourneyDAG:
 
         return edge_list
     
-    def draw_selected_vertices_reverse(self, adj_matrix, selected_vertices1, selected_vertices2, title, node_labels, pos, reverse=False):
+    def draw_selected_vertices_reverse(self, G, selected_vertices1, selected_vertices2, title, node_labels, pos, reverse=False):
         # Create a directed graph from the adjacency matrix
-        G = nx.DiGraph(adj_matrix)
+#         G = nx.DiGraph(adj_matrix)
 
         # Create a subgraph with only the selected vertices
         subgraph1 = G.subgraph(selected_vertices1)
@@ -98,6 +101,9 @@ class DataJourneyDAG:
         # Matrix of row=FROM, col=TO
         self.size_matrix = len(self.adjacency_matrix)
 
+        self.G = nx.DiGraph(self.adjacency_matrix)
+        self.G_T = nx.DiGraph(self.adjacency_matrix_T)
+            
     def write_edge_list_to_file(self, filename):
         """
         Writes an edge list to a text file.
@@ -216,8 +222,8 @@ class DataJourneyDAG:
         selected_vertices2 = [target_vertex]
 
         node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
-        title = "Data Origins (" + str(last_pos-2) + " stages)"
-        self.draw_selected_vertices_reverse(self.adjacency_matrix, selected_vertices1,selected_vertices2, title=title, node_labels=node_labels, pos=position)
+        title = "Data Origins (" + str(len([k for k, v in colpos.items() if v != 0])-1) + " stages)"
+        self.draw_selected_vertices_reverse(self.G, selected_vertices1,selected_vertices2, title=title, node_labels=node_labels, pos=position)
 
         
     def drawOffsprings(self, target_vertex):
@@ -273,8 +279,9 @@ class DataJourneyDAG:
 
         node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
 
-        title = "Data Offsprings (" + str(last_pos-2) + " stages)"
-        self.draw_selected_vertices_reverse(self.adjacency_matrix_T, selected_vertices1,selected_vertices2, title=title, node_labels=node_labels, pos=position, reverse=True)
+        title = "Data Offsprings (" + str(len([k for k, v in colpos.items() if v != 0])-1) + " stages)"
+        self.draw_selected_vertices_reverse(self.G_T, selected_vertices1,selected_vertices2, title=title, node_labels=node_labels, pos=position, reverse=True)
+
 
 
 mydag = DataJourneyDAG()
