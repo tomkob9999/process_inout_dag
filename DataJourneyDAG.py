@@ -1,4 +1,4 @@
-# Verwsion: 1.0.2
+# Verwsion: 1.0.3
 # Last Update: 2023/12/20
 # Authoer: Tomio Kobayashi
 
@@ -34,12 +34,10 @@ class DataJourneyDAG:
                     edge_list.append((i, j))  # Add edges only for non-zero entries
 
         return edge_list
-
+    
     def draw_selected_vertices_reverse(self, adj_matrix, selected_vertices1, selected_vertices2, title, node_labels, pos, reverse=False):
         # Create a directed graph from the adjacency matrix
-        
-#         G = nx.DiGraph(adj_matrix)
-        G = nx.DiGraph(self.adjacency_matrix_to_edge_list(adj_matrix))
+        G = nx.DiGraph(adj_matrix)
 
         # Create a subgraph with only the selected vertices
         subgraph1 = G.subgraph(selected_vertices1)
@@ -59,16 +57,39 @@ class DataJourneyDAG:
         plt.title(title)
         plt.show()
 
-    def data_import(self, file_path):
+    def edge_list_to_adjacency_matrix(self, edges):
+        """
+        Converts an edge list to an adjacency matrix.
+
+        Args:
+            edges: A list of tuples, where each tuple represents an edge (source node, target node).
+
+        Returns:
+            A 2D list representing the adjacency matrix.
+        """
+
+        num_nodes = max(max(edge) for edge in edges) + 1  # Determine the number of nodes
+        adjacency_matrix = [[0] * num_nodes for _ in range(num_nodes)]
+
+        for edge in edges:
+            adjacency_matrix[edge[0]][edge[1]] = 1
+
+        return adjacency_matrix
+
+    def data_import(self, file_path, is_edge_list=False):
 #         Define rows as TO and columns as FROM
-        data = np.genfromtxt(file_path, delimiter='\t', dtype=str, encoding=None)
+        if is_edge_list:
+            edges = self.read_edge_list_from_file(file_path)
+            self.adjacency_matrix = self.edge_list_to_adjacency_matrix(edges)
+        else:
+            data = np.genfromtxt(file_path, delimiter='\t', dtype=str, encoding=None)
 
-        # Extract the names from the first record
-        self.vertex_names = data[0]
+            # Extract the names from the first record
+            self.vertex_names = data[0]
 
-        # Extract the adjacency matrix
-        self.adjacency_matrix = data[1:]
-
+            # Extract the adjacency matrix
+            self.adjacency_matrix = data[1:]
+        
         # Convert the adjacency matrix to a NumPy array of integers
         self.adjacency_matrix = np.array(self.adjacency_matrix, dtype=int)
 
@@ -77,6 +98,61 @@ class DataJourneyDAG:
         # Matrix of row=FROM, col=TO
         self.size_matrix = len(self.adjacency_matrix)
 
+    def write_edge_list_to_file(self, filename):
+        """
+        Writes an edge list to a text file.
+
+        Args:
+            edges: A list of tuples, where each tuple represents an edge (source node, target node).
+            filename: The name of the file to write to.
+        """
+        edges = self.adjacency_matrix_to_edge_list(self.adjacency_matrix)
+
+        with open(filename, "w") as file:
+            # Write headers
+            file.write("\t".join(self.vertex_names) + "\n")
+            for edge in edges:
+                file.write(f"{edge[0]}\t{edge[1]}\n")
+
+    def read_edge_list_from_file(self, filename):
+        """
+        Reads an edge list from a text file.
+
+        Args:
+            filename: The name of the file to read.
+
+        Returns:
+            A list of tuples, where each tuple represents an edge (source node, target node).
+        """
+
+        edges = []
+        with open(filename, "r") as file:
+            ini = True
+            for line in file:
+                if ini:
+                    self.vertex_names = line.strip().split("\t")
+                    ini = False
+                else:
+                    source, target = map(int, line.strip().split())
+                    edges.append((source, target))
+        return edges
+
+    def write_adjacency_matrix_to_file(self, filename):
+        """
+        Writes a matrix to a tab-delimited text file.
+
+        Args:
+            matrix: The matrix to write.
+            filename: The name of the file to write to.
+        """
+
+        with open(filename, "w") as file:
+            file.write("\t".join(self.vertex_names) + "\n") 
+            for row in self.adjacency_matrix:
+                file.write("\t".join(map(str, row)) + "\n")  # Join elements with tabs and add newline
+
+
+# Example usage
 
     def drawOrigins(self, target_vertex):
 
@@ -201,10 +277,15 @@ class DataJourneyDAG:
         self.draw_selected_vertices_reverse(self.adjacency_matrix_T, selected_vertices1,selected_vertices2, title=title, node_labels=node_labels, pos=position, reverse=True)
 
 
-
-
 mydag = DataJourneyDAG()
-mydag.data_import('/kaggle/input/matrix2/adjacency_matrix2.txt')
-for i in range(40, 45, 1):
-    mydag.drawOrigins(i)
-    mydag.drawOffsprings(i)
+# mydag.data_import('/kaggle/input/matrix2/adjacency_matrix2.txt')
+# mydag.data_import('dag_data_with_headers.txt')
+mydag.data_import('dag_data9.txt')
+# mydag.data_import('edge_list.txt', is_edge_list=True)
+mydag.write_edge_list_to_file('edge_list2.txt')
+# mydag.write_adjacency_matrix_to_file('dag_data9.txt')
+
+mydag.drawOrigins(250)
+mydag.drawOffsprings(250)
+
+
