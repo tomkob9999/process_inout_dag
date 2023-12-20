@@ -10,10 +10,9 @@ New Feature Plan
 - Edge List file read/write DONE
 
 
-- Data-Process bipartite graph NOT YET
+- generateProcesses  genProcesses() NOT YET
 - Add Node  addField(name) NOT YET
 - Link Node  linkFields(from, to) NOT YET
 - DAG check  checkDAG(from, to) NOT YET
-- generateProcesses  genProcesses() NOT YET
 - Process coupling  (process1, process2) NOT YET
   
