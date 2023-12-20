@@ -10,7 +10,7 @@ New Feature Plan
 - Edge List file read/write DONE
 
 
-- generateProcesses  genProcesses() NOT YET
+- generateProcesses  genProcesses() DONE
 - Add Node  addField(name) NOT YET
 - Link Node  linkFields(from, to) NOT YET
 - DAG check  checkDAG(from, to) NOT YET
