@@ -1,4 +1,4 @@
-# Verwsion: 1.0.8
+# Verwsion: 1.0.9
 # Last Update: 2023/12/21
 # Author: Tomio Kobayashi
 
@@ -344,14 +344,15 @@ class DataJourneyDAG:
                     newheight = maxheight/(colpos[v[0]]+1)*(newheight+1)
             newpos[k] = (v[0], newheight)
         position = newpos
-#         print("newpos", newpos)
+#         print("position", newpos)
 
         selected_vertices1 = list(selected_vertices1)
         selected_vertices2 = list(selected_vertices2)
-
         selected_vertices3 = [target_vertex]
         node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
-        title = "Data Origins (" + str(len([k for k, v in colpos.items() if v != 0])-1) + " stages)"
+#         title = "Data Origins (" + str(len([k for k, v in colpos.items() if v != 0])-1) + " stages)"
+        title = "Data Origins (" + str(len(set([v[0] for k, v in position.items() if self.dic_vertex_names[k][0:5] != "proc_"]))-1) + " stages)"
+        
         self.draw_selected_vertices_reverse_proc(self.G, selected_vertices1,selected_vertices2, selected_vertices3, title=title, node_labels=node_labels, pos=position)
 
         
@@ -424,14 +425,15 @@ class DataJourneyDAG:
             newpos[k] = (v[0], newheight)
                     
         position = newpos
-            
+
         selected_vertices1 = list(selected_vertices1)
         selected_vertices2 = list(selected_vertices2)
         selected_vertices3 = [target_vertex]
 
         node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
 
-        title = "Data Offsprings (" + str(len([k for k, v in colpos.items() if v != 0])-1) + " stages)"
+#         title = "Data Offsprings (" + str(len([k for k, v in colpos.items() if v != 0])-1) + " stages)"
+        title = "Data Offsprings (" + str(len(set([v[0] for k, v in position.items() if self.dic_vertex_names[k][0:5] != "proc_"]))-1) + " stages)"
         self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, title=title, node_labels=node_labels, pos=position, reverse=True)
 
 
