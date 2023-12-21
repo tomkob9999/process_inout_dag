@@ -1,7 +1,6 @@
-# Version: 1.0.15
+
 # Last Update: 2023/12/22
 # Author: Tomio Kobayashi
-
 
 # - generateProcesses  genProcesses() DONE
 # - DAG check  checkDAG(from, to) DONE
@@ -142,7 +141,11 @@ class DataJourneyDAG:
 #         for i in range(len(self.adjacency_matrix_T)):
 #             if sum(self.adjacency_matrix_T[i]) == 0:
 #                 start_point = i
-        self.drawOffsprings(start_point, title="Whole Graph", figsize=figsize)
+
+        topological_order = list(nx.topological_sort(self.G))
+
+        self.drawOffsprings(topological_order[0], title="Whole Graph Forward", figsize=figsize)
+        self.drawOrigins(topological_order[-1], title="Whole Graph Backward", figsize=figsize)
 
     def write_edge_list_to_file(self, filename):
         """
@@ -230,7 +233,10 @@ class DataJourneyDAG:
 #         for i in range(len(self.adjacency_matrix_T)):
 #             if sum(self.adjacency_matrix_T[i]) == 0:
 #                 start_point = i
-        self.drawOffsprings(start_point, title="Whole Graph", figsize=figsize)
+        topological_order = list(nx.topological_sort(self.G))
+
+        self.drawOffsprings(topological_order[0], title="Whole Graph Forward", figsize=figsize)
+        self.drawOrigins(topological_order[-1], title="Whole Graph Backward", figsize=figsize)
 
     def coupleProcesses(self, proc1, proc2):
         edges = self.adjacency_matrix_to_edge_list(self.adjacency_matrix)
