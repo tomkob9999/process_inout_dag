@@ -1,17 +1,19 @@
-# Verwsion: 1.0.9
+# Verwsion: 1.0.10
 # Last Update: 2023/12/21
 # Author: Tomio Kobayashi
 
 # - generateProcesses  genProcesses() DONE
 # - DAG check  checkDAG(from, to) DONE
 # - Process coupling  (process1, process2) DONE
+# - Link Node  linkFields(from, to) DONE
 # - Add Node  addField(name) NOT YET
-# - Link Node  linkFields(from, to) NOT NEEDED
   
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 import copy
+import random
+from datetime import date
 
 class DataJourneyDAG:
 
@@ -108,7 +110,6 @@ class DataJourneyDAG:
         self.adjacency_matrix = np.array(self.adjacency_matrix, dtype=int)
 
         is_cyclic = self.has_cycle(self.adjacency_matrix)
-#         print("is_cyclic", is_cyclic)
         
         self.adjacency_matrix_T = self.adjacency_matrix.T
 
@@ -204,7 +205,6 @@ class DataJourneyDAG:
 
         self.G = nx.DiGraph(self.adjacency_matrix)
         self.G_T = nx.DiGraph(self.adjacency_matrix_T)
-# Example usage
 
     def coupleProcesses(self, proc1, proc2):
         edges = self.adjacency_matrix_to_edge_list(self.adjacency_matrix)
@@ -235,7 +235,65 @@ class DataJourneyDAG:
 
             self.G = nx.DiGraph(self.adjacency_matrix)
             self.G_T = nx.DiGraph(self.adjacency_matrix_T)
+
+    def create_random_string_from_date(self):
+        """
+        Creates a random short string from the current date.
+
+        Returns:
+            A string containing a random combination of digits from the year, month, and day.
+        """
+
+        today = date.today()
+        year_str = str(today.year)
+        month_str = str(today.month).zfill(2)  # Pad month with leading zero if needed
+        day_str = str(today.day).zfill(2)  # Pad day with leading zero if needed
+
+        date_parts = list(year_str + month_str + day_str)
+        random.shuffle(date_parts)  # Shuffle the digits randomly
+
+        random_string = "".join(date_parts[:5])  # Take the first 5 digits
+        return random_string
+
+
+    def linkElements(self, element1, element2, procName=""):
+        edges = self.adjacency_matrix_to_edge_list(self.adjacency_matrix)
+        isProcessIncluded = (self.dic_vertex_names[edges[1][0]][0:5] == "proc_" or self.dic_vertex_names[edges[1][1]][0:5] == "proc_")
+        if element1[0:5] == "proc_" or element1[0:5] == "proc_":
+            return
+        new_edges = copy.deepcopy(edges)
+        if element1 not in self.dic_vertex_id or element2 not in self.dic_vertex_id:
+            return
+        id1 = self.dic_vertex_id[element1]
+        id2 = self.dic_vertex_id[element2]
+        if isProcessIncluded:
+            if procName == "":
+                procName = "proc_new" + self.create_random_string_from_date()
+            newID = max([max(e[0], e[1]) for e in edges]) + 1
+            new_edges.append((id1, newID))
+            new_edges.append((newID, id2))
+            self.vertex_names.append(procName)
+            self.dic_vertex_names[newID] = procName
+            self.dic_vertex_id[procName] = newID
+        else:
+            new_edges.append((id1, id2))
+
+#         print("edges", edges)
+#         print("new_edges", new_edges)
     
+        tmp_matrix = self.edge_list_to_adjacency_matrix(new_edges)
+        
+        if self.has_cycle(tmp_matrix):
+            print("The resulting graph is not a DAG")
+        else:
+            self.adjacency_matrix = tmp_matrix
+            self.adjacency_matrix = self.edge_list_to_adjacency_matrix(new_edges)
+            self.adjacency_matrix_T = self.adjacency_matrix.T
+            self.size_matrix = len(self.adjacency_matrix)
+
+            self.G = nx.DiGraph(self.adjacency_matrix)
+            self.G_T = nx.DiGraph(self.adjacency_matrix_T)
+            
     def has_cycle(self, adjacency_matrix):
 #        """
 #        Checks if the given adjacency matrix represents a DAG.
@@ -337,11 +395,10 @@ class DataJourneyDAG:
         newpos = {}
         for k, v in position.items():
             newheight = v[1]
-            if colpos[v[0]] != maxheight:
-                if maxheight == 2 and colpos[v[0]] == 1:
-                    newheight = 0.5
-                else:
-                    newheight = maxheight/(colpos[v[0]]+1)*(newheight+1)
+            if colpos[v[0]] == 1:
+                newheight = 0.5
+            else:
+                newheight = (newheight)/(colpos[v[0]]-1)
             newpos[k] = (v[0], newheight)
         position = newpos
 
@@ -415,13 +472,12 @@ class DataJourneyDAG:
         newpos = {}
         for k, v in position.items():
             newheight = v[1]
-            if colpos[v[0]] != maxheight:
-                if maxheight == 2 and colpos[v[0]] == 1:
-                    newheight = 0.5
-                else:
-                    newheight = maxheight/(colpos[v[0]]+1)*(newheight+1)
+
+            if colpos[v[0]] == 1:
+                newheight = 0.5
+            else:
+                newheight = (newheight)/(colpos[v[0]]-1)
             newpos[k] = (v[0], newheight)
-                    
         position = newpos
 
         selected_vertices1 = list(selected_vertices1)
@@ -432,6 +488,7 @@ class DataJourneyDAG:
 
         title = "Data Offsprings (" + str(len(set([v[0] for k, v in position.items() if self.dic_vertex_names[k][0:5] != "proc_"]))-1) + " stages)"
         self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, title=title, node_labels=node_labels, pos=position, reverse=True)
+
 
 
 
