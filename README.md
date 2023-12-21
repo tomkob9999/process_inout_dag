@@ -14,6 +14,7 @@ Implemented Features
 - generateProcesses  genProcesses() DONE
 - DAG check  checkDAG(from, to) DONE
 - Process coupling  (process1, process2) DONE
+- Link Elements  linkElements(element1, element1) DONE
 
 Planned Features
 - Add Node  addField(name) NOT YET
