@@ -1,12 +1,12 @@
-# Verwsion: 1.0.6
+# Verwsion: 1.0.7
 # Last Update: 2023/12/21
 # Author: Tomio Kobayashi
 
 # - generateProcesses  genProcesses() DONE
+# - DAG check  checkDAG(from, to) DONE
+# - Process coupling  (process1, process2) DONE
 # - Add Node  addField(name) NOT YET
-# - Link Node  linkFields(from, to) NOT YET
-# - DAG check  checkDAG(from, to) NOT YET
-# - Process coupling  (process1, process2) NOT YET
+# - Link Node  linkFields(from, to) NOT NEEDED
   
 import numpy as np
 import networkx as nx
@@ -107,6 +107,9 @@ class DataJourneyDAG:
         # Convert the adjacency matrix to a NumPy array of integers
         self.adjacency_matrix = np.array(self.adjacency_matrix, dtype=int)
 
+        is_cyclic = self.has_cycle(self.adjacency_matrix)
+#         print("is_cyclic", is_cyclic)
+        
         self.adjacency_matrix_T = self.adjacency_matrix.T
 
         # Matrix of row=FROM, col=TO
@@ -118,7 +121,8 @@ class DataJourneyDAG:
         for i in range(len(self.vertex_names)):
             self.dic_vertex_names[i] = self.vertex_names[i]
             self.dic_vertex_id[self.vertex_names[i]] = i
-            
+        
+        
     def write_edge_list_to_file(self, filename):
         """
         Writes an edge list to a text file.
@@ -219,13 +223,55 @@ class DataJourneyDAG:
             
             new_edges.append((id1, id2))
     
-        self.adjacency_matrix = self.edge_list_to_adjacency_matrix(new_edges)
-        self.adjacency_matrix_T = self.adjacency_matrix.T
-        self.size_matrix = len(self.adjacency_matrix)
-
-        self.G = nx.DiGraph(self.adjacency_matrix)
-        self.G_T = nx.DiGraph(self.adjacency_matrix_T)
+        tmp_matrix = self.edge_list_to_adjacency_matrix(new_edges)
         
+        if self.has_cycle(tmp_matrix):
+            print("The result graph is not a DAG")
+        else:
+            self.adjacency_matrix = tmp_matrix
+            self.adjacency_matrix = self.edge_list_to_adjacency_matrix(new_edges)
+            self.adjacency_matrix_T = self.adjacency_matrix.T
+            self.size_matrix = len(self.adjacency_matrix)
+
+            self.G = nx.DiGraph(self.adjacency_matrix)
+            self.G_T = nx.DiGraph(self.adjacency_matrix_T)
+    
+    def has_cycle(self, adjacency_matrix):
+#        """
+#        Checks if the given adjacency matrix represents a DAG.
+
+#        Args:
+#            adjacency_matrix: The adjacency matrix to check.
+
+#        Returns:
+#            True if the matrix contains a cycle, False otherwise.
+#        """
+        visited = [False] * len(adjacency_matrix)
+        recursively_visited = [False] * len(adjacency_matrix)
+
+        def dfs(node):
+            visited[node] = True
+            recursively_visited[node] = True
+
+            for neighbor in range(len(adjacency_matrix)):
+                if adjacency_matrix[node][neighbor] == 1:
+                    if visited[neighbor] and recursively_visited[neighbor]:
+                        return True  # Cycle detected
+                    elif not visited[neighbor]:
+                        if dfs(neighbor):
+                            return True
+
+            recursively_visited[node] = False
+            return False
+
+        for i in range(len(adjacency_matrix)):
+            if not visited[i]:
+                if dfs(i):
+                    return True
+
+        return False
+
+
     def drawOrigins(self, target_vertex):
 
 
@@ -360,7 +406,6 @@ class DataJourneyDAG:
 
         title = "Data Offsprings (" + str(len([k for k, v in colpos.items() if v != 0])-1) + " stages)"
         self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, title=title, node_labels=node_labels, pos=position, reverse=True)
-
 
 
 mydag = DataJourneyDAG()
