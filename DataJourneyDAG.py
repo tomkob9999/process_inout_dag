@@ -1,4 +1,4 @@
-# Verwsion: 1.0.5
+# Verwsion: 1.0.6
 # Last Update: 2023/12/21
 # Author: Tomio Kobayashi
 
@@ -22,6 +22,7 @@ class DataJourneyDAG:
         self.size_matrix = 0
         
         self.dic_vertex_names = {}
+        self.dic_vertex_id = {}
         
         G = 0
         G_T = 0
@@ -46,28 +47,7 @@ class DataJourneyDAG:
                     edge_list.append((i, j))  # Add edges only for non-zero entries
 
         return edge_list
-    
-#     def draw_selected_vertices_reverse(self, G, selected_vertices1, selected_vertices2, title, node_labels, pos, reverse=False):
 
-#         # Create a subgraph with only the selected vertices
-#         subgraph1 = G.subgraph(selected_vertices1)
-#         subgraph2 = G.subgraph(selected_vertices2)
-        
-#         if reverse:
-#             subgraph1 = subgraph1.reverse()
-#             subgraph2 = subgraph2.reverse()
-
-#         # Set figure size to be larger
-#         plt.figure(figsize=(12, 8))
-
-#         # Draw the graph
-#         nx.draw(subgraph1, pos, with_labels=True, labels=node_labels, node_size=600, node_color='skyblue', font_size=8, font_color='black', font_weight='bold', arrowsize=10, edgecolors='black', linewidths=1)
-#         nx.draw(subgraph2, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='pink', font_size=8, font_color='black', font_weight='bold', arrowsize=10, edgecolors='black', linewidths=1)
-
-#         plt.title(title)
-#         plt.show()
-
-    
     def draw_selected_vertices_reverse_proc(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, pos, reverse=False):
 
         # Create a subgraph with only the selected vertices
@@ -84,9 +64,9 @@ class DataJourneyDAG:
         plt.figure(figsize=(12, 8))
 
         # Draw the graph
-        nx.draw(subgraph1, pos, with_labels=True, labels=node_labels, node_size=600, node_color='skyblue', font_size=8, font_color='black', font_weight='bold', arrowsize=10, edgecolors='black', linewidths=1)
-        nx.draw(subgraph2, pos, with_labels=True, labels=node_labels, node_size=600, node_color='orange', font_size=8, font_color='black', font_weight='bold', arrowsize=10, edgecolors='black', linewidths=1)
-        nx.draw(subgraph3, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='pink', font_size=8, font_color='black', font_weight='bold', arrowsize=10, edgecolors='black', linewidths=1)
+        nx.draw(subgraph1, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='skyblue', font_size=10, font_color='black', font_weight='bold', arrowsize=10, edgecolors='black', linewidths=1)
+        nx.draw(subgraph2, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='orange', font_size=10, font_color='black', font_weight='bold', arrowsize=10, edgecolors='black', linewidths=1)
+        nx.draw(subgraph3, pos, with_labels=True, labels=node_labels, node_size=1500, node_color='pink', font_size=10, font_color='black', font_weight='bold', arrowsize=10, edgecolors='black', linewidths=1)
 
         plt.title(title)
         plt.show()
@@ -137,6 +117,7 @@ class DataJourneyDAG:
         
         for i in range(len(self.vertex_names)):
             self.dic_vertex_names[i] = self.vertex_names[i]
+            self.dic_vertex_id[self.vertex_names[i]] = i
             
     def write_edge_list_to_file(self, filename):
         """
@@ -195,17 +176,17 @@ class DataJourneyDAG:
     def genProcesses(self):
         edges = self.adjacency_matrix_to_edge_list(self.adjacency_matrix)
         new_edges = []
-#         for e in edges:
         dicNewID = {}
+        setVertex = set(self.vertex_names)
         for i in range(len(edges)):
             new_vertex_name = "proc_" + self.dic_vertex_names[edges[i][1]]
             new_id = 0
-            setVertex = set(self.vertex_names)
             if new_vertex_name not in setVertex:
                 new_id = len(self.vertex_names)
                 np.append(self.vertex_names, new_vertex_name)
                 self.vertex_names.append(new_vertex_name)
                 self.dic_vertex_names[new_id] = new_vertex_name
+                self.dic_vertex_id[new_vertex_name] = new_id
                 dicNewID[edges[i][1]] = new_id
                 setVertex.add(new_vertex_name)
             else:
@@ -221,6 +202,30 @@ class DataJourneyDAG:
         self.G_T = nx.DiGraph(self.adjacency_matrix_T)
 # Example usage
 
+    def coupleProcesses(self, proc1, proc2):
+        edges = self.adjacency_matrix_to_edge_list(self.adjacency_matrix)
+        if proc1[0:5] != "proc_" or proc2[0:5] != "proc_":
+            return
+        new_edges = []
+        old = self.dic_vertex_id[proc1]
+        new = self.dic_vertex_id[proc2]
+        for i in range(len(edges)):
+            id1 = edges[i][0]
+            id2 = edges[i][1]
+            if edges[i][0] == old:
+                id1 = new
+            if edges[i][1] == old:
+                id2 = new
+            
+            new_edges.append((id1, id2))
+    
+        self.adjacency_matrix = self.edge_list_to_adjacency_matrix(new_edges)
+        self.adjacency_matrix_T = self.adjacency_matrix.T
+        self.size_matrix = len(self.adjacency_matrix)
+
+        self.G = nx.DiGraph(self.adjacency_matrix)
+        self.G_T = nx.DiGraph(self.adjacency_matrix_T)
+        
     def drawOrigins(self, target_vertex):
 
 
@@ -310,16 +315,18 @@ class DataJourneyDAG:
             if sum(res_vector[i]) == 0:
                 break
             res_vector[i+1] = self.adjacency_matrix_T @ res_vector[i]
+
         for i in range(len(res_vector)):
             if sum(res_vector[i]) == 0:
                 break
             for j in range(len(res_vector[i])):
-                if res_vector[i][j] != 0 and j != self.size_matrix - 1 and j != 0: 
+                if res_vector[i][j] != 0 and j != self.size_matrix and j != 0: 
                     if self.dic_vertex_names[j][0:5] == "proc_":
                         selected_vertices2.add(j)
                         selected_vertices1.add(j)
                     else:
                         selected_vertices1.add(j)
+                        
         last_pos = 0
         for i in range(len(res_vector)):
             if sum(res_vector[i]) == 0:
@@ -336,7 +343,7 @@ class DataJourneyDAG:
                     continue
                 if j in posfill:
                     continue
-                if j == 0 or j == self.size_matrix - 1:
+                if j == 0 or j == self.size_matrix:
                     continue
                 if res_vector[i][j]:
                     posfill.add(j)
@@ -365,6 +372,7 @@ mydag.write_edge_list_to_file('edge_list2.txt')
 # mydag.write_adjacency_matrix_to_file('dag_data9.txt')
 
 mydag.genProcesses()
+mydag.coupleProcesses("proc_b", "proc_d")
 mydag.drawOrigins(250)
 mydag.drawOffsprings(250)
 
