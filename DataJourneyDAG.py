@@ -1,5 +1,5 @@
-# Verwsion: 1.0.11
-# Last Update: 2023/12/21
+# Verwsion: 1.0.12
+# Last Update: 2023/12/22
 # Author: Tomio Kobayashi
 
 # - generateProcesses  genProcesses() DONE
@@ -277,9 +277,6 @@ class DataJourneyDAG:
             self.dic_vertex_id[procName] = newID
         else:
             new_edges.append((id1, id2))
-
-#         print("edges", edges)
-#         print("new_edges", new_edges)
     
         tmp_matrix = self.edge_list_to_adjacency_matrix(new_edges)
         
@@ -332,6 +329,11 @@ class DataJourneyDAG:
 
     def drawOrigins(self, target_vertex):
 
+        if isinstance(target_vertex, str):
+            if target_vertex not in self.dic_vertex_id:
+                print(target_vertex + " is not an element")
+                return
+            target_vertex = self.dic_vertex_id[target_vertex]
 
         # Draw the path TO the target
         res_vector = np.array([np.zeros(self.size_matrix) for i in range(self.size_matrix+1)])
@@ -380,10 +382,11 @@ class DataJourneyDAG:
             for j in range(len(res_vector[i])):
                 if j not in selected_vertices1 and j not in selected_vertices2:
                     continue
-                if j in posfill:
-                    continue
-                if j == 0:
-                    continue
+#                 comment out to prevent back directing
+#                 if j in posfill:
+#                     continue
+#                 if j == 0:
+#                     continue
                 if res_vector[i][j]:
                     posfill.add(j)
                     position[j] = ((last_pos-i), colpos[(last_pos-i)]) 
@@ -412,7 +415,13 @@ class DataJourneyDAG:
 
         
     def drawOffsprings(self, target_vertex):
-
+        
+        if isinstance(target_vertex, str):
+            if target_vertex not in self.dic_vertex_id:
+                print(target_vertex + " is not an element")
+                return
+            target_vertex = self.dic_vertex_id[target_vertex]
+        
 #         Draw the path FROM the target
         position = {}
         colpos = {}
@@ -434,7 +443,8 @@ class DataJourneyDAG:
             if sum(res_vector[i]) == 0:
                 break
             for j in range(len(res_vector[i])):
-                if res_vector[i][j] != 0 and j != self.size_matrix and j != 0: 
+#                 if res_vector[i][j] != 0 and j != self.size_matrix and j != 0: 
+                if res_vector[i][j] != 0 and j != self.size_matrix: 
                     if self.dic_vertex_names[j][0:5] == "proc_":
                         selected_vertices2.add(j)
                         selected_vertices1.add(j)
@@ -456,10 +466,15 @@ class DataJourneyDAG:
             for j in range(len(res_vector[i])):
                 if j not in selected_vertices1 and j not in selected_vertices2:
                     continue
-                if j in posfill:
-                    continue
-                if j == 0 or j == self.size_matrix:
-                    continue
+#                 comment out to prevent back directing
+#                 if j in posfill:
+#                     continue
+
+#                 if j == 0 or j == self.size_matrix:
+#                 if j == self.size_matrix:
+#                     continue
+#                 if j == last_pos:
+#                     continue
                 if res_vector[i][j]:
                     posfill.add(j)
                     position[j] = (i, colpos[i]) 
@@ -476,6 +491,8 @@ class DataJourneyDAG:
             newpos[k] = (v[0], newheight)
             
         position = newpos
+#         print("selected_vertices1", selected_vertices1)
+#         print("position", position)
 
         selected_vertices1 = list(selected_vertices1)
         selected_vertices2 = list(selected_vertices2)
