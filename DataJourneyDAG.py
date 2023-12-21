@@ -395,10 +395,16 @@ class DataJourneyDAG:
         newpos = {}
         for k, v in position.items():
             newheight = v[1]
-            if colpos[v[0]] == 1:
-                newheight = 0.5
-            else:
-                newheight = (newheight)/(colpos[v[0]]-1)
+#             if colpos[v[0]] == 1:
+#                 newheight = 0.5
+#             else:
+#                 newheight = (newheight)/(colpos[v[0]]-1)
+                
+            if colpos[v[0]] != maxheight:
+                if maxheight == 2 and colpos[v[0]] == 1:
+                    newheight = 0.5
+                else:
+                    newheight = maxheight/(colpos[v[0]]+1)*(newheight+1)
             newpos[k] = (v[0], newheight)
         position = newpos
 
@@ -473,10 +479,17 @@ class DataJourneyDAG:
         for k, v in position.items():
             newheight = v[1]
 
-            if colpos[v[0]] == 1:
-                newheight = 0.5
-            else:
-                newheight = (newheight)/(colpos[v[0]]-1)
+#             if colpos[v[0]] == 1:
+#                 newheight = 0.5
+#             else:
+#                 newheight = (newheight)/(colpos[v[0]]-1)
+                
+            if colpos[v[0]] != maxheight:
+                if maxheight == 2 and colpos[v[0]] == 1:
+                    newheight = 0.5
+                else:
+                    newheight = maxheight/(colpos[v[0]]+1)*(newheight+1)
+                    
             newpos[k] = (v[0], newheight)
         position = newpos
 
@@ -488,6 +501,7 @@ class DataJourneyDAG:
 
         title = "Data Offsprings (" + str(len(set([v[0] for k, v in position.items() if self.dic_vertex_names[k][0:5] != "proc_"]))-1) + " stages)"
         self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, title=title, node_labels=node_labels, pos=position, reverse=True)
+
 
 
 
