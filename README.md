@@ -15,7 +15,7 @@ Hilights:
 - After the processes are added, the graph becomes a bipartite graph of elements and processes as well.
 - compatible with adjacency matrix and edge list formats.
 - The generated flow graphs show as topologically ordered.
-
+- any node with the prefix "proc_" is regarded as a process, and everything else is regarded as an element by the tool.
 
 Implemented Features
 - Edge List file read/write DONE
