@@ -5,14 +5,13 @@
 
 ![aa8](https://github.com/tomkob9999/data_journey_dag/assets/96751911/d503bde5-370e-40d4-afec-f9b2cf732e19)
 
-New Feature Plan
 
+Implemented Features
 - Edge List file read/write DONE
-
-
 - generateProcesses  genProcesses() DONE
+- DAG check  checkDAG(from, to) DONE
+- Process coupling  (process1, process2) DONE
+
+Planned Features
 - Add Node  addField(name) NOT YET
-- Link Node  linkFields(from, to) NOT YET
-- DAG check  checkDAG(from, to) NOT YET
-- Process coupling  (process1, process2) NOT YET
   
