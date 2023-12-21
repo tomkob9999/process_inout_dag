@@ -5,7 +5,8 @@
 
 After processes are created between data fields by genProcesses() command, the graph becomes a bipartite graph and it shows as follows.  Some processes are merged by coupleProcesses() as well.
 
-![aa10](https://github.com/tomkob9999/data_journey_dag/assets/96751911/67df56d7-1b83-47f7-be04-286f91bf7894)
+![aa11](https://github.com/tomkob9999/data_journey_dag/assets/96751911/3b517922-35ae-4ed4-bfce-11a1ae93b7eb)
+
 
 
 Implemented Features
