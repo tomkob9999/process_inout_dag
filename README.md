@@ -1,6 +1,6 @@
 # Data Journey DAG
 
-### Input: tab-deliited file containing adjacency matrix (rows=FROM, columns=TO) with headers (adjacency_matrix2.txt as a sample)
+### Input: tab-delimited file containing adjacency matrix (rows=FROM, columns=TO) with headers (adjacency_matrix2.txt as a sample)
 ### Output: Graph of origin data and offspring data for the specified data element
 
 After processes are created between data fields by genProcesses() command, the graph becomes a bipartite graph and it shows as follows.  Some processes are merged by coupleProcesses() as well.
