@@ -1,4 +1,4 @@
-# Verwsion: 1.0.12
+# Verwsion: 1.0.14
 # Last Update: 2023/12/22
 # Author: Tomio Kobayashi
 
@@ -50,7 +50,7 @@ class DataJourneyDAG:
 
         return edge_list
 
-    def draw_selected_vertices_reverse_proc(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, pos, reverse=False):
+    def draw_selected_vertices_reverse_proc(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, pos, reverse=False, figsize=(12, 8)):
 
         # Create a subgraph with only the selected vertices
         subgraph1 = G.subgraph(selected_vertices1)
@@ -63,7 +63,7 @@ class DataJourneyDAG:
             subgraph3 = subgraph3.reverse()
 
         # Set figure size to be larger
-        plt.figure(figsize=(12, 8))
+        plt.figure(figsize=figsize)
 
         # Draw the graph
         nx.draw(subgraph1, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='skyblue', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
@@ -73,6 +73,18 @@ class DataJourneyDAG:
         plt.title(title)
         plt.show()
         
+        # Find the topological order
+        topological_order = list(nx.topological_sort(subgraph1))
+        # Print the topological order
+        print("TOPOLOGICAL ORDER:")
+        print(" > ".join([self.dic_vertex_names[t] for t in topological_order]))
+        
+        print("")
+        longest_path = nx.dag_longest_path(subgraph1)  # Use NetworkX's built-in function
+        print("LONGEST PATH:")
+        print(" > ".join([self.dic_vertex_names[t] for t in longest_path]))
+        print("")
+    
     def edge_list_to_adjacency_matrix(self, edges):
         """
         Converts an edge list to an adjacency matrix.
@@ -92,7 +104,7 @@ class DataJourneyDAG:
 
         return adjacency_matrix
 
-    def data_import(self, file_path, is_edge_list=False):
+    def data_import(self, file_path, is_edge_list=False, figsize=(30,30)):
 #         Define rows as TO and columns as FROM
         if is_edge_list:
             edges = self.read_edge_list_from_file(file_path)
@@ -109,8 +121,10 @@ class DataJourneyDAG:
         # Convert the adjacency matrix to a NumPy array of integers
         self.adjacency_matrix = np.array(self.adjacency_matrix, dtype=int)
 
-        is_cyclic = self.has_cycle(self.adjacency_matrix)
-        
+        if self.has_cycle(self.adjacency_matrix):
+            print("The result graph is not a DAG")
+            return
+            
         self.adjacency_matrix_T = self.adjacency_matrix.T
 
         # Matrix of row=FROM, col=TO
@@ -122,8 +136,13 @@ class DataJourneyDAG:
         for i in range(len(self.vertex_names)):
             self.dic_vertex_names[i] = self.vertex_names[i]
             self.dic_vertex_id[self.vertex_names[i]] = i
-        
-        
+
+        start_point = 0
+#         for i in range(len(self.adjacency_matrix_T)):
+#             if sum(self.adjacency_matrix_T[i]) == 0:
+#                 start_point = i
+        self.drawOffsprings(start_point, title="Whole Graph", figsize=figsize)
+
     def write_edge_list_to_file(self, filename):
         """
         Writes an edge list to a text file.
@@ -178,7 +197,7 @@ class DataJourneyDAG:
                 file.write("\t".join(map(str, row)) + "\n")  # Join elements with tabs and add newline
 
 
-    def genProcesses(self):
+    def genProcesses(self, figsize=(30,30)):
         edges = self.adjacency_matrix_to_edge_list(self.adjacency_matrix)
         new_edges = []
         dicNewID = {}
@@ -205,6 +224,12 @@ class DataJourneyDAG:
 
         self.G = nx.DiGraph(self.adjacency_matrix)
         self.G_T = nx.DiGraph(self.adjacency_matrix_T)
+
+        start_point = 0
+#         for i in range(len(self.adjacency_matrix_T)):
+#             if sum(self.adjacency_matrix_T[i]) == 0:
+#                 start_point = i
+        self.drawOffsprings(start_point, title="Whole Graph", figsize=figsize)
 
     def coupleProcesses(self, proc1, proc2):
         edges = self.adjacency_matrix_to_edge_list(self.adjacency_matrix)
@@ -327,7 +352,7 @@ class DataJourneyDAG:
         return False
 
 
-    def drawOrigins(self, target_vertex):
+    def drawOrigins(self, target_vertex, title="", figsize=None):
 
         if isinstance(target_vertex, str):
             if target_vertex not in self.dic_vertex_id:
@@ -409,12 +434,16 @@ class DataJourneyDAG:
         selected_vertices2 = list(selected_vertices2)
         selected_vertices3 = [target_vertex]
         node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
-        title = "Data Origins (" + str(len(set([v[0] for k, v in position.items() if self.dic_vertex_names[k][0:5] != "proc_"]))-1) + " stages)"
-        
-        self.draw_selected_vertices_reverse_proc(self.G, selected_vertices1,selected_vertices2, selected_vertices3, title=title, node_labels=node_labels, pos=position)
+        if title == "":
+            title = "Data Origins"
+        title += " (" + str(len(set([v[0] for k, v in position.items() if self.dic_vertex_names[k][0:5] != "proc_"]))-1) + " stages)"
+    
+        if figsize is None:
+            figsize = (12, 8)
+        self.draw_selected_vertices_reverse_proc(self.G, selected_vertices1,selected_vertices2, selected_vertices3, title=title, node_labels=node_labels, pos=position, figsize=figsize)
 
         
-    def drawOffsprings(self, target_vertex):
+    def drawOffsprings(self, target_vertex, title="", figsize=None):
         
         if isinstance(target_vertex, str):
             if target_vertex not in self.dic_vertex_id:
@@ -499,10 +528,12 @@ class DataJourneyDAG:
         selected_vertices3 = [target_vertex]
 
         node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
-
-        title = "Data Offsprings (" + str(len(set([v[0] for k, v in position.items() if self.dic_vertex_names[k][0:5] != "proc_"]))-1) + " stages)"
-        self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, title=title, node_labels=node_labels, pos=position, reverse=True)
-
+        if title == "":
+            title = "Data Offsprings"
+        title += " (" + str(len(set([v[0] for k, v in position.items() if self.dic_vertex_names[k][0:5] != "proc_"]))-1) + " stages)"
+        if figsize is None:
+            figsize = (12, 8)
+        self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize)
 
 
 mydag = DataJourneyDAG()
