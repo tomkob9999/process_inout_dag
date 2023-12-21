@@ -1,4 +1,4 @@
-# Verwsion: 1.0.15
+# Version: 1.0.15
 # Last Update: 2023/12/22
 # Author: Tomio Kobayashi
 
