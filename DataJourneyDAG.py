@@ -1,4 +1,4 @@
-# Verwsion: 1.0.7
+# Verwsion: 1.0.8
 # Last Update: 2023/12/21
 # Author: Tomio Kobayashi
 
@@ -332,7 +332,19 @@ class DataJourneyDAG:
                     colpos[(last_pos-i)] += 1
                     if largest_j < j:
                         largest_j = j
-
+                        
+        maxheight = max([v for k, v in colpos.items() if v != 0])
+        newpos = {}
+        for k, v in position.items():
+            newheight = v[1]
+            if colpos[v[0]] != maxheight:
+                if maxheight == 2 and colpos[v[0]] == 1:
+                    newheight = 0.5
+                else:
+                    newheight = maxheight/(colpos[v[0]]+1)*(newheight+1)
+            newpos[k] = (v[0], newheight)
+        position = newpos
+#         print("newpos", newpos)
 
         selected_vertices1 = list(selected_vertices1)
         selected_vertices2 = list(selected_vertices2)
@@ -372,7 +384,8 @@ class DataJourneyDAG:
                         selected_vertices1.add(j)
                     else:
                         selected_vertices1.add(j)
-                        
+
+#         initialize the positions
         last_pos = 0
         for i in range(len(res_vector)):
             if sum(res_vector[i]) == 0:
@@ -397,7 +410,21 @@ class DataJourneyDAG:
                     colpos[i] += 1
                     if largest_j < j:
                         largest_j = j
+
+#         re-align the vertical position
+        maxheight = max([v for k, v in colpos.items() if v != 0])
+        newpos = {}
+        for k, v in position.items():
+            newheight = v[1]
+            if colpos[v[0]] != maxheight:
+                if maxheight == 2 and colpos[v[0]] == 1:
+                    newheight = 0.5
+                else:
+                    newheight = maxheight/(colpos[v[0]]+1)*(newheight+1)
+            newpos[k] = (v[0], newheight)
                     
+        position = newpos
+            
         selected_vertices1 = list(selected_vertices1)
         selected_vertices2 = list(selected_vertices2)
         selected_vertices3 = [target_vertex]
@@ -406,6 +433,7 @@ class DataJourneyDAG:
 
         title = "Data Offsprings (" + str(len([k for k, v in colpos.items() if v != 0])-1) + " stages)"
         self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, title=title, node_labels=node_labels, pos=position, reverse=True)
+
 
 
 mydag = DataJourneyDAG()
