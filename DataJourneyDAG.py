@@ -1,4 +1,4 @@
-# Verwsion: 1.0.14
+# Verwsion: 1.0.15
 # Last Update: 2023/12/22
 # Author: Tomio Kobayashi
 
@@ -430,14 +430,17 @@ class DataJourneyDAG:
             
         position = newpos
 
-        selected_vertices1 = list(selected_vertices1)
-        selected_vertices2 = list(selected_vertices2)
-        selected_vertices3 = [target_vertex]
         node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
+        print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
+        print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
         if title == "":
             title = "Data Origins"
         title += " (" + str(len(set([v[0] for k, v in position.items() if self.dic_vertex_names[k][0:5] != "proc_"]))-1) + " stages)"
     
+        selected_vertices1 = list(selected_vertices1)
+        selected_vertices2 = list(selected_vertices2)
+        selected_vertices3 = [target_vertex]
+        
         if figsize is None:
             figsize = (12, 8)
         self.draw_selected_vertices_reverse_proc(self.G, selected_vertices1,selected_vertices2, selected_vertices3, title=title, node_labels=node_labels, pos=position, figsize=figsize)
@@ -522,18 +525,22 @@ class DataJourneyDAG:
         position = newpos
 #         print("selected_vertices1", selected_vertices1)
 #         print("position", position)
-
-        selected_vertices1 = list(selected_vertices1)
-        selected_vertices2 = list(selected_vertices2)
-        selected_vertices3 = [target_vertex]
-
         node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
+        
+        print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
+        print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
         if title == "":
             title = "Data Offsprings"
         title += " (" + str(len(set([v[0] for k, v in position.items() if self.dic_vertex_names[k][0:5] != "proc_"]))-1) + " stages)"
         if figsize is None:
             figsize = (12, 8)
+            
+        selected_vertices1 = list(selected_vertices1)
+        selected_vertices2 = list(selected_vertices2)
+        selected_vertices3 = [target_vertex]
+
         self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize)
+
 
 
 mydag = DataJourneyDAG()
