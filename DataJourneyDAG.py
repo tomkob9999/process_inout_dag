@@ -1,4 +1,4 @@
-# Version: 1.0.19
+# Version: 1.0.20
 # Last Update: 2023/12/22
 # Author: Tomio Kobayashi
 
@@ -77,7 +77,7 @@ class DataJourneyDAG:
         topological_order = list(nx.topological_sort(subgraph1))
         # Print the topological order
         print("TOPOLOGICAL ORDER:")
-        has_proc = (self.dic_vertex_names[topological_order[0]][0:5] == "proc_" or self.dic_vertex_names[topological_order[1]][0:5] == "proc_")
+        has_proc = (self.dic_vertex_names[len(topological_order) > 0 and topological_order[0]][0:5] == "proc_" or len(topological_order) > 1 and self.dic_vertex_names[topological_order[1]][0:5] == "proc_")
         print(" > ".join([self.dic_vertex_names[t] for t in topological_order if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
         
         print("")
@@ -413,7 +413,7 @@ class DataJourneyDAG:
             colpos[i] = 0
         for k, v in position.items():
             colpos[v[0]] += 1
-        for k, v in position.items():
+        for k, v in sorted(position.items(), reverse=True):
             position[k] = (v[0], dicPos[v[0]])
             dicPos[v[0]] += 1
         
@@ -517,7 +517,7 @@ class DataJourneyDAG:
             colpos[i] = 0
         for k, v in position.items():
             colpos[v[0]] += 1
-        for k, v in position.items():
+        for k, v in sorted(position.items(), reverse=True):
             position[k] = (v[0], dicPos[v[0]])
             dicPos[v[0]] += 1
            
@@ -560,7 +560,6 @@ class DataJourneyDAG:
         sinks = [node for node in self.G.nodes() if len(list(self.G.successors(node))) == 0]
 
         print("Sink Nodes:", [self.dic_vertex_names[s] for s in sinks])
-
 
 mydag = DataJourneyDAG()
 # mydag.data_import('/kaggle/input/matrix2/adjacency_matrix2.txt')
