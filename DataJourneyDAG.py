@@ -1,4 +1,4 @@
-
+# Version: 1.0.17
 # Last Update: 2023/12/22
 # Author: Tomio Kobayashi
 
@@ -104,7 +104,7 @@ class DataJourneyDAG:
 
         return adjacency_matrix
 
-    def data_import(self, file_path, is_edge_list=False, figsize=(30,30)):
+    def data_import(self, file_path, is_edge_list=False):
 #         Define rows as TO and columns as FROM
         if is_edge_list:
             edges = self.read_edge_list_from_file(file_path)
@@ -137,15 +137,15 @@ class DataJourneyDAG:
             self.dic_vertex_names[i] = self.vertex_names[i]
             self.dic_vertex_id[self.vertex_names[i]] = i
 
-        start_point = 0
-#         for i in range(len(self.adjacency_matrix_T)):
-#             if sum(self.adjacency_matrix_T[i]) == 0:
-#                 start_point = i
+#         start_point = 0
+# #         for i in range(len(self.adjacency_matrix_T)):
+# #             if sum(self.adjacency_matrix_T[i]) == 0:
+# #                 start_point = i
 
-        topological_order = list(nx.topological_sort(self.G))
+#         topological_order = list(nx.topological_sort(self.G))
 
-        self.drawOffsprings(topological_order[0], title="Whole Graph Forward", figsize=figsize)
-        self.drawOrigins(topological_order[-1], title="Whole Graph Backward", figsize=figsize)
+#         self.drawOffsprings(topological_order[0], title="Whole Graph Forward", figsize=figsize)
+#         self.drawOrigins(topological_order[-1], title="Whole Graph Backward", figsize=figsize)
 
     def write_edge_list_to_file(self, filename):
         """
@@ -201,7 +201,7 @@ class DataJourneyDAG:
                 file.write("\t".join(map(str, row)) + "\n")  # Join elements with tabs and add newline
 
 
-    def genProcesses(self, figsize=(30,30)):
+    def genProcesses(self):
         edges = self.adjacency_matrix_to_edge_list(self.adjacency_matrix)
         new_edges = []
         dicNewID = {}
@@ -229,14 +229,14 @@ class DataJourneyDAG:
         self.G = nx.DiGraph(self.adjacency_matrix)
         self.G_T = nx.DiGraph(self.adjacency_matrix_T)
 
-        start_point = 0
-#         for i in range(len(self.adjacency_matrix_T)):
-#             if sum(self.adjacency_matrix_T[i]) == 0:
-#                 start_point = i
-        topological_order = list(nx.topological_sort(self.G))
+#         start_point = 0
+# #         for i in range(len(self.adjacency_matrix_T)):
+# #             if sum(self.adjacency_matrix_T[i]) == 0:
+# #                 start_point = i
+#         topological_order = list(nx.topological_sort(self.G))
 
-        self.drawOffsprings(topological_order[0], title="Whole Graph Forward", figsize=figsize)
-        self.drawOrigins(topological_order[-1], title="Whole Graph Backward", figsize=figsize)
+#         self.drawOffsprings(topological_order[0], title="Whole Graph Forward", figsize=figsize)
+#         self.drawOrigins(topological_order[-1], title="Whole Graph Backward", figsize=figsize)
 
     def coupleProcesses(self, proc1, proc2):
         edges = self.adjacency_matrix_to_edge_list(self.adjacency_matrix)
@@ -547,6 +547,19 @@ class DataJourneyDAG:
         selected_vertices3 = [target_vertex]
 
         self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize)
+
+        
+        
+    def showSourceNodes(self):
+        sources = [node for node in self.G.nodes() if len(list(self.G.predecessors(node))) == 0]
+
+        print("Source Nodes:", [self.dic_vertex_names[s] for s in sources])
+        
+        
+    def showSinkNodes(self):
+        sinks = [node for node in self.G.nodes() if len(list(self.G.successors(node))) == 0]
+
+        print("Sink Nodes:", [self.dic_vertex_names[s] for s in sinks])
 
 
 
