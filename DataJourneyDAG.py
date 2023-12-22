@@ -1,4 +1,4 @@
-# Version: 1.0.17
+# Version: 1.0.18
 # Last Update: 2023/12/22
 # Author: Tomio Kobayashi
 
@@ -137,16 +137,6 @@ class DataJourneyDAG:
             self.dic_vertex_names[i] = self.vertex_names[i]
             self.dic_vertex_id[self.vertex_names[i]] = i
 
-#         start_point = 0
-# #         for i in range(len(self.adjacency_matrix_T)):
-# #             if sum(self.adjacency_matrix_T[i]) == 0:
-# #                 start_point = i
-
-#         topological_order = list(nx.topological_sort(self.G))
-
-#         self.drawOffsprings(topological_order[0], title="Whole Graph Forward", figsize=figsize)
-#         self.drawOrigins(topological_order[-1], title="Whole Graph Backward", figsize=figsize)
-
     def write_edge_list_to_file(self, filename):
         """
         Writes an edge list to a text file.
@@ -228,15 +218,6 @@ class DataJourneyDAG:
 
         self.G = nx.DiGraph(self.adjacency_matrix)
         self.G_T = nx.DiGraph(self.adjacency_matrix_T)
-
-#         start_point = 0
-# #         for i in range(len(self.adjacency_matrix_T)):
-# #             if sum(self.adjacency_matrix_T[i]) == 0:
-# #                 start_point = i
-#         topological_order = list(nx.topological_sort(self.G))
-
-#         self.drawOffsprings(topological_order[0], title="Whole Graph Forward", figsize=figsize)
-#         self.drawOrigins(topological_order[-1], title="Whole Graph Backward", figsize=figsize)
 
     def coupleProcesses(self, proc1, proc2):
         edges = self.adjacency_matrix_to_edge_list(self.adjacency_matrix)
@@ -425,7 +406,16 @@ class DataJourneyDAG:
                     colpos[(last_pos-i)] += 1
                     if largest_j < j:
                         largest_j = j
-                        
+
+        dicPos = {i: 0 for i in range(len(colpos))}
+        for i in range(len(res_vector)):
+            colpos[i] = 0
+        for k, v in position.items():
+            colpos[v[0]] += 1
+        for k, v in position.items():
+            position[k] = (v[0], dicPos[v[0]])
+            dicPos[v[0]] += 1
+        
         maxheight = max([v for k, v in colpos.items() if v != 0])
         newpos = {}
         for k, v in position.items():
@@ -520,7 +510,16 @@ class DataJourneyDAG:
                     colpos[i] += 1
                     if largest_j < j:
                         largest_j = j
-
+        
+        dicPos = {i: 0 for i in range(len(colpos))}
+        for i in range(len(res_vector)):
+            colpos[i] = 0
+        for k, v in position.items():
+            colpos[v[0]] += 1
+        for k, v in position.items():
+            position[k] = (v[0], dicPos[v[0]])
+            dicPos[v[0]] += 1
+           
 #         re-align the vertical position
         maxheight = max([v for k, v in colpos.items() if v != 0])
         newpos = {}
