@@ -1,4 +1,4 @@
-# Version: 1.0.18
+# Version: 1.0.19
 # Last Update: 2023/12/22
 # Author: Tomio Kobayashi
 
@@ -77,12 +77,13 @@ class DataJourneyDAG:
         topological_order = list(nx.topological_sort(subgraph1))
         # Print the topological order
         print("TOPOLOGICAL ORDER:")
-        print(" > ".join([self.dic_vertex_names[t] for t in topological_order]))
+        has_proc = (self.dic_vertex_names[topological_order[0]][0:5] == "proc_" or self.dic_vertex_names[topological_order[1]][0:5] == "proc_")
+        print(" > ".join([self.dic_vertex_names[t] for t in topological_order if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
         
         print("")
         longest_path = nx.dag_longest_path(subgraph1)  # Use NetworkX's built-in function
         print("LONGEST PATH:")
-        print(" > ".join([self.dic_vertex_names[t] for t in longest_path]))
+        print(" > ".join([self.dic_vertex_names[t] for t in longest_path if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
         print("")
     
     def edge_list_to_adjacency_matrix(self, edges):
@@ -559,7 +560,6 @@ class DataJourneyDAG:
         sinks = [node for node in self.G.nodes() if len(list(self.G.successors(node))) == 0]
 
         print("Sink Nodes:", [self.dic_vertex_names[s] for s in sinks])
-
 
 
 mydag = DataJourneyDAG()
