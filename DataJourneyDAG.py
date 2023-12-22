@@ -1,4 +1,4 @@
-# Version: 1.0.20
+# Version: 1.0.21
 # Last Update: 2023/12/22
 # Author: Tomio Kobayashi
 
@@ -25,6 +25,7 @@ class DataJourneyDAG:
         
         self.dic_vertex_names = {}
         self.dic_vertex_id = {}
+        self.has_proc = False
         
         G = 0
         G_T = 0
@@ -76,14 +77,16 @@ class DataJourneyDAG:
         # Find the topological order
         topological_order = list(nx.topological_sort(subgraph1))
         # Print the topological order
+#         print("topological_order", topological_order)
         print("TOPOLOGICAL ORDER:")
-        has_proc = (self.dic_vertex_names[len(topological_order) > 0 and topological_order[0]][0:5] == "proc_" or len(topological_order) > 1 and self.dic_vertex_names[topological_order[1]][0:5] == "proc_")
-        print(" > ".join([self.dic_vertex_names[t] for t in topological_order if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
+#         has_proc = ((self.dic_vertex_names[len(topological_order) > 0 and topological_order[0]][0:5] == "proc_") or (len(topological_order) > 1 and self.dic_vertex_names[topological_order[1]][0:5] == "proc_"))
+#         print("has_proc", has_proc)
+        print(" > ".join([self.dic_vertex_names[t] for t in topological_order if (self.has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not self.has_proc]))
         
         print("")
         longest_path = nx.dag_longest_path(subgraph1)  # Use NetworkX's built-in function
         print("LONGEST PATH:")
-        print(" > ".join([self.dic_vertex_names[t] for t in longest_path if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
+        print(" > ".join([self.dic_vertex_names[t] for t in longest_path if (self.has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not self.has_proc]))
         print("")
     
     def edge_list_to_adjacency_matrix(self, edges):
@@ -219,7 +222,9 @@ class DataJourneyDAG:
 
         self.G = nx.DiGraph(self.adjacency_matrix)
         self.G_T = nx.DiGraph(self.adjacency_matrix_T)
-
+        
+        self.has_proc = True
+        
     def coupleProcesses(self, proc1, proc2):
         edges = self.adjacency_matrix_to_edge_list(self.adjacency_matrix)
         if proc1[0:5] != "proc_" or proc2[0:5] != "proc_":
@@ -365,9 +370,10 @@ class DataJourneyDAG:
             if sum(res_vector[i]) == 0:
                 break
             for j in range(len(res_vector[i])):
-                if j == 0:
-                    continue
-                if res_vector[i][j] != 0 and j != 0: 
+#                 if j == 0:
+#                     continue
+#                 if res_vector[i][j] != 0 and j != 0: 
+                if res_vector[i][j] != 0: 
                     if self.dic_vertex_names[j][0:5] == "proc_":
                         selected_vertices2.add(j)
                         selected_vertices1.add(j)
@@ -560,6 +566,9 @@ class DataJourneyDAG:
         sinks = [node for node in self.G.nodes() if len(list(self.G.successors(node))) == 0]
 
         print("Sink Nodes:", [self.dic_vertex_names[s] for s in sinks])
+
+
+
 
 mydag = DataJourneyDAG()
 # mydag.data_import('/kaggle/input/matrix2/adjacency_matrix2.txt')
