@@ -1,4 +1,5 @@
-# Version: 1.0.23
+
+# Version: 1.0.24
 # Last Update: 2023/12/22
 # Author: Tomio Kobayashi
 
@@ -14,6 +15,8 @@ import matplotlib.pyplot as plt
 import copy
 import random
 from datetime import date
+
+# from networkx.algorithms import bipartite
 
 class DataJourneyDAG:
 
@@ -73,7 +76,13 @@ class DataJourneyDAG:
 
         plt.title(title)
         plt.show()
-        
+            
+        # Show stats of procs
+        if self.has_proc:
+            self.showBipartiteStats(subgraph1)
+        else:
+            self.showStats(subgraph1)
+            
         # Find the topological order
         topological_order = list(nx.topological_sort(subgraph1))
         # Print the topological order
@@ -88,7 +97,8 @@ class DataJourneyDAG:
         print("LONGEST PATH:")
         print(" > ".join([self.dic_vertex_names[t] for t in longest_path if (self.has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not self.has_proc]))
         print("")
-    
+
+        
     def edge_list_to_adjacency_matrix(self, edges):
         """
         Converts an edge list to an adjacency matrix.
@@ -128,7 +138,7 @@ class DataJourneyDAG:
         if self.has_cycle(self.adjacency_matrix):
             print("The result graph is not a DAG")
             return
-            
+
         self.adjacency_matrix_T = self.adjacency_matrix.T
 
         # Matrix of row=FROM, col=TO
@@ -141,6 +151,26 @@ class DataJourneyDAG:
             self.dic_vertex_names[i] = self.vertex_names[i]
             self.dic_vertex_id[self.vertex_names[i]] = i
 
+        # Find the largest connected component
+        connected_components = list(nx.weakly_connected_components(self.G))
+
+        largest_connected_component = None
+        print("Sizes of Connected Graphs")
+        print("---")
+        sorted_graphs = sorted([[len(c), c] for c in connected_components], reverse=True)
+        for i in range(len(sorted_graphs)):
+            print(sorted_graphs[i][0])
+            if i == 0:
+                largest_connected_component = sorted_graphs[i][1]
+            
+        largest_G = self.G.subgraph(largest_connected_component)
+        
+        print("")
+        # Show stats of procs
+        print("Centrality Stats of the Largest Connected Component")
+        print("---")
+        self.showStats(largest_G)
+            
     def write_edge_list_to_file(self, filename):
         """
         Writes an edge list to a text file.
@@ -224,6 +254,25 @@ class DataJourneyDAG:
         self.G_T = nx.DiGraph(self.adjacency_matrix_T)
         
         self.has_proc = True
+     
+        # Show stats of procs
+                
+        print("")
+
+        # Find the largest connected component
+        connected_components = list(nx.weakly_connected_components(self.G))
+        largest_connected_component = None
+        sorted_graphs = sorted([[len(c), c] for c in connected_components], reverse=True)
+        for i in range(len(sorted_graphs)):
+            if i == 0:
+                largest_connected_component = sorted_graphs[i][1]
+        largest_G = self.G.subgraph(largest_connected_component)
+        
+        print("")
+        # Show stats of procs
+        print("Centrality Stats of the Largest Connected Component")
+        print("---")
+        self.showBipartiteStats(largest_G)
         
     def coupleProcesses(self, proc1, proc2):
         edges = self.adjacency_matrix_to_edge_list(self.adjacency_matrix)
@@ -613,7 +662,6 @@ class DataJourneyDAG:
         self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize)
 
         
-        
     def showSourceNodes(self):
         sources = [node for node in self.G.nodes() if len(list(self.G.predecessors(node))) == 0]
 
@@ -624,6 +672,100 @@ class DataJourneyDAG:
         sinks = [node for node in self.G.nodes() if len(list(self.G.successors(node))) == 0]
 
         print("Sink Nodes:", [self.dic_vertex_names[s] for s in sinks])
+        
+    def showStats(self, g):
+        
+        in_degree_centrality = nx.in_degree_centrality(g)
+        out_degree_centrality = nx.out_degree_centrality(g)
+        closeness_centrality = nx.closeness_centrality(g)
+        betweenness_centrality = nx.betweenness_centrality(g)
+        
+        cnt_max = 5
+        print("In Degree Centrality:")
+        cnt = 0
+        for z in sorted([(v, k) for k, v in in_degree_centrality.items()], reverse=True):
+            if cnt == cnt_max:
+                break
+            print(self.dic_vertex_names[z[1]], round(z[0], 4))
+            cnt += 1
+        print("")
+        
+        print("Out Degree Centrality:")
+        cnt = 0
+        for z in sorted([(v, k) for k, v in out_degree_centrality.items()], reverse=True):
+            if cnt == cnt_max:
+                break
+            print(self.dic_vertex_names[z[1]], round(z[0], 4))
+            cnt += 1
+        print("")
+        
+        print("Closeness Centrality:")
+        cnt = 0
+        for z in sorted([(v, k) for k, v in closeness_centrality.items()], reverse=True):
+            if cnt == cnt_max:
+                break
+            print(self.dic_vertex_names[z[1]], round(z[0], 4))
+            cnt += 1
+        print("")
+        print("Betweenness Centrality:")
+        cnt = 0
+        for z in sorted([(v, k) for k, v in betweenness_centrality.items()], reverse=True):
+            if cnt == cnt_max:
+                break
+            print(self.dic_vertex_names[z[1]], round(z[0], 4))
+            cnt += 1
+        print("")
+        
+    def showBipartiteStats(self, g):
+#         print("self.G", self.G.nodes)
+        is_bipartite, node_sets = nx.bipartite.sets(g)
+#         print("is_bipartite",is_bipartite)
+        projection = nx.bipartite.projected_graph(g, node_sets)
+        degree_centrality = nx.degree_centrality(projection)
+        closeness_centrality = nx.closeness_centrality(projection)
+        betweenness_centrality = nx.betweenness_centrality(projection)
+        print("Degree Centrality:")
+        cnt_max = 5
+        cnt = 0
+        for z in sorted([(v, k) for k, v in degree_centrality.items()], reverse=True):
+            if cnt == cnt_max:
+                break
+            print(self.dic_vertex_names[z[1]], round(z[0], 4))
+            cnt += 1
+        print("")
+        print("Closeness Centrality:")
+        cnt = 0
+        for z in sorted([(v, k) for k, v in closeness_centrality.items()], reverse=True):
+            if cnt == cnt_max:
+                break
+            print(self.dic_vertex_names[z[1]], round(z[0], 4))
+            cnt += 1
+        print("")
+        print("Betweenness Centrality:")
+        cnt = 0
+        for z in sorted([(v, k) for k, v in betweenness_centrality.items()], reverse=True):
+            if cnt == cnt_max:
+                break
+            print(self.dic_vertex_names[z[1]], round(z[0], 4))
+            cnt += 1
+        print("")
+        
+    def drawFromLargestComponent(self, figsize=(30, 30)):
+        
+        connected_components = list(nx.weakly_connected_components(self.G))
+        largest_connected_component = None
+        sorted_graphs = sorted([[len(c), c] for c in connected_components], reverse=True)
+        for i in range(len(sorted_graphs)):
+            if i == 0:
+                largest_connected_component = sorted_graphs[i][1]
+        largest_G = self.G.subgraph(largest_connected_component)
+        
+        # Find the topological order
+        topological_order = list(nx.topological_sort(largest_G))
+        self.drawOffsprings(topological_order[0], figsize=figsize)
+        self.drawOrigins(topological_order[-1], figsize=figsize)
+        
+
 
 
 
