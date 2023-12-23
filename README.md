@@ -11,7 +11,7 @@ After processes are created between data fields by genProcesses() command, the g
 
 # Data Process Jouney Chart
 
-# If here is no universally accepted name for this chart, so I would call it Data Processing Journey Chart.  It has the following properties.
+# If there is no universally accepted name for this chart, so I would call it Data Processing Journey Chart.  It has the following properties.
 - The underlying graph data is a DAG
 - The underlying graph data is a bipartite graph.
 - The chart starts and ends with a data eleent.  They data element and the process should show side by side and each column should only show either of them.
