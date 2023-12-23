@@ -9,7 +9,7 @@ After processes are created between data fields by genProcesses() command, the g
 
 ![aa15](https://github.com/tomkob9999/data_journey_dag/assets/96751911/e1d609b4-3bf4-4dc1-83c3-eea387a051d2)
 
-## Data Process Jouney Chart
+# Data Process Jouney Chart
 
 # There is no standard name for this chart, so I would call it Data Processing Journey Chart.  It has the following properties.
 - The underlying graph data is a DAG
