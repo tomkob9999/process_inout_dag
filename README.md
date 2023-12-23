@@ -23,7 +23,7 @@ And furthermore, a Data Process Jouney Chart is said to be the Ideal Form, which
 - Minimum inter-process dependencies
 - The number of stages is minimal.
 
-  The data element inter-dependencies are business invariants, and cannot be altered while the resources and the process arrangements and efficiency themselves can be varied.  The DAG represents the ideal state of process arrangements that bears the least stages, the maximum parallelism and the least dependencies.  In reality, the resource allocation and the process arrangements/efficiency are constraints, and the actual implementation of process always elude away from the ideal state, so the generated graph can be utilized compare between the reality and the ideal.
+  The data element inter-dependencies are business invariants, and cannot be altered while the resources and the process arrangements and efficiency themselves can be varied.  The DAG represents the ideal state of process arrangements that bears the least stages, the maximum parallelism and the least dependencies.  In reality, the resource allocation and the process arrangements/efficiency are constraints, and the actual implementations of process always deviate from the ideal state, so the generated graph can be utilized compare between the reality and the ideal.
   
 Hilights:
 
