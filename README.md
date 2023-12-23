@@ -9,14 +9,14 @@ After processes are created between data fields by genProcesses() command, the g
 
 ![aa15](https://github.com/tomkob9999/data_journey_dag/assets/96751911/e1d609b4-3bf4-4dc1-83c3-eea387a051d2)
 
-# Data Process Jouney Chart
+Data Process Jouney Chart
 
-# If there is no universally accepted name for this chart, so I would call it Data Processing Journey Chart.  It has the following properties.
+If there is no universally accepted name for this chart, so I would call it Data Processing Journey Chart.  It has the following properties.
 - The underlying graph data is a DAG
 - The underlying graph data is a bipartite graph.
 - The chart starts and ends with a data eleent.  They data element and the process should show side by side and each column should only show either of them.
 
-## And furthermore, a Data Process Jouney Chart is said to be the Ideal Form, which guarantees maximum parallelism and minimum inter-process dependencies, has the following properties.
+And furthermore, a Data Process Jouney Chart is said to be the Ideal Form, which guarantees maximum parallelism and minimum inter-process dependencies, has the following properties.
 - Each data element can have only one incoiming process
 - All the incoming data element will go to the same process if they share the same output data field.
 - Maximum parallelism
