@@ -1,4 +1,4 @@
-# Version: 1.0.21
+# Version: 1.0.23
 # Last Update: 2023/12/22
 # Author: Tomio Kobayashi
 
@@ -431,7 +431,37 @@ class DataJourneyDAG:
             newheight = (gap/2) + v[1]*gap
             
             newpos[k] = (v[0], newheight)
-            
+
+#         change orders to minimize line crossings
+        for posx in sorted(list(set([v[0] for k, v in newpos.items()]))):
+#             for iii in range(colpos[posx]):
+#             for iii in range(int(colpos[posx]/2+1)):
+            for iii in range(1):
+                for node in [k for k, v in newpos.items() if v[0] == posx]:
+                    incoming_edges = self.G.in_edges(node)
+                    predecessors = [edge[0] for edge in incoming_edges]
+                    pred_in_pos = list(set([p for p in predecessors if p in newpos]))
+                    if len(pred_in_pos) > 0:
+                        pred_heights = [newpos[p][1] for p in pred_in_pos]
+                        avg_pred_heights = average = sum(pred_heights) / len(pred_heights)
+                        closest_node = 0
+                        closest_height = 9999
+                        closest_dist = 9999
+                        [my_pos, my_height] = newpos[node]
+                        my_dist = np.abs(my_height - avg_pred_heights)
+                        for k, v in newpos.items():
+                            if k == node:
+                                continue
+                            if v[0] == my_pos:
+                                dist = np.abs(v[1] - avg_pred_heights)
+                                if dist < closest_dist:
+                                    closest_node = k
+                                    closest_dist = dist
+                                    closest_height = v[1]
+                        if closest_dist < my_dist:
+                            newpos[closest_node] = (my_pos, my_height)
+                            newpos[node] = (my_pos, closest_height)
+
         position = newpos
 
         node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
@@ -505,7 +535,6 @@ class DataJourneyDAG:
 #                 comment out to prevent back directing
 #                 if j in posfill:
 #                     continue
-
 #                 if j == 0 or j == self.size_matrix:
 #                 if j == self.size_matrix:
 #                     continue
@@ -534,10 +563,39 @@ class DataJourneyDAG:
             gap = (maxheight) / colpos[v[0]]
             newheight = (gap/2) + v[1]*gap
             newpos[k] = (v[0], newheight)
-            
+
+#         change orders to minimize line crossings
+        for posx in sorted(list(set([v[0] for k, v in newpos.items()]))):
+#             for iii in range(colpos[posx]):
+#             for iii in range(int(colpos[posx]/2+1)):
+            for iii in range(1):
+                for node in [k for k, v in newpos.items() if v[0] == posx]:
+                    incoming_edges = self.G.in_edges(node)
+                    predecessors = [edge[0] for edge in incoming_edges]
+                    pred_in_pos = list(set([p for p in predecessors if p in newpos]))
+                    if len(pred_in_pos) > 0:
+                        pred_heights = [newpos[p][1] for p in pred_in_pos]
+                        avg_pred_heights = average = sum(pred_heights) / len(pred_heights)
+                        closest_node = 0
+                        closest_height = 9999
+                        closest_dist = 9999
+                        [my_pos, my_height] = newpos[node]
+                        my_dist = np.abs(my_height - avg_pred_heights)
+                        for k, v in newpos.items():
+                            if k == node:
+                                continue
+                            if v[0] == my_pos:
+                                dist = np.abs(v[1] - avg_pred_heights)
+                                if dist < closest_dist:
+                                    closest_node = k
+                                    closest_dist = dist
+                                    closest_height = v[1]
+                        if closest_dist < my_dist:
+                            newpos[closest_node] = (my_pos, my_height)
+                            newpos[node] = (my_pos, closest_height)
+
         position = newpos
-#         print("selected_vertices1", selected_vertices1)
-#         print("position", position)
+        
         node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
         
         print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
@@ -566,7 +624,6 @@ class DataJourneyDAG:
         sinks = [node for node in self.G.nodes() if len(list(self.G.successors(node))) == 0]
 
         print("Sink Nodes:", [self.dic_vertex_names[s] for s in sinks])
-
 
 
 
