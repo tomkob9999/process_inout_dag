@@ -1,5 +1,5 @@
-# Version: 1.1.0
-# Last Update: 2023/12/24
+# Version: 1.1.1
+# Last Update: 2023/12/25
 # Author: Tomio Kobayashi
 
 # - generateProcesses  genProcesses() DONE
@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import copy
 import random
 from datetime import date
+import textwrap
 
 # from networkx.algorithms import bipartite
 
@@ -60,7 +61,9 @@ class DataJourneyDAG:
         # Set figure size to be larger
         plt.figure(figsize=figsize)
 
-
+        # Set figure size to be larger
+        node_labels = {node: '\n'.join(textwrap.wrap(label, width=8)) for node, label in node_labels.items()}
+        
         # Draw the graph
         nx.draw(subgraph1, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='skyblue', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
         nx.draw(subgraph2, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='orange', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
@@ -72,7 +75,7 @@ class DataJourneyDAG:
         
         plt.title(title)
         plt.show()
-            
+
         # Show stats of procs
         has_proc = len([k for k in self.dic_vertex_id if k  == "proc_"]) > 0
         if has_proc:
@@ -97,15 +100,6 @@ class DataJourneyDAG:
 
         
     def edge_list_to_adjacency_matrix(self, edges):
-        """
-        Converts an edge list to an adjacency matrix.
-
-        Args:
-            edges: A list of tuples, where each tuple represents an edge (source node, target node).
-
-        Returns:
-            A 2D list representing the adjacency matrix.
-        """
 
         num_nodes = max(max(edge) for edge in edges) + 1  # Determine the number of nodes
         adjacency_matrix = np.array([np.array([0] * num_nodes) for _ in range(num_nodes)])
@@ -254,7 +248,7 @@ class DataJourneyDAG:
             else:
                 new_id = dicNewID[edges[i][1]]
             new_edges.append((edges[i][0], new_id, 1))
-            new_edges.append((new_id, edges[i][1], edges[i][2]))
+            new_edges.append((new_id, edges[i][1], edges[i][2] * 2 - 1))
     
         self.adjacency_matrix = self.edge_list_to_adjacency_matrix(new_edges)
         self.adjacency_matrix_T = self.adjacency_matrix.T
@@ -677,7 +671,7 @@ class DataJourneyDAG:
         for z in sorted([(v, k) for k, v in in_degree_centrality.items()], reverse=True):
             if cnt == cnt_max:
                 break
-            print(self.dic_vertex_names[z[1]], round(z[0], 4))
+            print(self.dic_vertex_names[z[1]], round(z[0], 3))
             cnt += 1
         print("")
         
