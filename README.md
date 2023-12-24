@@ -45,7 +45,7 @@ Planned Features
 
 With edge weights added, the usecase of this tool as the schedule planning is stronger where the inputs and outputs are specified as data elements.  The existing longest path identifies the critical path.
 
-Still, the initial and the main analysis should be done without the weights to identify the ideal flow and the stages needed assuming all the process takes the same unit length because the analysis is based on the input/output invariants.  Weights are much less reliable data and they change over time depending on the current participants, resources and the improvements that have been made and hardly ever kept up to date.
+Still, the initial and the main analysis should be done without the weights to identify the ideal flow and the stages needed assuming all the processes take the same unit duration because the analysis is purely based on the input/output invariants.  Weights are much less reliable information, and they change over time depending on the current participants, resources and the improvements that have been made and hardly ever kept up to date.
 
 ![aa19](https://github.com/tomkob9999/data_journey_dag/assets/96751911/cb424ca0-0939-429f-948a-b93d412e7a4c)
 
