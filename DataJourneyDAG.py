@@ -487,7 +487,8 @@ class DataJourneyDAG:
 
 #         change orders to minimize line crossings
         for posx in sorted(list(set([v[0] for k, v in newpos.items()]))):
-            for iii in range(1):
+#             for iii in range(1):
+            for iii in range(int(colpos[posx]/2+1)):
                 for node in [k for k, v in newpos.items() if v[0] == posx]:
                     incoming_edges = self.G.in_edges(node)
                     predecessors = [edge[0] for edge in incoming_edges]
@@ -618,7 +619,8 @@ class DataJourneyDAG:
 
 #         change orders to minimize line crossings
         for posx in sorted(list(set([v[0] for k, v in newpos.items()]))):
-            for iii in range(1):
+#             for iii in range(1):
+            for iii in range(int(colpos[posx]/2+1)):
                 for node in [k for k, v in newpos.items() if v[0] == posx]:
                     incoming_edges = self.G.in_edges(node)
                     predecessors = [edge[0] for edge in incoming_edges]
@@ -764,6 +766,7 @@ class DataJourneyDAG:
         topological_order = list(nx.topological_sort(largest_G))
         self.drawOffsprings(topological_order[0], figsize=figsize, showWeight=showWeight)
         self.drawOrigins(topological_order[-1], figsize=figsize, showWeight=showWeight)
+        
         
 
 
