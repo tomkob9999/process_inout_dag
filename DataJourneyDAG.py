@@ -1,6 +1,5 @@
-
-# Version: 1.0.24
-# Last Update: 2023/12/22
+# Version: 1.1.0
+# Last Update: 2023/12/24
 # Author: Tomio Kobayashi
 
 # - generateProcesses  genProcesses() DONE
@@ -28,33 +27,25 @@ class DataJourneyDAG:
         
         self.dic_vertex_names = {}
         self.dic_vertex_id = {}
-        self.has_proc = False
         
         G = 0
         G_T = 0
         
     def adjacency_matrix_to_edge_list(self, adc_matrix):
-        """
-        Converts an adjacency matrix to an edge list.
-
-        Args:
-            adjacency_matrix: A 2D list representing the adjacency matrix.
-
-        Returns:
-            A list of tuples, where each tuple represents an edge (source node, target node).
-        """
-
         edge_list = []
         num_nodes = len(adc_matrix)
 
         for i in range(num_nodes):
             for j in range(num_nodes):
-                if adc_matrix[i][j] == 1:
-                    edge_list.append((i, j))  # Add edges only for non-zero entries
+#                 if adc_matrix[i][j] == 1:
+#                     edge_list.append((i, j))  # Add edges only for non-zero entries
+                if adc_matrix[i][j] >= 1:
+                    edge_list.append((i, j, adc_matrix[i][j]))  # Add edges only for non-zero entries
 
         return edge_list
 
-    def draw_selected_vertices_reverse_proc(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, pos, reverse=False, figsize=(12, 8)):
+    def draw_selected_vertices_reverse_proc(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, 
+                                            pos, reverse=False, figsize=(12, 8), showWeight=False):
 
         # Create a subgraph with only the selected vertices
         subgraph1 = G.subgraph(selected_vertices1)
@@ -69,16 +60,22 @@ class DataJourneyDAG:
         # Set figure size to be larger
         plt.figure(figsize=figsize)
 
+
         # Draw the graph
         nx.draw(subgraph1, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='skyblue', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
         nx.draw(subgraph2, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='orange', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
         nx.draw(subgraph3, pos, with_labels=True, labels=node_labels, node_size=1500, node_color='pink', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
 
+        if showWeight:
+            edge_labels = {(i, j): subgraph1[i][j]['weight'] for i, j in subgraph1.edges()}
+            nx.draw_networkx_edge_labels(subgraph1, pos, edge_labels=edge_labels)
+        
         plt.title(title)
         plt.show()
             
         # Show stats of procs
-        if self.has_proc:
+        has_proc = len([k for k in self.dic_vertex_id if k  == "proc_"]) > 0
+        if has_proc:
             self.showBipartiteStats(subgraph1)
         else:
             self.showStats(subgraph1)
@@ -86,16 +83,16 @@ class DataJourneyDAG:
         # Find the topological order
         topological_order = list(nx.topological_sort(subgraph1))
         # Print the topological order
-#         print("topological_order", topological_order)
         print("TOPOLOGICAL ORDER:")
-#         has_proc = ((self.dic_vertex_names[len(topological_order) > 0 and topological_order[0]][0:5] == "proc_") or (len(topological_order) > 1 and self.dic_vertex_names[topological_order[1]][0:5] == "proc_"))
-#         print("has_proc", has_proc)
-        print(" > ".join([self.dic_vertex_names[t] for t in topological_order if (self.has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not self.has_proc]))
+        print(" > ".join([self.dic_vertex_names[t] for t in topological_order if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
         
         print("")
         longest_path = nx.dag_longest_path(subgraph1)  # Use NetworkX's built-in function
-        print("LONGEST PATH:")
-        print(" > ".join([self.dic_vertex_names[t] for t in longest_path if (self.has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not self.has_proc]))
+        longest_path_length = nx.dag_longest_path_length(subgraph1)
+
+        # Print the longest path and its length
+        print("LONGEST PATH (" + str(longest_path_length) + "):")
+        print(" > ".join([self.dic_vertex_names[t] for t in longest_path if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
         print("")
 
         
@@ -114,7 +111,10 @@ class DataJourneyDAG:
         adjacency_matrix = np.array([np.array([0] * num_nodes) for _ in range(num_nodes)])
 
         for edge in edges:
-            adjacency_matrix[edge[0]][edge[1]] = 1
+            if len(edge) >= 3:
+                adjacency_matrix[edge[0]][edge[1]] = edge[2]
+            else:
+                adjacency_matrix[edge[0]][edge[1]] = 1
 
         return adjacency_matrix
 
@@ -135,6 +135,17 @@ class DataJourneyDAG:
         # Convert the adjacency matrix to a NumPy array of integers
         self.adjacency_matrix = np.array(self.adjacency_matrix, dtype=int)
 
+#         # Generate random weights between 1 and 5 for testing
+#         for i in range(len(self.adjacency_matrix)):
+#             random_integer = random.randint(1, 5)
+#             for j in range(len(self.adjacency_matrix)):
+#                 if self.adjacency_matrix[j][i] == 1:
+#                     self.adjacency_matrix[j][i] = random_integer
+
+#         print("self.adjacency_matrix")
+#         for i in range(len(self.adjacency_matrix)):
+#             print(self.adjacency_matrix[i])
+        
         if self.has_cycle(self.adjacency_matrix):
             print("The result graph is not a DAG")
             return
@@ -211,14 +222,6 @@ class DataJourneyDAG:
         return edges
 
     def write_adjacency_matrix_to_file(self, filename):
-        """
-        Writes a matrix to a tab-delimited text file.
-
-        Args:
-            matrix: The matrix to write.
-            filename: The name of the file to write to.
-        """
-
         with open(filename, "w") as file:
             file.write("\t".join(self.vertex_names) + "\n") 
             for row in self.adjacency_matrix:
@@ -226,6 +229,13 @@ class DataJourneyDAG:
 
 
     def genProcesses(self):
+        
+        # Show stats of procs
+        has_proc = len([k for k in self.dic_vertex_id if k  == "proc_"]) > 0
+        if has_proc:
+            print("Already contains processes.")
+            return
+        
         edges = self.adjacency_matrix_to_edge_list(self.adjacency_matrix)
         new_edges = []
         dicNewID = {}
@@ -243,8 +253,8 @@ class DataJourneyDAG:
                 setVertex.add(new_vertex_name)
             else:
                 new_id = dicNewID[edges[i][1]]
-            new_edges.append((edges[i][0], new_id))
-            new_edges.append((new_id, edges[i][1]))
+            new_edges.append((edges[i][0], new_id, 1))
+            new_edges.append((new_id, edges[i][1], edges[i][2]))
     
         self.adjacency_matrix = self.edge_list_to_adjacency_matrix(new_edges)
         self.adjacency_matrix_T = self.adjacency_matrix.T
@@ -253,8 +263,6 @@ class DataJourneyDAG:
         self.G = nx.DiGraph(self.adjacency_matrix)
         self.G_T = nx.DiGraph(self.adjacency_matrix_T)
         
-        self.has_proc = True
-     
         # Show stats of procs
                 
         print("")
@@ -305,12 +313,6 @@ class DataJourneyDAG:
             self.G_T = nx.DiGraph(self.adjacency_matrix_T)
 
     def create_random_string_from_date(self):
-        """
-        Creates a random short string from the current date.
-
-        Returns:
-            A string containing a random combination of digits from the year, month, and day.
-        """
 
         today = date.today()
         year_str = str(today.year)
@@ -360,15 +362,6 @@ class DataJourneyDAG:
             self.G_T = nx.DiGraph(self.adjacency_matrix_T)
             
     def has_cycle(self, adjacency_matrix):
-#        """
-#        Checks if the given adjacency matrix represents a DAG.
-
-#        Args:
-#            adjacency_matrix: The adjacency matrix to check.
-
-#        Returns:
-#            True if the matrix contains a cycle, False otherwise.
-#        """
         visited = [False] * len(adjacency_matrix)
         recursively_visited = [False] * len(adjacency_matrix)
 
@@ -395,7 +388,7 @@ class DataJourneyDAG:
         return False
 
 
-    def drawOrigins(self, target_vertex, title="", figsize=None):
+    def drawOrigins(self, target_vertex, title="", figsize=None, showWeight=False):
 
         if isinstance(target_vertex, str):
             if target_vertex not in self.dic_vertex_id:
@@ -483,8 +476,6 @@ class DataJourneyDAG:
 
 #         change orders to minimize line crossings
         for posx in sorted(list(set([v[0] for k, v in newpos.items()]))):
-#             for iii in range(colpos[posx]):
-#             for iii in range(int(colpos[posx]/2+1)):
             for iii in range(1):
                 for node in [k for k, v in newpos.items() if v[0] == posx]:
                     incoming_edges = self.G.in_edges(node)
@@ -526,10 +517,11 @@ class DataJourneyDAG:
         
         if figsize is None:
             figsize = (12, 8)
-        self.draw_selected_vertices_reverse_proc(self.G, selected_vertices1,selected_vertices2, selected_vertices3, title=title, node_labels=node_labels, pos=position, figsize=figsize)
+        self.draw_selected_vertices_reverse_proc(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
+                                title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight)
 
         
-    def drawOffsprings(self, target_vertex, title="", figsize=None):
+    def drawOffsprings(self, target_vertex, title="", figsize=None, showWeight=False):
         
         if isinstance(target_vertex, str):
             if target_vertex not in self.dic_vertex_id:
@@ -615,8 +607,6 @@ class DataJourneyDAG:
 
 #         change orders to minimize line crossings
         for posx in sorted(list(set([v[0] for k, v in newpos.items()]))):
-#             for iii in range(colpos[posx]):
-#             for iii in range(int(colpos[posx]/2+1)):
             for iii in range(1):
                 for node in [k for k, v in newpos.items() if v[0] == posx]:
                     incoming_edges = self.G.in_edges(node)
@@ -659,7 +649,8 @@ class DataJourneyDAG:
         selected_vertices2 = list(selected_vertices2)
         selected_vertices3 = [target_vertex]
 
-        self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize)
+        self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
+                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight)
 
         
     def showSourceNodes(self):
@@ -695,7 +686,7 @@ class DataJourneyDAG:
         for z in sorted([(v, k) for k, v in out_degree_centrality.items()], reverse=True):
             if cnt == cnt_max:
                 break
-            print(self.dic_vertex_names[z[1]], round(z[0], 4))
+            print(self.dic_vertex_names[z[1]], round(z[0], 3))
             cnt += 1
         print("")
         
@@ -704,7 +695,7 @@ class DataJourneyDAG:
         for z in sorted([(v, k) for k, v in closeness_centrality.items()], reverse=True):
             if cnt == cnt_max:
                 break
-            print(self.dic_vertex_names[z[1]], round(z[0], 4))
+            print(self.dic_vertex_names[z[1]], round(z[0], 3))
             cnt += 1
         print("")
         print("Betweenness Centrality:")
@@ -712,14 +703,12 @@ class DataJourneyDAG:
         for z in sorted([(v, k) for k, v in betweenness_centrality.items()], reverse=True):
             if cnt == cnt_max:
                 break
-            print(self.dic_vertex_names[z[1]], round(z[0], 4))
+            print(self.dic_vertex_names[z[1]], round(z[0], 3))
             cnt += 1
         print("")
         
     def showBipartiteStats(self, g):
-#         print("self.G", self.G.nodes)
         is_bipartite, node_sets = nx.bipartite.sets(g)
-#         print("is_bipartite",is_bipartite)
         projection = nx.bipartite.projected_graph(g, node_sets)
         degree_centrality = nx.degree_centrality(projection)
         closeness_centrality = nx.closeness_centrality(projection)
@@ -730,7 +719,7 @@ class DataJourneyDAG:
         for z in sorted([(v, k) for k, v in degree_centrality.items()], reverse=True):
             if cnt == cnt_max:
                 break
-            print(self.dic_vertex_names[z[1]], round(z[0], 4))
+            print(self.dic_vertex_names[z[1]], round(z[0], 3))
             cnt += 1
         print("")
         print("Closeness Centrality:")
@@ -738,7 +727,7 @@ class DataJourneyDAG:
         for z in sorted([(v, k) for k, v in closeness_centrality.items()], reverse=True):
             if cnt == cnt_max:
                 break
-            print(self.dic_vertex_names[z[1]], round(z[0], 4))
+            print(self.dic_vertex_names[z[1]], round(z[0], 3))
             cnt += 1
         print("")
         print("Betweenness Centrality:")
@@ -746,11 +735,11 @@ class DataJourneyDAG:
         for z in sorted([(v, k) for k, v in betweenness_centrality.items()], reverse=True):
             if cnt == cnt_max:
                 break
-            print(self.dic_vertex_names[z[1]], round(z[0], 4))
+            print(self.dic_vertex_names[z[1]], round(z[0], 3))
             cnt += 1
         print("")
         
-    def drawFromLargestComponent(self, figsize=(30, 30)):
+    def drawFromLargestComponent(self, figsize=(30, 30), showWeight=False):
         
         connected_components = list(nx.weakly_connected_components(self.G))
         largest_connected_component = None
@@ -762,10 +751,9 @@ class DataJourneyDAG:
         
         # Find the topological order
         topological_order = list(nx.topological_sort(largest_G))
-        self.drawOffsprings(topological_order[0], figsize=figsize)
-        self.drawOrigins(topological_order[-1], figsize=figsize)
+        self.drawOffsprings(topological_order[0], figsize=figsize, showWeight=showWeight)
+        self.drawOrigins(topological_order[-1], figsize=figsize, showWeight=showWeight)
         
-
 
 
 
