@@ -62,7 +62,8 @@ class DataJourneyDAG:
         plt.figure(figsize=figsize)
 
         # Set figure size to be larger
-        node_labels = {node: '\n'.join(textwrap.wrap(label, width=8)) for node, label in node_labels.items()}
+#         node_labels = {node: '\n'.join(textwrap.wrap(label, width=8)) for node, label in node_labels.items()}
+        node_labels = {node: label.replace("_", "_\n").replace(" ", "\n") for node, label in node_labels.items()}
         
         # Draw the graph
         nx.draw(subgraph1, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='skyblue', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
