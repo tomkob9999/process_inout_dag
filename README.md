@@ -43,9 +43,11 @@ Implemented Features
 Planned Features
 - Add Node  addField(name) NOT YET
 
-# With edge weights added, the usecase of this tool as the schedule planning is stronger where the inputs and outputs are specified as data elements.  The existing longest path identifies the critical path.
+With edge weights added, the usecase of this tool as the schedule planning is stronger where the inputs and outputs are specified as data elements.  The existing longest path identifies the critical path.
 
-![aa16](https://github.com/tomkob9999/data_journey_dag/assets/96751911/6db0b559-5f20-4b08-a68f-3a0af04e08a8)
+![aa19](https://github.com/tomkob9999/data_journey_dag/assets/96751911/cb424ca0-0939-429f-948a-b93d412e7a4c)
+
+![aa20](https://github.com/tomkob9999/data_journey_dag/assets/96751911/a46127dc-37da-457d-828a-49179e0cb4c6)
 
 
 
