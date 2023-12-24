@@ -42,4 +42,10 @@ Implemented Features
 
 Planned Features
 - Add Node  addField(name) NOT YET
-  
+
+# Edge weights have been added, and this tool is more useful for more project management types of tasks where the inputs and outputs are specified as data elements.  The existing longest path identifies the critical path.
+
+![aa16](https://github.com/tomkob9999/data_journey_dag/assets/96751911/6db0b559-5f20-4b08-a68f-3a0af04e08a8)
+
+
+
