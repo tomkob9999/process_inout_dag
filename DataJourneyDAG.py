@@ -1,4 +1,4 @@
-# Version: 1.1.1
+# Version: 1.1.3
 # Last Update: 2023/12/25
 # Author: Tomio Kobayashi
 
@@ -38,8 +38,6 @@ class DataJourneyDAG:
 
         for i in range(num_nodes):
             for j in range(num_nodes):
-#                 if adc_matrix[i][j] == 1:
-#                     edge_list.append((i, j))  # Add edges only for non-zero entries
                 if adc_matrix[i][j] >= 1:
                     edge_list.append((i, j, adc_matrix[i][j]))  # Add edges only for non-zero entries
 
@@ -62,9 +60,9 @@ class DataJourneyDAG:
         plt.figure(figsize=figsize)
 
         # Set figure size to be larger
-#         node_labels = {node: '\n'.join(textwrap.wrap(label, width=8)) for node, label in node_labels.items()}
-        node_labels = {node: label.replace("_", "_\n").replace(" ", "\n") for node, label in node_labels.items()}
+        node_labels = {node: "\n".join(["\n".join(textwrap.wrap(s, width=5)) for s in label.replace("_", "_\n").replace(" ", "\n").split("\n")]) for node, label in node_labels.items()}
         
+                       
         # Draw the graph
         nx.draw(subgraph1, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='skyblue', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
         nx.draw(subgraph2, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='orange', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
@@ -78,7 +76,7 @@ class DataJourneyDAG:
         plt.show()
 
         # Show stats of procs
-        has_proc = len([k for k in self.dic_vertex_id if k  == "proc_"]) > 0
+        has_proc = len([k for k in self.dic_vertex_id if k[0:5]  == "proc_"]) > 0
         if has_proc:
             self.showBipartiteStats(subgraph1)
         else:
@@ -226,7 +224,7 @@ class DataJourneyDAG:
     def genProcesses(self):
         
         # Show stats of procs
-        has_proc = len([k for k in self.dic_vertex_id if k  == "proc_"]) > 0
+        has_proc = len([k for k in self.dic_vertex_id if k[0:5] == "proc_"]) > 0
         if has_proc:
             print("Already contains processes.")
             return
@@ -284,15 +282,23 @@ class DataJourneyDAG:
         new_edges = []
         old = self.dic_vertex_id[proc1]
         new = self.dic_vertex_id[proc2]
+        
+        newWeight = max(max([edges[i][2] for i in range(len(edges)) if edges[i][0] == old]), max([edges[i][2] for i in range(len(edges)) if edges[i][0] == new]))
+
         for i in range(len(edges)):
             id1 = edges[i][0]
             id2 = edges[i][1]
+            weight = edges[i][2]
             if edges[i][0] == old:
                 id1 = new
+                weight = newWeight
+            if edges[i][0] == new:
+                id1 = new
+                weight = newWeight
             if edges[i][1] == old:
                 id2 = new
             
-            new_edges.append((id1, id2))
+            new_edges.append((id1, id2, weight))
     
         tmp_matrix = self.edge_list_to_adjacency_matrix(new_edges)
         
@@ -321,7 +327,7 @@ class DataJourneyDAG:
         return random_string
 
 
-    def linkElements(self, element1, element2, procName=""):
+    def linkElements(self, element1, element2, weight, procName=""):
         edges = self.adjacency_matrix_to_edge_list(self.adjacency_matrix)
         isProcessIncluded = (self.dic_vertex_names[edges[1][0]][0:5] == "proc_" or self.dic_vertex_names[edges[1][1]][0:5] == "proc_")
         if element1[0:5] == "proc_" or element1[0:5] == "proc_":
@@ -331,17 +337,21 @@ class DataJourneyDAG:
             return
         id1 = self.dic_vertex_id[element1]
         id2 = self.dic_vertex_id[element2]
+        
+        newID = 99999
         if isProcessIncluded:
             if procName == "":
-                procName = "proc_new" + self.create_random_string_from_date()
+                procName = "proc_" + element2 + "_" + self.create_random_string_from_date()
             newID = max([max(e[0], e[1]) for e in edges]) + 1
-            new_edges.append((id1, newID))
-            new_edges.append((newID, id2))
+            new_edges.append((id1, newID, 1))
+            new_edges.append((newID, id2, weight))
+            print("new_edge", (id1, newID, 1))
+            print("new_edge", (newID, id2, weight))
             self.vertex_names.append(procName)
             self.dic_vertex_names[newID] = procName
             self.dic_vertex_id[procName] = newID
         else:
-            new_edges.append((id1, id2))
+            new_edges.append((id1, id2, weight))
     
         tmp_matrix = self.edge_list_to_adjacency_matrix(new_edges)
         
@@ -355,6 +365,12 @@ class DataJourneyDAG:
 
             self.G = nx.DiGraph(self.adjacency_matrix)
             self.G_T = nx.DiGraph(self.adjacency_matrix_T)
+            if isProcessIncluded:
+                self.vertex_names.append(procName)
+                self.dic_vertex_names[newID] = procName
+                self.dic_vertex_id[procName] = newID
+            
+            
             
     def has_cycle(self, adjacency_matrix):
         visited = [False] * len(adjacency_matrix)
