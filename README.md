@@ -43,13 +43,17 @@ Implemented Features
 Planned Features
 - Add Node  addField(name) NOT YET
 
-With edge weights added, the usecase of this tool as the schedule planning is stronger where the inputs and outputs are specified as data elements.  The existing longest path identifies the critical path.
+With edge weights added, this tool can be used as  the schedule planning tool where the inputs and outputs are specified as data elements.  The existing longest path identifies the critical path.
+
+With showWeight option on, the critical path is shown as brown line and the brightness indicates higher the criticality of the process.
+
+![aa21](https://github.com/tomkob9999/data_journey_dag/assets/96751911/f38339d6-706f-4006-94c6-0b8f657cd176)
+
+It also shows some statistics.
+
+![aa22](https://github.com/tomkob9999/data_journey_dag/assets/96751911/88eb4c51-c669-40b3-bd84-389f11e45200)
 
 Still, the initial and the main analysis should be done without the weights to identify the ideal flow and the stages needed assuming all the processes take the same unit duration because the analysis is purely based on the input/output invariants.  Weights are much less reliable information as they merely represent the current suboptimal state.
-
-![aa19](https://github.com/tomkob9999/data_journey_dag/assets/96751911/cb424ca0-0939-429f-948a-b93d412e7a4c)
-
-![aa20](https://github.com/tomkob9999/data_journey_dag/assets/96751911/a46127dc-37da-457d-828a-49179e0cb4c6)
 
 
 
