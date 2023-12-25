@@ -1,4 +1,4 @@
-# Version: 1.1.6
+# Version: 1.1.7
 # Last Update: 2023/12/25
 # Author: Tomio Kobayashi
 
@@ -53,7 +53,7 @@ class DataJourneyDAG:
         return brightness
 
     def draw_selected_vertices_reverse_proc(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, 
-                                            pos, reverse=False, figsize=(12, 8), showWeight=False, showCriticality=False):
+                                            pos, reverse=False, figsize=(12, 8), showWeight=False):
 
         # Create a subgraph with only the selected vertices
         subgraph1 = G.subgraph(selected_vertices1)
@@ -74,9 +74,11 @@ class DataJourneyDAG:
         # Show stats of procs
         has_proc = len([k for k in self.dic_vertex_id if k[0:5]  == "proc_"]) > 0
         
-        longest_path_length = nx.dag_longest_path_length(subgraph1)
+        longest_path_length = None
         
-        if showCriticality:
+        if showWeight:
+        
+            longest_path_length = nx.dag_longest_path_length(subgraph1)
             node_criticality = None
             if has_proc:
                 node_criticality = [(((nx.dag_longest_path_length(subgraph1.edge_subgraph(list(nx.dfs_edges(subgraph1, target_node))))) + 
@@ -98,7 +100,7 @@ class DataJourneyDAG:
         
         # Draw the graph
         nx.draw(subgraph1, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='skyblue', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
-        if has_proc and showCriticality and len(node_parameter) > 0:
+        if has_proc and showWeight and len(node_parameter) > 0:
             nx.draw(subgraph2, pos, with_labels=True, labels=node_labels, node_size=1000, node_color=color_map, font_size=10, font_color='black', arrowsize=10, edgecolors='black')
         else:
             nx.draw(subgraph2, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='orange', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
@@ -108,35 +110,34 @@ class DataJourneyDAG:
             edge_labels = {(i, j): subgraph1[i][j]['weight'] for i, j in subgraph1.edges()}
             nx.draw_networkx_edge_labels(subgraph1, pos, edge_labels=edge_labels)
         
-        # Draw critical path edges with a different color
-        longest_path = nx.dag_longest_path(subgraph1)  # Use NetworkX's built-in function
-        critical_edges = [(longest_path[i], longest_path[i + 1]) for i in range(len(longest_path) - 1)]
-#         nx.draw_networkx_edges(subgraph1, pos, edgelist=critical_edges, edge_color='red', width=2)
-        nx.draw_networkx_edges(subgraph1, pos, edgelist=critical_edges, edge_color='brown', width=1.1)
+            # Draw critical path edges with a different color
+            longest_path = nx.dag_longest_path(subgraph1)  # Use NetworkX's built-in function
+            critical_edges = [(longest_path[i], longest_path[i + 1]) for i in range(len(longest_path) - 1)]
+    #         nx.draw_networkx_edges(subgraph1, pos, edgelist=critical_edges, edge_color='red', width=2)
+            nx.draw_networkx_edges(subgraph1, pos, edgelist=critical_edges, edge_color='brown', width=1.1)
 
         plt.title(title)
         plt.show()
 
-        self.showStats(subgraph1)
+        if showWeight:
 
-        # Find the topological order
-        topological_order = list(nx.topological_sort(subgraph1))
-        # Print the topological order
-        print("TOPOLOGICAL ORDER:")
-        print(" > ".join([self.dic_vertex_names[t] for t in topological_order if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
-        
-        print("")
+            self.showStats(subgraph1)
+            # Find the topological order
+            topological_order = list(nx.topological_sort(subgraph1))
+            # Print the topological order
+            print("TOPOLOGICAL ORDER:")
+            print(" > ".join([self.dic_vertex_names[t] for t in topological_order if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
 
-        # Print the longest path and its length
-        print("LONGEST PATH (" + str(longest_path_length) + "):")
-        print(" > ".join([self.dic_vertex_names[t] for t in longest_path if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
-        print("")
-        
-#         if showCriticality:
-#             print("CRITICALITY:")
-#             for n in sorted(node_criticality, reverse=True):
-#                 print(self.dic_vertex_names[n[1]], round(n[0], 3))
-#             print("")
+            print("")
+
+            # Print the longest path and its length
+            print("LONGEST PATH (" + str(longest_path_length) + "):")
+            print(" > ".join([self.dic_vertex_names[t] for t in longest_path if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
+            print("")
+            print("CRITICALITY:")
+            for n in sorted(node_criticality, reverse=True):
+                print(self.dic_vertex_names[n[1]], round(n[0], 3))
+            print("")
 
     def edge_list_to_adjacency_matrix(self, edges):
 
@@ -423,7 +424,7 @@ class DataJourneyDAG:
         return False
 
 
-    def drawOrigins(self, target_vertex, title="", figsize=None, showWeight=False, showCriticality=False):
+    def drawOrigins(self, target_vertex, title="", figsize=None, showWeight=False):
 
         if isinstance(target_vertex, str):
             if target_vertex not in self.dic_vertex_id:
@@ -554,10 +555,10 @@ class DataJourneyDAG:
         if figsize is None:
             figsize = (12, 8)
         self.draw_selected_vertices_reverse_proc(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
-                                title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, showCriticality=showCriticality)
+                                title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight)
 
         
-    def drawOffsprings(self, target_vertex, title="", figsize=None, showWeight=False, showCriticality=False):
+    def drawOffsprings(self, target_vertex, title="", figsize=None, showWeight=False):
         
         if isinstance(target_vertex, str):
             if target_vertex not in self.dic_vertex_id:
@@ -687,7 +688,7 @@ class DataJourneyDAG:
         selected_vertices3 = [target_vertex]
 
         self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
-                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, showCriticality=showCriticality)
+                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight)
 
         
     def showSourceNodes(self):
@@ -784,7 +785,7 @@ class DataJourneyDAG:
             cnt += 1
         print("")
         
-    def drawFromLargestComponent(self, figsize=(30, 30), showWeight=False, showCriticality=False):
+    def drawFromLargestComponent(self, figsize=(30, 30), showWeight=False):
         
         connected_components = list(nx.weakly_connected_components(self.G))
         largest_connected_component = None
@@ -796,9 +797,8 @@ class DataJourneyDAG:
         
         # Find the topological order
         topological_order = list(nx.topological_sort(largest_G))
-        self.drawOffsprings(topological_order[0], figsize=figsize, showWeight=showWeight, showCriticality=showCriticality)
-        self.drawOrigins(topological_order[-1], figsize=figsize, showWeight=showWeight, showCriticality=showCriticality)
-
+        self.drawOffsprings(topological_order[0], figsize=figsize, showWeight=showWeight)
+        self.drawOrigins(topological_order[-1], figsize=figsize, showWeight=showWeight)
 
 
 mydag = DataJourneyDAG()
