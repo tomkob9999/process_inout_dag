@@ -1,4 +1,4 @@
-# Version: 1.1.5
+# Version: 1.1.6
 # Last Update: 2023/12/25
 # Author: Tomio Kobayashi
 
@@ -15,6 +15,10 @@ import copy
 import random
 from datetime import date
 import textwrap
+
+
+
+# import matplotlib.cm as cm
 
 # from networkx.algorithms import bipartite
 
@@ -42,9 +46,14 @@ class DataJourneyDAG:
                     edge_list.append((i, j, adc_matrix[i][j]))  # Add edges only for non-zero entries
 
         return edge_list
+    
+    def parameter_to_brightness(self, parameter_value):
+        cmap = plt.cm.get_cmap('viridis')  # Choose a colormap
+        brightness = cmap(parameter_value)[0]  # Extract first value (red channel)
+        return brightness
 
     def draw_selected_vertices_reverse_proc(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, 
-                                            pos, reverse=False, figsize=(12, 8), showWeight=False):
+                                            pos, reverse=False, figsize=(12, 8), showWeight=False, showCriticality=False):
 
         # Create a subgraph with only the selected vertices
         subgraph1 = G.subgraph(selected_vertices1)
@@ -62,9 +71,37 @@ class DataJourneyDAG:
         # Set figure size to be larger
         node_labels = {node: "\n".join(["\n".join(textwrap.wrap(s, width=5)) for s in label.replace("_", "_\n").replace(" ", "\n").split("\n")]) for node, label in node_labels.items()}
 
+        # Show stats of procs
+        has_proc = len([k for k in self.dic_vertex_id if k[0:5]  == "proc_"]) > 0
+        
+        longest_path_length = nx.dag_longest_path_length(subgraph1)
+        
+        if showCriticality:
+            node_criticality = None
+            if has_proc:
+                node_criticality = [(((nx.dag_longest_path_length(subgraph1.edge_subgraph(list(nx.dfs_edges(subgraph1, target_node))))) + 
+                                nx.dag_longest_path_length(subgraph1.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(subgraph1, target_node, orientation='reverse'))]))) / 
+                                longest_path_length, target_node) for target_node in subgraph1.nodes() if self.dic_vertex_names[target_node][0:5] == "proc_"]
+            else:
+                node_criticality = [(((nx.dag_longest_path_length(subgraph1.edge_subgraph(list(nx.dfs_edges(subgraph1, target_node))))) + 
+                                nx.dag_longest_path_length(subgraph1.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(subgraph1, target_node, orientation='reverse'))]))) / 
+                                longest_path_length, target_node) for target_node in subgraph1.nodes()]
+
+            node_parameter = {n[1]: round(n[0], 3) for n in node_criticality}
+#             print("node_parameter", node_parameter)
+            if len(node_parameter) > 0:
+                min_param = min(node_parameter.values())
+                max_param = max(node_parameter.values())
+    #             normalized_param = {node: (param - min_param) / (max_param - min_param) for node, param in node_parameter.items()}
+                color_map = [plt.cm.viridis(node_parameter[node]) for node in subgraph2]
+
+        
         # Draw the graph
         nx.draw(subgraph1, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='skyblue', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
-        nx.draw(subgraph2, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='orange', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
+        if has_proc and showCriticality and len(node_parameter) > 0:
+            nx.draw(subgraph2, pos, with_labels=True, labels=node_labels, node_size=1000, node_color=color_map, font_size=10, font_color='black', arrowsize=10, edgecolors='black')
+        else:
+            nx.draw(subgraph2, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='orange', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
         nx.draw(subgraph3, pos, with_labels=True, labels=node_labels, node_size=1500, node_color='pink', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
 
         if showWeight:
@@ -80,11 +117,6 @@ class DataJourneyDAG:
         plt.title(title)
         plt.show()
 
-        # Show stats of procs
-        has_proc = len([k for k in self.dic_vertex_id if k[0:5]  == "proc_"]) > 0
-#         if has_proc:
-#             self.showBipartiteStats(subgraph1)
-#         else:
         self.showStats(subgraph1)
 
         # Find the topological order
@@ -95,13 +127,17 @@ class DataJourneyDAG:
         
         print("")
 
-        longest_path_length = nx.dag_longest_path_length(subgraph1)
         # Print the longest path and its length
         print("LONGEST PATH (" + str(longest_path_length) + "):")
         print(" > ".join([self.dic_vertex_names[t] for t in longest_path if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
         print("")
-
         
+#         if showCriticality:
+#             print("CRITICALITY:")
+#             for n in sorted(node_criticality, reverse=True):
+#                 print(self.dic_vertex_names[n[1]], round(n[0], 3))
+#             print("")
+
     def edge_list_to_adjacency_matrix(self, edges):
 
         num_nodes = max(max(edge) for edge in edges) + 1  # Determine the number of nodes
@@ -387,7 +423,7 @@ class DataJourneyDAG:
         return False
 
 
-    def drawOrigins(self, target_vertex, title="", figsize=None, showWeight=False):
+    def drawOrigins(self, target_vertex, title="", figsize=None, showWeight=False, showCriticality=False):
 
         if isinstance(target_vertex, str):
             if target_vertex not in self.dic_vertex_id:
@@ -518,10 +554,10 @@ class DataJourneyDAG:
         if figsize is None:
             figsize = (12, 8)
         self.draw_selected_vertices_reverse_proc(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
-                                title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight)
+                                title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, showCriticality=showCriticality)
 
         
-    def drawOffsprings(self, target_vertex, title="", figsize=None, showWeight=False):
+    def drawOffsprings(self, target_vertex, title="", figsize=None, showWeight=False, showCriticality=False):
         
         if isinstance(target_vertex, str):
             if target_vertex not in self.dic_vertex_id:
@@ -651,7 +687,7 @@ class DataJourneyDAG:
         selected_vertices3 = [target_vertex]
 
         self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
-                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight)
+                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, showCriticality=showCriticality)
 
         
     def showSourceNodes(self):
@@ -681,32 +717,32 @@ class DataJourneyDAG:
         betweenness_centrality = nx.betweenness_centrality(g)
         
         cnt_max = 5
-        print("In Degree Centrality:")
-        cnt = 0
-        for z in sorted([(v, k) for k, v in in_degree_centrality.items()], reverse=True):
-            if cnt == cnt_max:
-                break
-            print(self.dic_vertex_names[z[1]], round(z[0], 3))
-            cnt += 1
-        print("")
+#         print("In Degree Centrality:")
+#         cnt = 0
+#         for z in sorted([(v, k) for k, v in in_degree_centrality.items()], reverse=True):
+#             if cnt == cnt_max:
+#                 break
+#             print(self.dic_vertex_names[z[1]], round(z[0], 3))
+#             cnt += 1
+#         print("")
         
-        print("Out Degree Centrality:")
-        cnt = 0
-        for z in sorted([(v, k) for k, v in out_degree_centrality.items()], reverse=True):
-            if cnt == cnt_max:
-                break
-            print(self.dic_vertex_names[z[1]], round(z[0], 3))
-            cnt += 1
-        print("")
+#         print("Out Degree Centrality:")
+#         cnt = 0
+#         for z in sorted([(v, k) for k, v in out_degree_centrality.items()], reverse=True):
+#             if cnt == cnt_max:
+#                 break
+#             print(self.dic_vertex_names[z[1]], round(z[0], 3))
+#             cnt += 1
+#         print("")
         
-        print("Closeness Centrality:")
-        cnt = 0
-        for z in sorted([(v, k) for k, v in closeness_centrality.items()], reverse=True):
-            if cnt == cnt_max:
-                break
-            print(self.dic_vertex_names[z[1]], round(z[0], 3))
-            cnt += 1
-        print("")
+#         print("Closeness Centrality:")
+#         cnt = 0
+#         for z in sorted([(v, k) for k, v in closeness_centrality.items()], reverse=True):
+#             if cnt == cnt_max:
+#                 break
+#             print(self.dic_vertex_names[z[1]], round(z[0], 3))
+#             cnt += 1
+#         print("")
         print("Betweenness Centrality:")
         cnt = 0
         for z in sorted([(v, k) for k, v in betweenness_centrality.items()], reverse=True):
@@ -722,23 +758,23 @@ class DataJourneyDAG:
         degree_centrality = nx.degree_centrality(projection)
         closeness_centrality = nx.closeness_centrality(projection)
         betweenness_centrality = nx.betweenness_centrality(projection)
-        print("Degree Centrality:")
         cnt_max = 5
-        cnt = 0
-        for z in sorted([(v, k) for k, v in degree_centrality.items()], reverse=True):
-            if cnt == cnt_max:
-                break
-            print(self.dic_vertex_names[z[1]], round(z[0], 3))
-            cnt += 1
-        print("")
-        print("Closeness Centrality:")
-        cnt = 0
-        for z in sorted([(v, k) for k, v in closeness_centrality.items()], reverse=True):
-            if cnt == cnt_max:
-                break
-            print(self.dic_vertex_names[z[1]], round(z[0], 3))
-            cnt += 1
-        print("")
+#         print("Degree Centrality:")
+#         cnt = 0
+#         for z in sorted([(v, k) for k, v in degree_centrality.items()], reverse=True):
+#             if cnt == cnt_max:
+#                 break
+#             print(self.dic_vertex_names[z[1]], round(z[0], 3))
+#             cnt += 1
+#         print("")
+#         print("Closeness Centrality:")
+#         cnt = 0
+#         for z in sorted([(v, k) for k, v in closeness_centrality.items()], reverse=True):
+#             if cnt == cnt_max:
+#                 break
+#             print(self.dic_vertex_names[z[1]], round(z[0], 3))
+#             cnt += 1
+#         print("")
         print("Betweenness Centrality:")
         cnt = 0
         for z in sorted([(v, k) for k, v in betweenness_centrality.items()], reverse=True):
@@ -748,7 +784,7 @@ class DataJourneyDAG:
             cnt += 1
         print("")
         
-    def drawFromLargestComponent(self, figsize=(30, 30), showWeight=False):
+    def drawFromLargestComponent(self, figsize=(30, 30), showWeight=False, showCriticality=False):
         
         connected_components = list(nx.weakly_connected_components(self.G))
         largest_connected_component = None
@@ -760,10 +796,8 @@ class DataJourneyDAG:
         
         # Find the topological order
         topological_order = list(nx.topological_sort(largest_G))
-        self.drawOffsprings(topological_order[0], figsize=figsize, showWeight=showWeight)
-        self.drawOrigins(topological_order[-1], figsize=figsize, showWeight=showWeight)
-        
-
+        self.drawOffsprings(topological_order[0], figsize=figsize, showWeight=showWeight, showCriticality=showCriticality)
+        self.drawOrigins(topological_order[-1], figsize=figsize, showWeight=showWeight, showCriticality=showCriticality)
 
 
 
