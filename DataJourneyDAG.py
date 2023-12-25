@@ -1,4 +1,4 @@
-# Version: 1.1.4
+# Version: 1.1.5
 # Last Update: 2023/12/25
 # Author: Tomio Kobayashi
 
@@ -75,17 +75,17 @@ class DataJourneyDAG:
         longest_path = nx.dag_longest_path(subgraph1)  # Use NetworkX's built-in function
         critical_edges = [(longest_path[i], longest_path[i + 1]) for i in range(len(longest_path) - 1)]
 #         nx.draw_networkx_edges(subgraph1, pos, edgelist=critical_edges, edge_color='red', width=2)
-        nx.draw_networkx_edges(subgraph1, pos, edgelist=critical_edges, edge_color='purple', width=1)
+        nx.draw_networkx_edges(subgraph1, pos, edgelist=critical_edges, edge_color='brown', width=1.1)
 
         plt.title(title)
         plt.show()
 
         # Show stats of procs
         has_proc = len([k for k in self.dic_vertex_id if k[0:5]  == "proc_"]) > 0
-        if has_proc:
-            self.showBipartiteStats(subgraph1)
-        else:
-            self.showStats(subgraph1)
+#         if has_proc:
+#             self.showBipartiteStats(subgraph1)
+#         else:
+        self.showStats(subgraph1)
 
         # Find the topological order
         topological_order = list(nx.topological_sort(subgraph1))
@@ -97,7 +97,7 @@ class DataJourneyDAG:
 
         longest_path_length = nx.dag_longest_path_length(subgraph1)
         # Print the longest path and its length
-        print("CRITICAL PATH (" + str(longest_path_length) + "):")
+        print("LONGEST PATH (" + str(longest_path_length) + "):")
         print(" > ".join([self.dic_vertex_names[t] for t in longest_path if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
         print("")
 
@@ -260,7 +260,8 @@ class DataJourneyDAG:
         # Show stats of procs
         print("Centrality Stats of the Largest Connected Component")
         print("---")
-        self.showBipartiteStats(largest_G)
+#         self.showBipartiteStats(largest_G)
+        self.showStats(largest_G)
         
     def coupleProcesses(self, proc1, proc2):
         edges = self.adjacency_matrix_to_edge_list(self.adjacency_matrix)
@@ -666,6 +667,14 @@ class DataJourneyDAG:
         
     def showStats(self, g):
         
+        # Show stats of procs
+        has_proc = len([k for k in self.dic_vertex_id if k[0:5]  == "proc_"]) > 0
+        if has_proc:
+            is_bipartite = nx.bipartite.sets(g)
+            if is_bipartite:
+                self.showBipartiteStats(g)
+                return
+            
         in_degree_centrality = nx.in_degree_centrality(g)
         out_degree_centrality = nx.out_degree_centrality(g)
         closeness_centrality = nx.closeness_centrality(g)
