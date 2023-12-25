@@ -1,4 +1,4 @@
-# Version: 1.1.3
+# Version: 1.1.4
 # Last Update: 2023/12/25
 # Author: Tomio Kobayashi
 
@@ -61,8 +61,7 @@ class DataJourneyDAG:
 
         # Set figure size to be larger
         node_labels = {node: "\n".join(["\n".join(textwrap.wrap(s, width=5)) for s in label.replace("_", "_\n").replace(" ", "\n").split("\n")]) for node, label in node_labels.items()}
-        
-                       
+
         # Draw the graph
         nx.draw(subgraph1, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='skyblue', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
         nx.draw(subgraph2, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='orange', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
@@ -72,6 +71,12 @@ class DataJourneyDAG:
             edge_labels = {(i, j): subgraph1[i][j]['weight'] for i, j in subgraph1.edges()}
             nx.draw_networkx_edge_labels(subgraph1, pos, edge_labels=edge_labels)
         
+        # Draw critical path edges with a different color
+        longest_path = nx.dag_longest_path(subgraph1)  # Use NetworkX's built-in function
+        critical_edges = [(longest_path[i], longest_path[i + 1]) for i in range(len(longest_path) - 1)]
+#         nx.draw_networkx_edges(subgraph1, pos, edgelist=critical_edges, edge_color='red', width=2)
+        nx.draw_networkx_edges(subgraph1, pos, edgelist=critical_edges, edge_color='purple', width=1)
+
         plt.title(title)
         plt.show()
 
@@ -81,7 +86,7 @@ class DataJourneyDAG:
             self.showBipartiteStats(subgraph1)
         else:
             self.showStats(subgraph1)
-            
+
         # Find the topological order
         topological_order = list(nx.topological_sort(subgraph1))
         # Print the topological order
@@ -89,11 +94,10 @@ class DataJourneyDAG:
         print(" > ".join([self.dic_vertex_names[t] for t in topological_order if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
         
         print("")
-        longest_path = nx.dag_longest_path(subgraph1)  # Use NetworkX's built-in function
-        longest_path_length = nx.dag_longest_path_length(subgraph1)
 
+        longest_path_length = nx.dag_longest_path_length(subgraph1)
         # Print the longest path and its length
-        print("LONGEST PATH (" + str(longest_path_length) + "):")
+        print("CRITICAL PATH (" + str(longest_path_length) + "):")
         print(" > ".join([self.dic_vertex_names[t] for t in longest_path if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
         print("")
 
@@ -176,13 +180,6 @@ class DataJourneyDAG:
         self.showStats(largest_G)
             
     def write_edge_list_to_file(self, filename):
-        """
-        Writes an edge list to a text file.
-
-        Args:
-            edges: A list of tuples, where each tuple represents an edge (source node, target node).
-            filename: The name of the file to write to.
-        """
         edges = self.adjacency_matrix_to_edge_list(self.adjacency_matrix)
 
         with open(filename, "w") as file:
@@ -192,16 +189,6 @@ class DataJourneyDAG:
                 file.write(f"{edge[0]}\t{edge[1]}\n")
 
     def read_edge_list_from_file(self, filename):
-        """
-        Reads an edge list from a text file.
-
-        Args:
-            filename: The name of the file to read.
-
-        Returns:
-            A list of tuples, where each tuple represents an edge (source node, target node).
-        """
-
         edges = []
         with open(filename, "r") as file:
             ini = True
@@ -767,7 +754,7 @@ class DataJourneyDAG:
         self.drawOffsprings(topological_order[0], figsize=figsize, showWeight=showWeight)
         self.drawOrigins(topological_order[-1], figsize=figsize, showWeight=showWeight)
         
-        
+
 
 
 
