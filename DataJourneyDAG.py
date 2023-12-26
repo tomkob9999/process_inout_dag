@@ -1,4 +1,4 @@
-# Version: 1.1.10
+# Version: 1.1.12
 # Last Update: 2023/12/25
 # Author: Tomio Kobayashi
 
@@ -138,6 +138,7 @@ class DataJourneyDAG:
                 print(self.dic_vertex_names[n[1]], round(n[0], 3))
             print("")
             self.suggest_coupling(subgraph1)
+            self.suggest_opportunities(subgraph1)
             
     def edge_list_to_adjacency_matrix(self, edges):
 
@@ -841,6 +842,33 @@ class DataJourneyDAG:
                     if diff_longest < 6:
                         print(self.dic_vertex_names[node_criticality[i][1]], self.dic_vertex_names[node_criticality[j][1]])
         
+        print("")
+        
+    def suggest_opportunities(self, g):
+                
+        longest_path_length = nx.dag_longest_path_length(g)
+
+        opportunity_list = []
+        for n in g.nodes():
+            if self.dic_vertex_names[n][0:5] != "proc_":
+                continue
+                
+            h = g.copy()
+            outgoing_edges = list(h.out_edges(n))
+#             print("outgoing_edges", outgoing_edges)
+            for e in outgoing_edges:
+                h[e[0]][e[1]]["weight"] = 1      
+#                 print("e", e)  
+#                 print(e["weight"], e["weight"])
+#                 break
+            improvement_without = longest_path_length - nx.dag_longest_path_length(h)
+            if improvement_without > 1:
+                opportunity_list.append((improvement_without, n))
+
+        print("SUGGESTED THROUGHPUT IMPROVEMENT OPPORTUNITIES")
+        for n in sorted(opportunity_list, reverse=True):
+            print(self.dic_vertex_names[n[1]], n[0])
+            
         print("")
 
 
