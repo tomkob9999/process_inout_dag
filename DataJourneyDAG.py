@@ -1,4 +1,4 @@
-# Version: 1.1.8
+# Version: 1.1.9
 # Last Update: 2023/12/25
 # Author: Tomio Kobayashi
 
@@ -137,7 +137,8 @@ class DataJourneyDAG:
             for n in sorted(node_criticality, reverse=True):
                 print(self.dic_vertex_names[n[1]], round(n[0], 3))
             print("")
-
+            self.suggest_coupling(subgraph1)
+            
     def edge_list_to_adjacency_matrix(self, edges):
 
         num_nodes = max(max(edge) for edge in edges) + 1  # Determine the number of nodes
@@ -799,24 +800,41 @@ class DataJourneyDAG:
         topological_order = list(nx.topological_sort(largest_G))
         self.drawOffsprings(topological_order[0], figsize=figsize, showWeight=showWeight)
         self.drawOrigins(topological_order[-1], figsize=figsize, showWeight=showWeight)
-                    print(self.dic_vertex_names[z[1]], round(z[0], 3))
-            cnt += 1
+        
+    
+    def suggest_coupling(self, g):
+                
+        longest_path_length = nx.dag_longest_path_length(g)
+        longest_path = nx.dag_longest_path(g)
+        node_criticality = None
+        node_criticality = [((nx.dag_longest_path_length(g.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(g, target_node))])) + 
+                        nx.dag_longest_path_length(g.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(g, target_node, orientation='reverse'))]))) / 
+                        longest_path_length, target_node) for target_node in g.nodes() if self.dic_vertex_names[target_node][0:5] == "proc_"]
+
+#         uncriticals = [(n[1], n[0]) for n in sorted(node_criticality, reverse=True) if n[0] < 0.51]
+#         print("uncriticals", [(self.dic_vertex_names[u[0]], u[1]) for u in uncriticals])
+        
+        print("SUGGESTED COUPLINGS")
+        for i in range(len(node_criticality)):
+            if node_criticality[i][1] in longest_path:
+                continue
+            for j in range(i+1, len(node_criticality), 1):
+                if node_criticality[j][1] in longest_path:
+                    continue
+                if node_criticality[i][0] + node_criticality[j][0] > 1.2:
+                    continue;
+                lowers = g.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(g, node_criticality[i][1]))])
+                uppers = g.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(g, node_criticality[i][1], orientation='reverse'))])
+                if node_criticality[j][1] not in lowers and node_criticality[j][1] not in uppers:
+
+                    lowers_j = g.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(g, node_criticality[j][1]))])
+                    uppers_j = g.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(g, node_criticality[j][1], orientation='reverse'))])
+                    diff_longest = min(np.abs(nx.dag_longest_path_length(lowers) - nx.dag_longest_path_length(lowers_j)), 
+                                       np.abs(nx.dag_longest_path_length(uppers) - nx.dag_longest_path_length(uppers_j)))
+                    if diff_longest < 6:
+                        print(self.dic_vertex_names[node_criticality[i][1]], self.dic_vertex_names[node_criticality[j][1]])
+        
         print("")
-        
-    def drawFromLargestComponent(self, figsize=(30, 30), showWeight=False):
-        
-        connected_components = list(nx.weakly_connected_components(self.G))
-        largest_connected_component = None
-        sorted_graphs = sorted([[len(c), c] for c in connected_components], reverse=True)
-        for i in range(len(sorted_graphs)):
-            if i == 0:
-                largest_connected_component = sorted_graphs[i][1]
-        largest_G = self.G.subgraph(largest_connected_component)
-        
-        # Find the topological order
-        topological_order = list(nx.topological_sort(largest_G))
-        self.drawOffsprings(topological_order[0], figsize=figsize, showWeight=showWeight)
-        self.drawOrigins(topological_order[-1], figsize=figsize, showWeight=showWeight)
 
 
 mydag = DataJourneyDAG()
