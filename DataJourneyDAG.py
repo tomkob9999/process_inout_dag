@@ -1,4 +1,4 @@
-# Version: 1.1.9
+# Version: 1.1.10
 # Last Update: 2023/12/25
 # Author: Tomio Kobayashi
 
@@ -307,6 +307,12 @@ class DataJourneyDAG:
         new_edges = []
         old = self.dic_vertex_id[proc1]
         new = self.dic_vertex_id[proc2]
+        
+        lowers = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, old))])
+        uppers = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, orientation='reverse'))])
+        if new in lowers and new in uppers:
+            print("Processes that lie on the same path cannot be coupled.", proc1, proc2)
+            return
         
 #         newWeight = max(max([edges[i][2] for i in range(len(edges)) if edges[i][0] == old]), max([edges[i][2] for i in range(len(edges)) if edges[i][0] == new]))
         newWeight = max([edges[i][2] for i in range(len(edges)) if edges[i][0] == old]) + max([edges[i][2] for i in range(len(edges)) if edges[i][0] == new])
@@ -836,6 +842,7 @@ class DataJourneyDAG:
                         print(self.dic_vertex_names[node_criticality[i][1]], self.dic_vertex_names[node_criticality[j][1]])
         
         print("")
+
 
 
 
