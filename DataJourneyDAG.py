@@ -719,23 +719,23 @@ class DataJourneyDAG:
         betweenness_centrality = nx.betweenness_centrality(g)
         
         cnt_max = 5
-#         print("In Degree Centrality:")
-#         cnt = 0
-#         for z in sorted([(v, k) for k, v in in_degree_centrality.items()], reverse=True):
-#             if cnt == cnt_max:
-#                 break
-#             print(self.dic_vertex_names[z[1]], round(z[0], 3))
-#             cnt += 1
-#         print("")
+        print("In Degree Centrality:")
+        cnt = 0
+        for z in sorted([(v, k) for k, v in in_degree_centrality.items()], reverse=True):
+            if cnt == cnt_max:
+                break
+            print(self.dic_vertex_names[z[1]], round(z[0], 3))
+            cnt += 1
+        print("")
         
-#         print("Out Degree Centrality:")
-#         cnt = 0
-#         for z in sorted([(v, k) for k, v in out_degree_centrality.items()], reverse=True):
-#             if cnt == cnt_max:
-#                 break
-#             print(self.dic_vertex_names[z[1]], round(z[0], 3))
-#             cnt += 1
-#         print("")
+        print("Out Degree Centrality:")
+        cnt = 0
+        for z in sorted([(v, k) for k, v in out_degree_centrality.items()], reverse=True):
+            if cnt == cnt_max:
+                break
+            print(self.dic_vertex_names[z[1]], round(z[0], 3))
+            cnt += 1
+        print("")
         
 #         print("Closeness Centrality:")
 #         cnt = 0
@@ -745,14 +745,14 @@ class DataJourneyDAG:
 #             print(self.dic_vertex_names[z[1]], round(z[0], 3))
 #             cnt += 1
 #         print("")
-        print("Betweenness Centrality:")
-        cnt = 0
-        for z in sorted([(v, k) for k, v in betweenness_centrality.items()], reverse=True):
-            if cnt == cnt_max:
-                break
-            print(self.dic_vertex_names[z[1]], round(z[0], 3))
-            cnt += 1
-        print("")
+#         print("Betweenness Centrality:")
+#         cnt = 0
+#         for z in sorted([(v, k) for k, v in betweenness_centrality.items()], reverse=True):
+#             if cnt == cnt_max:
+#                 break
+#             print(self.dic_vertex_names[z[1]], round(z[0], 3))
+#             cnt += 1
+#         print("")
         
     def showBipartiteStats(self, g):
         is_bipartite, node_sets = nx.bipartite.sets(g)
@@ -761,14 +761,14 @@ class DataJourneyDAG:
         closeness_centrality = nx.closeness_centrality(projection)
         betweenness_centrality = nx.betweenness_centrality(projection)
         cnt_max = 5
-#         print("Degree Centrality:")
-#         cnt = 0
-#         for z in sorted([(v, k) for k, v in degree_centrality.items()], reverse=True):
-#             if cnt == cnt_max:
-#                 break
-#             print(self.dic_vertex_names[z[1]], round(z[0], 3))
-#             cnt += 1
-#         print("")
+        print("Degree Centrality:")
+        cnt = 0
+        for z in sorted([(v, k) for k, v in degree_centrality.items()], reverse=True):
+            if cnt == cnt_max:
+                break
+            print(self.dic_vertex_names[z[1]], round(z[0], 3))
+            cnt += 1
+        print("")
 #         print("Closeness Centrality:")
 #         cnt = 0
 #         for z in sorted([(v, k) for k, v in closeness_centrality.items()], reverse=True):
@@ -777,14 +777,14 @@ class DataJourneyDAG:
 #             print(self.dic_vertex_names[z[1]], round(z[0], 3))
 #             cnt += 1
 #         print("")
-        print("Betweenness Centrality:")
-        cnt = 0
-        for z in sorted([(v, k) for k, v in betweenness_centrality.items()], reverse=True):
-            if cnt == cnt_max:
-                break
-            print(self.dic_vertex_names[z[1]], round(z[0], 3))
-            cnt += 1
-        print("")
+#         print("Betweenness Centrality:")
+#         cnt = 0
+#         for z in sorted([(v, k) for k, v in betweenness_centrality.items()], reverse=True):
+#             if cnt == cnt_max:
+#                 break
+#             print(self.dic_vertex_names[z[1]], round(z[0], 3))
+#             cnt += 1
+#         print("")
         
     def drawFromLargestComponent(self, figsize=(30, 30), showWeight=False):
         
@@ -802,7 +802,7 @@ class DataJourneyDAG:
         self.drawOrigins(topological_order[-1], figsize=figsize, showWeight=showWeight)
         
     
-     def suggest_coupling(self, g):
+    def suggest_coupling(self, g):
                 
         longest_path_length = nx.dag_longest_path_length(g)
         longest_path = nx.dag_longest_path(g)
@@ -836,6 +836,7 @@ class DataJourneyDAG:
                         print(self.dic_vertex_names[node_criticality[i][1]], self.dic_vertex_names[node_criticality[j][1]])
         
         print("")
+
 
 
 mydag = DataJourneyDAG()
