@@ -802,7 +802,7 @@ class DataJourneyDAG:
         self.drawOrigins(topological_order[-1], figsize=figsize, showWeight=showWeight)
         
     
-    def suggest_coupling(self, g):
+     def suggest_coupling(self, g):
                 
         longest_path_length = nx.dag_longest_path_length(g)
         longest_path = nx.dag_longest_path(g)
@@ -821,16 +821,17 @@ class DataJourneyDAG:
             for j in range(i+1, len(node_criticality), 1):
                 if node_criticality[j][1] in longest_path:
                     continue
-                if node_criticality[i][0] + node_criticality[j][0] > 1.2:
+                if node_criticality[i][0] + node_criticality[j][0] > 1.3:
                     continue;
                 lowers = g.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(g, node_criticality[i][1]))])
                 uppers = g.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(g, node_criticality[i][1], orientation='reverse'))])
                 if node_criticality[j][1] not in lowers and node_criticality[j][1] not in uppers:
 
                     lowers_j = g.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(g, node_criticality[j][1]))])
-                    uppers_j = g.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(g, node_criticality[j][1], orientation='reverse'))])
-                    diff_longest = min(np.abs(nx.dag_longest_path_length(lowers) - nx.dag_longest_path_length(lowers_j)), 
-                                       np.abs(nx.dag_longest_path_length(uppers) - nx.dag_longest_path_length(uppers_j)))
+#                     uppers_j = g.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(g, node_criticality[j][1], orientation='reverse'))])
+#                     diff_longest = min(np.abs(nx.dag_longest_path_length(lowers) - nx.dag_longest_path_length(lowers_j)), 
+#                                        np.abs(nx.dag_longest_path_length(uppers) - nx.dag_longest_path_length(uppers_j)))
+                    diff_longest = np.abs(nx.dag_longest_path_length(lowers) - nx.dag_longest_path_length(lowers_j))
                     if diff_longest < 6:
                         print(self.dic_vertex_names[node_criticality[i][1]], self.dic_vertex_names[node_criticality[j][1]])
         
