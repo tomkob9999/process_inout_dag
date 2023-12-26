@@ -1,4 +1,4 @@
-# Version: 1.1.7
+# Version: 1.1.8
 # Last Update: 2023/12/25
 # Author: Tomio Kobayashi
 
@@ -81,14 +81,14 @@ class DataJourneyDAG:
             longest_path_length = nx.dag_longest_path_length(subgraph1)
             node_criticality = None
             if has_proc:
-                node_criticality = [(((nx.dag_longest_path_length(subgraph1.edge_subgraph(list(nx.dfs_edges(subgraph1, target_node))))) + 
+                node_criticality = [((nx.dag_longest_path_length(subgraph1.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(subgraph1, target_node))])) + 
                                 nx.dag_longest_path_length(subgraph1.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(subgraph1, target_node, orientation='reverse'))]))) / 
                                 longest_path_length, target_node) for target_node in subgraph1.nodes() if self.dic_vertex_names[target_node][0:5] == "proc_"]
             else:
-                node_criticality = [(((nx.dag_longest_path_length(subgraph1.edge_subgraph(list(nx.dfs_edges(subgraph1, target_node))))) + 
+                node_criticality = [((nx.dag_longest_path_length(subgraph1.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(subgraph1, target_node))])) + 
                                 nx.dag_longest_path_length(subgraph1.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(subgraph1, target_node, orientation='reverse'))]))) / 
                                 longest_path_length, target_node) for target_node in subgraph1.nodes()]
-
+                
             node_parameter = {n[1]: round(n[0], 3) for n in node_criticality}
 #             print("node_parameter", node_parameter)
             if len(node_parameter) > 0:
@@ -97,7 +97,6 @@ class DataJourneyDAG:
     #             normalized_param = {node: (param - min_param) / (max_param - min_param) for node, param in node_parameter.items()}
                 color_map = [plt.cm.viridis(node_parameter[node]) for node in subgraph2]
 
-        
         # Draw the graph
         nx.draw(subgraph1, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='skyblue', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
         if has_proc and showWeight and len(node_parameter) > 0:
@@ -308,7 +307,8 @@ class DataJourneyDAG:
         old = self.dic_vertex_id[proc1]
         new = self.dic_vertex_id[proc2]
         
-        newWeight = max(max([edges[i][2] for i in range(len(edges)) if edges[i][0] == old]), max([edges[i][2] for i in range(len(edges)) if edges[i][0] == new]))
+#         newWeight = max(max([edges[i][2] for i in range(len(edges)) if edges[i][0] == old]), max([edges[i][2] for i in range(len(edges)) if edges[i][0] == new]))
+        newWeight = max([edges[i][2] for i in range(len(edges)) if edges[i][0] == old]) + max([edges[i][2] for i in range(len(edges)) if edges[i][0] == new])
 
         for i in range(len(edges)):
             id1 = edges[i][0]
@@ -782,6 +782,24 @@ class DataJourneyDAG:
             if cnt == cnt_max:
                 break
             print(self.dic_vertex_names[z[1]], round(z[0], 3))
+            cnt += 1
+        print("")
+        
+    def drawFromLargestComponent(self, figsize=(30, 30), showWeight=False):
+        
+        connected_components = list(nx.weakly_connected_components(self.G))
+        largest_connected_component = None
+        sorted_graphs = sorted([[len(c), c] for c in connected_components], reverse=True)
+        for i in range(len(sorted_graphs)):
+            if i == 0:
+                largest_connected_component = sorted_graphs[i][1]
+        largest_G = self.G.subgraph(largest_connected_component)
+        
+        # Find the topological order
+        topological_order = list(nx.topological_sort(largest_G))
+        self.drawOffsprings(topological_order[0], figsize=figsize, showWeight=showWeight)
+        self.drawOrigins(topological_order[-1], figsize=figsize, showWeight=showWeight)
+                    print(self.dic_vertex_names[z[1]], round(z[0], 3))
             cnt += 1
         print("")
         
