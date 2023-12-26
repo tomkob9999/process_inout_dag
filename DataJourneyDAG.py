@@ -113,7 +113,7 @@ class DataJourneyDAG:
             longest_path = nx.dag_longest_path(subgraph1)  # Use NetworkX's built-in function
             critical_edges = [(longest_path[i], longest_path[i + 1]) for i in range(len(longest_path) - 1)]
     #         nx.draw_networkx_edges(subgraph1, pos, edgelist=critical_edges, edge_color='red', width=2)
-            nx.draw_networkx_edges(subgraph1, pos, edgelist=critical_edges, edge_color='brown', width=1.1)
+            nx.draw_networkx_edges(subgraph1, pos, edgelist=critical_edges, edge_color='brown', width=1.25)
 
         plt.title(title)
         plt.show()
