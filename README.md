@@ -41,9 +41,11 @@ With edge weights added, this tool can be used as the schedule planning tool whe
 With showWeight option on, the critical path is shown as brown line and the brightness indicates higher the criticality of the process.
 
 Compatct form
+
 ![aa23](https://github.com/tomkob9999/data_journey_dag/assets/96751911/66a208d6-7640-474d-9275-b14732b793b8)
 
 Stretched form
+
 ![aa24](https://github.com/tomkob9999/data_journey_dag/assets/96751911/dbca9a1c-e72f-4b74-8fd5-2e74b4aa2eb9)
 
 Still, the initial and the main analysis should be done without the weights to identify the ideal flow and the stages needed assuming all the processes take the same unit duration because the analysis is purely based on the input/output invariants.  Weights are much less reliable information as they merely represent the current suboptimal state.
