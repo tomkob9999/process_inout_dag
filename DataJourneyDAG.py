@@ -1,5 +1,5 @@
-# Version: 1.1.12
-# Last Update: 2023/12/25
+# Version: 1.2.0
+# Last Update: 2023/12/27
 # Author: Tomio Kobayashi
 
 # - generateProcesses  genProcesses() DONE
@@ -36,6 +36,20 @@ class DataJourneyDAG:
         G = 0
         G_T = 0
         
+        self.str_vertex_names = []
+        self.str_adjacency_matrix = []
+        self.str_adjacency_matrix_T = []
+        self.str_size_matrix = 0
+        
+        self.str_dic_vertex_names = {}
+        self.str_dic_vertex_id = {}
+        
+        str_G = 0
+        str_G_T = 0
+        
+        self.dic_new2old = {}
+        self.dic_old2new = {}
+        
     def adjacency_matrix_to_edge_list(self, adc_matrix):
         edge_list = []
         num_nodes = len(adc_matrix)
@@ -53,7 +67,7 @@ class DataJourneyDAG:
         return brightness
 
     def draw_selected_vertices_reverse_proc(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, 
-                                            pos, reverse=False, figsize=(12, 8), showWeight=False):
+                                            pos, reverse=False, figsize=(12, 8), showWeight=False, forStretch=False):
 
         # Create a subgraph with only the selected vertices
         subgraph1 = G.subgraph(selected_vertices1)
@@ -97,14 +111,35 @@ class DataJourneyDAG:
     #             normalized_param = {node: (param - min_param) / (max_param - min_param) for node, param in node_parameter.items()}
                 color_map = [plt.cm.viridis(node_parameter[node]) for node in subgraph2]
 
+        if forStretch:
+            max_height = max([v[1] for k, v in pos.items()])
+            for k, v in pos.items():
+                if v[0] % 2:
+                    pos[k] = (v[0], v[1] + max_height * 0.025)
+                
         # Draw the graph
-        nx.draw(subgraph1, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='skyblue', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
-        if has_proc and showWeight and len(node_parameter) > 0:
-            nx.draw(subgraph2, pos, with_labels=True, labels=node_labels, node_size=1000, node_color=color_map, font_size=10, font_color='black', arrowsize=10, edgecolors='black')
+        if has_proc and forStretch:
+            defFontSize=8
+            defNodeSize=500
+            defFontColor='grey'
         else:
-            nx.draw(subgraph2, pos, with_labels=True, labels=node_labels, node_size=1000, node_color='orange', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
-        nx.draw(subgraph3, pos, with_labels=True, labels=node_labels, node_size=1500, node_color='pink', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
-
+            defFontSize=10
+            defNodeSize=1000
+            defFontColor='black'
+            
+#         node_labels1 = {k: v for k, v in node_labels.items() if k in subgraph1}
+        node_labels1 = {k: v for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
+        node_labels2 = {k: v for k, v in node_labels.items() if k in subgraph2}
+        node_labels3 = {k: v for k, v in node_labels.items() if k in subgraph3}
+        
+        nx.draw(subgraph1, pos, with_labels=True, labels=node_labels1, node_size=defNodeSize, node_color='skyblue', font_size=defFontSize, font_color=defFontColor, arrowsize=10, edgecolors='black')
+        if has_proc and showWeight and len(node_parameter) > 0:
+            nx.draw(subgraph2, pos, with_labels=True, labels=node_labels2, node_size=defNodeSize, node_color=color_map, font_size=10, font_color='black', arrowsize=10, edgecolors='black')
+        else:
+            nx.draw(subgraph2, pos, with_labels=True, labels=node_labels2, node_size=defNodeSize, node_color='orange', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
+#         nx.draw(subgraph3, pos, with_labels=True, labels=node_labels3, node_size=1500, node_color='pink', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
+        nx.draw(subgraph3, pos, with_labels=True, labels=node_labels3, node_size=defNodeSize, node_color='pink', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
+            
         if showWeight:
             edge_labels = {(i, j): subgraph1[i][j]['weight'] for i, j in subgraph1.edges()}
             nx.draw_networkx_edge_labels(subgraph1, pos, edge_labels=edge_labels)
@@ -254,6 +289,8 @@ class DataJourneyDAG:
             print("Already contains processes.")
             return
         
+#         print("self.size_matrix before", self.size_matrix)
+        
         edges = self.adjacency_matrix_to_edge_list(self.adjacency_matrix)
         new_edges = []
         dicNewID = {}
@@ -278,6 +315,8 @@ class DataJourneyDAG:
         self.adjacency_matrix_T = self.adjacency_matrix.T
         self.size_matrix = len(self.adjacency_matrix)
 
+#         print("self.size_matrix after", self.size_matrix)
+        
         self.G = nx.DiGraph(self.adjacency_matrix)
         self.G_T = nx.DiGraph(self.adjacency_matrix_T)
         
@@ -301,6 +340,7 @@ class DataJourneyDAG:
 #         self.showBipartiteStats(largest_G)
         self.showStats(largest_G)
         
+#         self.populateStretch()
     def coupleProcesses(self, proc1, proc2):
         edges = self.adjacency_matrix_to_edge_list(self.adjacency_matrix)
         if proc1[0:5] != "proc_" or proc2[0:5] != "proc_":
@@ -430,6 +470,328 @@ class DataJourneyDAG:
                     return True
 
         return False
+    
+    
+#     def drawOriginsStretch(self, target_vertex, title="", figsize=None, showWeight=False):
+        
+#         if isinstance(target_vertex, str):
+#             if target_vertex not in self.str_dic_vertex_id:
+#                 print(target_vertex + " is not an element")
+#                 return
+#             target_vertex = self.str_dic_vertex_id[target_vertex]
+        
+# #         Draw the path FROM the target
+#         position = {}
+#         colpos = {}
+#         posfill = set()
+#         selected_vertices1 = set()
+#         selected_vertices2 = set()
+#         res_vector = np.array([np.zeros(self.str_size_matrix) for i in range(self.str_size_matrix+1)])
+#         res_vector[0][target_vertex] = 1
+
+#         for i in range(len(res_vector)):
+#             colpos[i] = 0
+
+#         for i in range(self.str_size_matrix):
+#             if sum(res_vector[i]) == 0:
+#                 break
+            
+# #             res_vector[i+1] = self.adjacency_matrix @ res_vector[i]
+#             res_vector[i+1] = self.str_adjacency_matrix @ res_vector[i]
+
+#         for i in range(len(res_vector)):
+#             if sum(res_vector[i]) == 0:
+#                 break
+#             for j in range(len(res_vector[i])):
+# #                 if res_vector[i][j] != 0 and j != self.size_matrix and j != 0: 
+#                 if res_vector[i][j] != 0 and j != self.str_size_matrix: 
+#                     if self.str_dic_vertex_names[j][0:5] == "proc_":
+#                         selected_vertices2.add(j)
+#                         selected_vertices1.add(j)
+#                     else:
+#                         selected_vertices1.add(j)
+
+# #         initialize the positions
+#         last_pos = 0
+#         for i in range(len(res_vector)):
+#             if sum(res_vector[i]) == 0:
+#                 break
+#             last_pos += 1
+#         done = False
+#         largest_j = 0
+#         for i in range(len(res_vector)):
+#             if sum(res_vector[i]) == 0:
+#                 break
+#             nonzero = 0
+#             for j in range(len(res_vector[i])):
+#                 if j not in selected_vertices1 and j not in selected_vertices2:
+#                     continue
+# #                 comment out to prevent back directing
+# #                 if j in posfill:
+# #                     continue
+# #                 if j == 0 or j == self.size_matrix:
+# #                 if j == self.size_matrix:
+# #                     continue
+# #                 if j == last_pos:
+# #                     continue
+# #                 if res_vector[i][j]:
+# #                     posfill.add(j)
+# #                     position[j] = (i, colpos[i]) 
+# #                     colpos[i] += 1
+# #                     if largest_j < j:
+# #                         largest_j = j
+#                 if res_vector[i][j]:
+#                     posfill.add(j)
+#                     position[j] = ((last_pos-i), colpos[(last_pos-i)]) 
+#                     colpos[(last_pos-i)] += 1
+#                     if largest_j < j:
+#                         largest_j = j
+                        
+                        
+#         dicPos = {i: 0 for i in range(len(colpos))}
+#         for i in range(len(res_vector)):
+#             colpos[i] = 0
+#         for k, v in position.items():
+#             colpos[v[0]] += 1
+#         for k, v in sorted(position.items(), reverse=True):
+#             position[k] = (v[0], dicPos[v[0]])
+#             dicPos[v[0]] += 1
+           
+#         pospos = {self.dic_new2old[k]: v for k, v in position.items() if k in self.dic_new2old}
+        
+#         dicPos = {i: 0 for i in range(len(colpos))}
+#         for i in range(len(res_vector)):
+#             colpos[i] = 0
+#         for k, v in pospos.items():
+#             colpos[v[0]] += 1
+#         for k, v in sorted(pospos.items(), reverse=True):
+#             pospos[k] = (v[0], dicPos[v[0]])
+#             dicPos[v[0]] += 1
+            
+# #         re-align the vertical position
+#         maxheight = max([v for k, v in colpos.items() if v != 0])
+#         newpos = {}
+# #         for k, v in position.items():
+#         for k, v in pospos.items():
+#             gap = (maxheight) / colpos[v[0]]
+#             newheight = (gap/2) + v[1]*gap
+#             newpos[k] = (v[0], newheight)
+
+# #         newpos = {self.dic_new2old[k]: v for k, v in newpos.items() if k in self.dic_new2old}
+    
+    
+# #         change orders to minimize line crossings
+#         for posx in sorted(list(set([v[0] for k, v in newpos.items()]))):
+# #             for iii in range(1):
+#             for iii in range(int(colpos[posx]/2+1)):
+#                 for node in [k for k, v in newpos.items() if v[0] == posx]:
+# #                     incoming_edges = self.str_G.in_edges(node)
+#                     incoming_edges = self.G.in_edges(node)
+#                     predecessors = [edge[0] for edge in incoming_edges]
+#                     pred_in_pos = list(set([p for p in predecessors if p in newpos]))
+#                     if len(pred_in_pos) > 0:
+#                         pred_heights = [newpos[p][1] for p in pred_in_pos]
+#                         avg_pred_heights = average = sum(pred_heights) / len(pred_heights)
+#                         closest_node = 0
+#                         closest_height = 9999
+#                         closest_dist = 9999
+#                         [my_pos, my_height] = newpos[node]
+#                         my_dist = np.abs(my_height - avg_pred_heights)
+#                         for k, v in newpos.items():
+#                             if k == node:
+#                                 continue
+#                             if v[0] == my_pos:
+#                                 dist = np.abs(v[1] - avg_pred_heights)
+#                                 if dist < closest_dist:
+#                                     closest_node = k
+#                                     closest_dist = dist
+#                                     closest_height = v[1]
+#                         if closest_dist < my_dist:
+#                             newpos[closest_node] = (my_pos, my_height)
+#                             newpos[node] = (my_pos, closest_height)
+
+#         position = newpos
+
+        
+#         selected_vertices1 = [self.dic_new2old[k] for k in selected_vertices1 if k in self.dic_new2old]
+#         selected_vertices2 = [self.dic_new2old[k] for k in selected_vertices2 if k in self.dic_new2old]
+#         selected_vertices3 = [self.dic_new2old[target_vertex]]
+
+#         node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
+        
+#         print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
+#         print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
+#         if title == "":
+#             title = "Data Origins with Weight-Based Pipelining"
+#         title += " (" + str(len(set([v[0] for k, v in position.items() if self.dic_vertex_names[k][0:5] != "proc_"]))-1) + " stages)"
+#         if figsize is None:
+#             figsize = (13, 8)
+        
+# #         self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
+# #                         title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, forStretch=True)
+# #         self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
+# #                                 title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True)
+#         self.draw_selected_vertices_reverse_proc(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
+#                                 title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True)
+
+    def drawOriginsStretch(self, target_vertex, title="", figsize=None, showWeight=False):
+        
+        if isinstance(target_vertex, str):
+            if target_vertex not in self.str_dic_vertex_id:
+                print(target_vertex + " is not an element")
+                return
+            target_vertex = self.str_dic_vertex_id[target_vertex]
+        
+#         Draw the path FROM the target
+        position = {}
+        colpos = {}
+        posfill = set()
+        selected_vertices1 = set()
+        selected_vertices2 = set()
+        res_vector = np.array([np.zeros(self.str_size_matrix) for i in range(self.str_size_matrix+1)])
+        res_vector[0][target_vertex] = 1
+
+        for i in range(len(res_vector)):
+            colpos[i] = 0
+
+        for i in range(self.str_size_matrix):
+            if sum(res_vector[i]) == 0:
+                break
+            
+#             res_vector[i+1] = self.adjacency_matrix @ res_vector[i]
+            res_vector[i+1] = self.str_adjacency_matrix @ res_vector[i]
+
+        for i in range(len(res_vector)):
+            if sum(res_vector[i]) == 0:
+                break
+            for j in range(len(res_vector[i])):
+#                 if res_vector[i][j] != 0 and j != self.size_matrix and j != 0: 
+                if res_vector[i][j] != 0 and j != self.str_size_matrix: 
+                    if self.str_dic_vertex_names[j][0:5] == "proc_":
+                        selected_vertices2.add(j)
+                        selected_vertices1.add(j)
+                    else:
+                        selected_vertices1.add(j)
+
+#         initialize the positions
+        last_pos = 0
+        for i in range(len(res_vector)):
+            if sum(res_vector[i]) == 0:
+                break
+            last_pos += 1
+        done = False
+        largest_j = 0
+        for i in range(len(res_vector)):
+            if sum(res_vector[i]) == 0:
+                break
+            nonzero = 0
+            for j in range(len(res_vector[i])):
+                if j not in selected_vertices1 and j not in selected_vertices2:
+                    continue
+#                 comment out to prevent back directing
+#                 if j in posfill:
+#                     continue
+#                 if j == 0 or j == self.size_matrix:
+#                 if j == self.size_matrix:
+#                     continue
+#                 if j == last_pos:
+#                     continue
+#                 if res_vector[i][j]:
+#                     posfill.add(j)
+#                     position[j] = (i, colpos[i]) 
+#                     colpos[i] += 1
+#                     if largest_j < j:
+#                         largest_j = j
+                if res_vector[i][j]:
+                    posfill.add(j)
+                    position[j] = ((last_pos-i), colpos[(last_pos-i)]) 
+                    colpos[(last_pos-i)] += 1
+                    if largest_j < j:
+                        largest_j = j
+                        
+                        
+        dicPos = {i: 0 for i in range(len(colpos))}
+        for i in range(len(res_vector)):
+            colpos[i] = 0
+        for k, v in position.items():
+            colpos[v[0]] += 1
+        for k, v in sorted(position.items(), reverse=True):
+            position[k] = (v[0], dicPos[v[0]])
+            dicPos[v[0]] += 1
+           
+#         pospos = {self.dic_new2old[k]: v for k, v in position.items() if k in self.dic_new2old}
+        
+#         dicPos = {i: 0 for i in range(len(colpos))}
+#         for i in range(len(res_vector)):
+#             colpos[i] = 0
+#         for k, v in pospos.items():
+#             colpos[v[0]] += 1
+#         for k, v in sorted(pospos.items(), reverse=True):
+#             pospos[k] = (v[0], dicPos[v[0]])
+#             dicPos[v[0]] += 1
+            
+#         re-align the vertical position
+        maxheight = max([v for k, v in colpos.items() if v != 0])
+        newpos = {}
+        for k, v in position.items():
+#         for k, v in pospos.items():
+            gap = (maxheight) / colpos[v[0]]
+            newheight = (gap/2) + v[1]*gap
+            newpos[k] = (v[0], newheight)
+
+#         newpos = {self.dic_new2old[k]: v for k, v in newpos.items() if k in self.dic_new2old}
+    
+    
+#         change orders to minimize line crossings
+        for posx in sorted(list(set([v[0] for k, v in newpos.items()]))):
+#             for iii in range(1):
+            for iii in range(int(colpos[posx]/2+1)):
+                for node in [k for k, v in newpos.items() if v[0] == posx]:
+                    incoming_edges = self.str_G.in_edges(node)
+#                     incoming_edges = self.G.in_edges(node)
+                    predecessors = [edge[0] for edge in incoming_edges]
+                    pred_in_pos = list(set([p for p in predecessors if p in newpos]))
+                    if len(pred_in_pos) > 0:
+                        pred_heights = [newpos[p][1] for p in pred_in_pos]
+                        avg_pred_heights = average = sum(pred_heights) / len(pred_heights)
+                        closest_node = 0
+                        closest_height = 9999
+                        closest_dist = 9999
+                        [my_pos, my_height] = newpos[node]
+                        my_dist = np.abs(my_height - avg_pred_heights)
+                        for k, v in newpos.items():
+                            if k == node:
+                                continue
+                            if v[0] == my_pos:
+                                dist = np.abs(v[1] - avg_pred_heights)
+                                if dist < closest_dist:
+                                    closest_node = k
+                                    closest_dist = dist
+                                    closest_height = v[1]
+                        if closest_dist < my_dist:
+                            newpos[closest_node] = (my_pos, my_height)
+                            newpos[node] = (my_pos, closest_height)
+
+        newpos = {self.dic_new2old[k]: v for k, v in newpos.items() if k in self.dic_new2old}
+        position = newpos
+
+        
+        selected_vertices1 = [self.dic_new2old[k] for k in selected_vertices1 if k in self.dic_new2old]
+        selected_vertices2 = [self.dic_new2old[k] for k in selected_vertices2 if k in self.dic_new2old]
+        selected_vertices3 = [self.dic_new2old[target_vertex]]
+
+        node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
+        
+        print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
+        print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
+        if title == "":
+            title = "Data Origins with Weight-Based Pipelining"
+        title += " (" + str(len(set([v[0] for k, v in position.items() if self.dic_vertex_names[k][0:5] != "proc_"]))-1) + " stages)"
+        if figsize is None:
+            figsize = (13, 8)
+        
+        self.draw_selected_vertices_reverse_proc(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
+                                title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True)
 
 
     def drawOrigins(self, target_vertex, title="", figsize=None, showWeight=False):
@@ -448,7 +810,7 @@ class DataJourneyDAG:
                 break
             res_vector[i+1] = self.adjacency_matrix @ res_vector[i]
 
-        res_vector_T = res_vector.T
+#         res_vector_T = res_vector.T
 
         selected_vertices1 = set()
         selected_vertices2 = set()
@@ -564,6 +926,312 @@ class DataJourneyDAG:
             figsize = (12, 8)
         self.draw_selected_vertices_reverse_proc(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
                                 title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight)
+
+        
+#     def drawOffspringsStretch(self, target_vertex, title="", figsize=None, showWeight=False):
+        
+#         if isinstance(target_vertex, str):
+#             if target_vertex not in self.str_dic_vertex_id:
+#                 print(target_vertex + " is not an element")
+#                 return
+#             target_vertex = self.str_dic_vertex_id[target_vertex]
+        
+# #         Draw the path FROM the target
+#         position = {}
+#         colpos = {}
+#         posfill = set()
+#         selected_vertices1 = set()
+#         selected_vertices2 = set()
+#         res_vector = np.array([np.zeros(self.str_size_matrix) for i in range(self.str_size_matrix+1)])
+#         res_vector[0][target_vertex] = 1
+
+#         for i in range(len(res_vector)):
+#             colpos[i] = 0
+
+#         for i in range(self.str_size_matrix):
+#             if sum(res_vector[i]) == 0:
+#                 break
+#             res_vector[i+1] = self.str_adjacency_matrix_T @ res_vector[i]
+
+#         for i in range(len(res_vector)):
+#             if sum(res_vector[i]) == 0:
+#                 break
+#             for j in range(len(res_vector[i])):
+# #                 if res_vector[i][j] != 0 and j != self.size_matrix and j != 0: 
+#                 if res_vector[i][j] != 0 and j != self.str_size_matrix: 
+#                     if self.str_dic_vertex_names[j][0:5] == "proc_":
+#                         selected_vertices2.add(j)
+#                         selected_vertices1.add(j)
+#                     else:
+#                         selected_vertices1.add(j)
+
+# #         initialize the positions
+#         last_pos = 0
+#         for i in range(len(res_vector)):
+#             if sum(res_vector[i]) == 0:
+#                 break
+#             last_pos += 1
+#         done = False
+#         largest_j = 0
+#         for i in range(len(res_vector)):
+#             if sum(res_vector[i]) == 0:
+#                 break
+#             nonzero = 0
+#             for j in range(len(res_vector[i])):
+#                 if j not in selected_vertices1 and j not in selected_vertices2:
+#                     continue
+# #                 comment out to prevent back directing
+# #                 if j in posfill:
+# #                     continue
+# #                 if j == 0 or j == self.size_matrix:
+# #                 if j == self.size_matrix:
+# #                     continue
+# #                 if j == last_pos:
+# #                     continue
+#                 if res_vector[i][j]:
+#                     posfill.add(j)
+#                     position[j] = (i, colpos[i]) 
+#                     colpos[i] += 1
+#                     if largest_j < j:
+#                         largest_j = j
+        
+#         dicPos = {i: 0 for i in range(len(colpos))}
+#         for i in range(len(res_vector)):
+#             colpos[i] = 0
+#         for k, v in position.items():
+#             colpos[v[0]] += 1
+#         for k, v in sorted(position.items(), reverse=True):
+#             position[k] = (v[0], dicPos[v[0]])
+#             dicPos[v[0]] += 1
+           
+#         pospos = {self.dic_new2old[k]: v for k, v in position.items() if k in self.dic_new2old}
+        
+#         dicPos = {i: 0 for i in range(len(colpos))}
+#         for i in range(len(res_vector)):
+#             colpos[i] = 0
+#         for k, v in pospos.items():
+#             colpos[v[0]] += 1
+#         for k, v in sorted(pospos.items(), reverse=True):
+#             pospos[k] = (v[0], dicPos[v[0]])
+#             dicPos[v[0]] += 1
+            
+# #         re-align the vertical position
+#         maxheight = max([v for k, v in colpos.items() if v != 0])
+#         newpos = {}
+# #         for k, v in position.items():
+#         for k, v in pospos.items():
+#             gap = (maxheight) / colpos[v[0]]
+#             newheight = (gap/2) + v[1]*gap
+#             newpos[k] = (v[0], newheight)
+
+# #         newpos = {self.dic_new2old[k]: v for k, v in newpos.items() if k in self.dic_new2old}
+    
+    
+# #         change orders to minimize line crossings
+#         for posx in sorted(list(set([v[0] for k, v in newpos.items()]))):
+# #             for iii in range(1):
+#             for iii in range(int(colpos[posx]/2+1)):
+#                 for node in [k for k, v in newpos.items() if v[0] == posx]:
+# #                     incoming_edges = self.str_G.in_edges(node)
+#                     incoming_edges = self.G.in_edges(node)
+#                     predecessors = [edge[0] for edge in incoming_edges]
+#                     pred_in_pos = list(set([p for p in predecessors if p in newpos]))
+#                     if len(pred_in_pos) > 0:
+#                         pred_heights = [newpos[p][1] for p in pred_in_pos]
+#                         avg_pred_heights = average = sum(pred_heights) / len(pred_heights)
+#                         closest_node = 0
+#                         closest_height = 9999
+#                         closest_dist = 9999
+#                         [my_pos, my_height] = newpos[node]
+#                         my_dist = np.abs(my_height - avg_pred_heights)
+#                         for k, v in newpos.items():
+#                             if k == node:
+#                                 continue
+#                             if v[0] == my_pos:
+#                                 dist = np.abs(v[1] - avg_pred_heights)
+#                                 if dist < closest_dist:
+#                                     closest_node = k
+#                                     closest_dist = dist
+#                                     closest_height = v[1]
+#                         if closest_dist < my_dist:
+#                             newpos[closest_node] = (my_pos, my_height)
+#                             newpos[node] = (my_pos, closest_height)
+
+#         position = newpos
+
+        
+#         selected_vertices1 = [self.dic_new2old[k] for k in selected_vertices1 if k in self.dic_new2old]
+#         selected_vertices2 = [self.dic_new2old[k] for k in selected_vertices2 if k in self.dic_new2old]
+#         selected_vertices3 = [self.dic_new2old[target_vertex]]
+
+#         node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
+        
+#         print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
+#         print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
+#         if title == "":
+#             title = "Data Offsprings with Weight-Based Pipelining"
+#         title += " (" + str(len(set([v[0] for k, v in position.items() if self.dic_vertex_names[k][0:5] != "proc_"]))-1) + " stages)"
+#         if figsize is None:
+#             figsize = (13, 8)
+        
+#         self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
+#                         title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, forStretch=True)
+
+
+        
+    def drawOffspringsStretch(self, target_vertex, title="", figsize=None, showWeight=False):
+        
+        if isinstance(target_vertex, str):
+            if target_vertex not in self.str_dic_vertex_id:
+                print(target_vertex + " is not an element")
+                return
+            target_vertex = self.str_dic_vertex_id[target_vertex]
+        
+#         Draw the path FROM the target
+        position = {}
+        colpos = {}
+        posfill = set()
+        selected_vertices1 = set()
+        selected_vertices2 = set()
+        res_vector = np.array([np.zeros(self.str_size_matrix) for i in range(self.str_size_matrix+1)])
+        res_vector[0][target_vertex] = 1
+
+        for i in range(len(res_vector)):
+            colpos[i] = 0
+
+        for i in range(self.str_size_matrix):
+            if sum(res_vector[i]) == 0:
+                break
+            res_vector[i+1] = self.str_adjacency_matrix_T @ res_vector[i]
+
+        for i in range(len(res_vector)):
+            if sum(res_vector[i]) == 0:
+                break
+            for j in range(len(res_vector[i])):
+#                 if res_vector[i][j] != 0 and j != self.size_matrix and j != 0: 
+                if res_vector[i][j] != 0 and j != self.str_size_matrix: 
+                    if self.str_dic_vertex_names[j][0:5] == "proc_":
+                        selected_vertices2.add(j)
+                        selected_vertices1.add(j)
+                    else:
+                        selected_vertices1.add(j)
+
+#         initialize the positions
+        last_pos = 0
+        for i in range(len(res_vector)):
+            if sum(res_vector[i]) == 0:
+                break
+            last_pos += 1
+        done = False
+        largest_j = 0
+        for i in range(len(res_vector)):
+            if sum(res_vector[i]) == 0:
+                break
+            nonzero = 0
+            for j in range(len(res_vector[i])):
+                if j not in selected_vertices1 and j not in selected_vertices2:
+                    continue
+#                 comment out to prevent back directing
+#                 if j in posfill:
+#                     continue
+#                 if j == 0 or j == self.size_matrix:
+#                 if j == self.size_matrix:
+#                     continue
+#                 if j == last_pos:
+#                     continue
+                if res_vector[i][j]:
+                    posfill.add(j)
+                    position[j] = (i, colpos[i]) 
+                    colpos[i] += 1
+                    if largest_j < j:
+                        largest_j = j
+        
+        dicPos = {i: 0 for i in range(len(colpos))}
+        for i in range(len(res_vector)):
+            colpos[i] = 0
+        for k, v in position.items():
+            colpos[v[0]] += 1
+        for k, v in sorted(position.items(), reverse=True):
+            position[k] = (v[0], dicPos[v[0]])
+            dicPos[v[0]] += 1
+           
+#         pospos = {self.dic_new2old[k]: v for k, v in position.items() if k in self.dic_new2old}
+        
+#         dicPos = {i: 0 for i in range(len(colpos))}
+#         for i in range(len(res_vector)):
+#             colpos[i] = 0
+#         for k, v in pospos.items():
+#             colpos[v[0]] += 1
+#         for k, v in sorted(pospos.items(), reverse=True):
+#             pospos[k] = (v[0], dicPos[v[0]])
+#             dicPos[v[0]] += 1
+            
+#         re-align the vertical position
+        maxheight = max([v for k, v in colpos.items() if v != 0])
+        newpos = {}
+        for k, v in position.items():
+#         for k, v in pospos.items():
+            gap = (maxheight) / colpos[v[0]]
+            newheight = (gap/2) + v[1]*gap
+            newpos[k] = (v[0], newheight)
+
+#         newpos = {self.dic_new2old[k]: v for k, v in newpos.items() if k in self.dic_new2old}
+    
+    
+#         change orders to minimize line crossings
+        for posx in sorted(list(set([v[0] for k, v in newpos.items()]))):
+#             for iii in range(1):
+            for iii in range(int(colpos[posx]/2+1)):
+                for node in [k for k, v in newpos.items() if v[0] == posx]:
+                    incoming_edges = self.str_G.in_edges(node)
+#                     incoming_edges = self.G.in_edges(node)
+                    predecessors = [edge[0] for edge in incoming_edges]
+                    pred_in_pos = list(set([p for p in predecessors if p in newpos]))
+                    if len(pred_in_pos) > 0:
+                        pred_heights = [newpos[p][1] for p in pred_in_pos]
+                        avg_pred_heights = average = sum(pred_heights) / len(pred_heights)
+                        closest_node = 0
+                        closest_height = 9999
+                        closest_dist = 9999
+                        [my_pos, my_height] = newpos[node]
+                        my_dist = np.abs(my_height - avg_pred_heights)
+                        for k, v in newpos.items():
+                            if k == node:
+                                continue
+                            if v[0] == my_pos:
+                                dist = np.abs(v[1] - avg_pred_heights)
+                                if dist < closest_dist:
+                                    closest_node = k
+                                    closest_dist = dist
+                                    closest_height = v[1]
+                        if closest_dist < my_dist:
+                            newpos[closest_node] = (my_pos, my_height)
+                            newpos[node] = (my_pos, closest_height)
+
+        
+        newpos = {self.dic_new2old[k]: v for k, v in newpos.items() if k in self.dic_new2old}
+
+        position = newpos
+
+        
+        selected_vertices1 = [self.dic_new2old[k] for k in selected_vertices1 if k in self.dic_new2old]
+        selected_vertices2 = [self.dic_new2old[k] for k in selected_vertices2 if k in self.dic_new2old]
+        selected_vertices3 = [self.dic_new2old[target_vertex]]
+
+        node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
+        
+        print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
+        print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
+        if title == "":
+            title = "Data Offsprings with Weight-Based Pipelining"
+        title += " (" + str(len(set([v[0] for k, v in position.items() if self.dic_vertex_names[k][0:5] != "proc_"]))-1) + " stages)"
+        if figsize is None:
+            figsize = (13, 8)
+        
+        self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
+                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, forStretch=True)
+
+
 
         
     def drawOffsprings(self, target_vertex, title="", figsize=None, showWeight=False):
@@ -697,7 +1365,7 @@ class DataJourneyDAG:
 
         self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
                         title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight)
-
+        
         
     def showSourceNodes(self):
         sources = [node for node in self.G.nodes() if len(list(self.G.predecessors(node))) == 0]
@@ -871,6 +1539,87 @@ class DataJourneyDAG:
             
         print("")
 
+#     def getMatrix(self):
+#         return self.adjacency_matrix
+    
+#     def getVertexNames(self):
+#         return self.vertex_names
+    
+#     def getDicVertexNames(self):
+#         return self.dic_vertex_names
+  
+            
+    def populateStretch(self):
+
+        self.str_adjacency_matrix = copy.deepcopy(self.adjacency_matrix)
+        self.str_vertex_names = copy.deepcopy(self.vertex_names)
+
+        list_weights = []
+        for i in range(len(self.str_adjacency_matrix)):
+            lis = []
+            for j in range(len(self.str_adjacency_matrix[i])):
+                if self.str_adjacency_matrix[j][i] > 1:
+                    if len(lis) > 0:
+                        lis[2].append(j)
+                    else:
+                        lis = [i, self.str_adjacency_matrix[j][i], [j]]
+            if len(lis) > 0:
+                    list_weights.append(lis)
+
+        self.dic_old2new = {}
+        weights_so_far = 0
+        dic_weights = {t[0]: t[1] for t in list_weights}
+
+        for i in range(len(self.str_adjacency_matrix)):
+            if i in dic_weights:
+                weights_so_far += dic_weights[i]-1
+            self.dic_old2new[i] = i + weights_so_far
+
+
+        for f in sorted(list_weights, reverse=True):
+            tt = f[2]
+            col = f[0] # Insert at the second row (index 1)
+            weight = f[1]  # Insert at the second row (index 1)
+
+            col_name = self.str_vertex_names[col]
+
+            for t in tt:
+                self.str_adjacency_matrix[t][col] = 0
+            for i in range(weight-1):
+                self.str_vertex_names.insert(col, "dumm_" + str(i+1) + "_" + col_name)
+
+                zero_row = np.zeros((1, self.str_adjacency_matrix.shape[1]))  # Same
+                zero_col = np.zeros((1, self.str_adjacency_matrix.shape[1]+1))  # Same
+
+                self.str_adjacency_matrix = np.insert(self.str_adjacency_matrix, col, zero_row, axis=1)
+                self.str_adjacency_matrix = np.insert(self.str_adjacency_matrix, col, zero_col, axis=0)
+
+                self.str_adjacency_matrix[col][col+1] = 1
+
+        
+        for f in list_weights:
+        #     print(self.str_adjacency_matrix)
+            tt = f[2]
+            col = f[0] # Insert at the second row (index 1)
+            weight = f[1]  # Insert at the second row (index 1)
+
+            for t in tt:
+                new_row = self.dic_old2new[t]
+                new_col = self.dic_old2new[col]-weight+1
+                self.str_adjacency_matrix[new_row][new_col] = 9
+
+        self.str_adjacency_matrix_T = self.str_adjacency_matrix.T
+        self.str_size_matrix = len(self.str_adjacency_matrix)
+        self.str_G = nx.DiGraph(self.str_adjacency_matrix)
+        self.str_G_T = nx.DiGraph(self.str_adjacency_matrix_T)
+        
+        for i in range(len(self.str_vertex_names)):
+            self.str_dic_vertex_names[i] = self.str_vertex_names[i]
+            self.str_dic_vertex_id[self.str_vertex_names[i]] = i
+
+
+#         print("has_cycle", self.has_cycle(self.str_adjacency_matrix))
+        self.dic_new2old = {v: k for k,v in self.dic_old2new.items()}
 
 
 
