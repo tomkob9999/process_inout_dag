@@ -1,5 +1,5 @@
-# Extract the adjacency matrix# Version: 1.2.4
-# Last Update: 2023/12/28
+# Extract the adjacency matrix# Version: 1.2.5
+# Last Update: 2023/12/29
 # Author: Tomio Kobayashi
 
 # - generateProcesses  genProcesses() DONE
@@ -15,7 +15,7 @@ import copy
 import random
 from datetime import date
 import textwrap
-
+import re
 
 
 # import matplotlib.cm as cm
@@ -488,12 +488,21 @@ class DataJourneyDAG:
 
         for i in range(len(res_vector)):
             colpos[i] = 0
+            
+        succs = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex], orientation="reverse"))])
+        succs = [self.dic_vertex_names[s] for s in succs]
+        pattern = re.compile(r'^dumm_(\d+)_')
 
+        
         for i in range(self.str_size_matrix):
             if sum(res_vector[i]) == 0:
                 break
-            
             res_vector[i+1] = self.str_adjacency_matrix @ res_vector[i]
+            for k in range(len(res_vector[i+1])):
+                chkstr = re.sub(pattern, '', self.str_dic_vertex_names[k])
+                if res_vector[i+1][k] > 0 and (chkstr not in succs and "proc_" + chkstr not in succs):
+                    res_vector[i+1][k] = 0
+                    continue
 
         for i in range(len(res_vector)):
             if sum(res_vector[i]) == 0:
@@ -636,11 +645,21 @@ class DataJourneyDAG:
         for i in range(len(res_vector)):
             colpos[i] = 0
 
+        succs = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex], orientation="reverse"))])
+        succs = [self.dic_vertex_names[s] for s in succs]
+        pattern = re.compile(r'^dumm_(\d+)_')
+        
         for i in range(self.str_size_matrix):
             if sum(res_vector[i]) == 0:
                 break
-            
             res_vector[i+1] = self.str_adjacency_matrix @ res_vector[i]
+            
+            for k in range(len(res_vector[i+1])):
+                chkstr = re.sub(pattern, '', self.str_dic_vertex_names[k])
+                if res_vector[i+1][k] > 0 and (chkstr not in succs and "proc_" + chkstr not in succs):
+                    res_vector[i+1][k] = 0
+                    continue
+            
 
         for i in range(len(res_vector)):
             if sum(res_vector[i]) == 0:
@@ -893,13 +912,13 @@ class DataJourneyDAG:
             target_vertex = self.str_dic_vertex_id[target_vertex]
         
         
-        m_T = copy.deepcopy(self.str_adjacency_matrix_T)
-        for i in range(len(m_T)):
-            for j in range(len(m_T)):
-                if self.str_dic_vertex_names[i][0:5] == "dumm_" and m_T[i][j] != 0:
-                    m_T[i][j] != 0
-                else:
-                    break
+#         m_T = copy.deepcopy(self.str_adjacency_matrix_T)
+#         for i in range(len(m_T)):
+#             for j in range(len(m_T)):
+#                 if self.str_dic_vertex_names[i][0:5] == "dumm_" and m_T[i][j] != 0:
+#                     m_T[i][j] != 0
+#                 else:
+#                     break
                     
 #         Draw the path FROM the target
         position = {}
@@ -913,11 +932,22 @@ class DataJourneyDAG:
         for i in range(len(res_vector)):
             colpos[i] = 0
 
+        succs = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
+        succs = [self.dic_vertex_names[s] for s in succs]
+        pattern = re.compile(r'^dumm_(\d+)_')
+        
         for i in range(self.str_size_matrix):
             if sum(res_vector[i]) == 0:
                 break
 #             res_vector[i+1] = self.str_adjacency_matrix_T @ res_vector[i]
             res_vector[i+1] = self.str_adjacency_matrix_T @ res_vector[i]
+    
+            for k in range(len(res_vector[i+1])):
+                chkstr = re.sub(pattern, '', self.str_dic_vertex_names[k])
+                if res_vector[i+1][k] > 0 and (chkstr not in succs and "proc_" + chkstr not in succs):
+                    res_vector[i+1][k] = 0
+                    continue
+                    
 
         for i in range(len(res_vector)):
             if sum(res_vector[i]) == 0:
@@ -925,6 +955,8 @@ class DataJourneyDAG:
             for j in range(len(res_vector[i])):
                 if res_vector[i][j] != 0 and j != self.str_size_matrix: 
                     if self.str_dic_vertex_names[j][0:5] == "proc_":
+#                         if self.str_dic_vertex_names[j] == "proc_COL29":
+#                             print("YES proc_COL29", j)
                         selected_vertices2.add(j)
                         selected_vertices1.add(j)
                     else:
@@ -1042,14 +1074,6 @@ class DataJourneyDAG:
                 print(target_vertex + " is not an element")
                 return
             target_vertex = self.str_dic_vertex_id[target_vertex]
-        
-#         m_T = copy.deepcopy(self.str_adjacency_matrix_T)
-#         for i in range(len(m_T)):
-#             for j in range(len(m_T)):
-#                 if self.str_dic_vertex_names[i][0:5] == "dumm_" and m_T[i][j] != 0:
-#                     m_T[i][j] != 0
-#                 else:
-#                     break
                     
 #         Draw the path FROM the target
         position = {}
@@ -1063,18 +1087,56 @@ class DataJourneyDAG:
         for i in range(len(res_vector)):
             colpos[i] = 0
 
+#         succs = self.str_G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.str_G, source=target_vertex))])
+#         succs = [self.str_dic_vertex_names[s] for s in succs if self.str_dic_vertex_names[s][0:5] != "dumm_"]
+        succs = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
+        succs = [self.dic_vertex_names[s] for s in succs]
+        pattern = re.compile(r'^dumm_(\d+)_')
+
+# # Use re.sub() to replace the matching part with an empty string
+# result = re.sub(pattern, '', input_string)
+
+#         print("succs:")
+#         for s in succs:
+# #             if self.str_dic_vertex_names[s][0:5] != "dumm_":
+#             print(s)
+            
         for i in range(self.str_size_matrix):
             if sum(res_vector[i]) == 0:
                 break
             res_vector[i+1] = self.str_adjacency_matrix_T @ res_vector[i]
-#             res_vector[i+1] = m_T @ res_vector[i]
-
+            
+            for k in range(len(res_vector[i+1])):
+#                 if res_vector[i+1][k] > 0 and (self.str_dic_vertex_names[k] not in succs or (self.str_dic_vertex_names[k][0:5] == "dumm_" and self.str_dic_vertex_names[k][5:-1] not in succs)):
+                chkstr = re.sub(pattern, '', self.str_dic_vertex_names[k])
+                if res_vector[i+1][k] > 0 and (chkstr not in succs and "proc_" + chkstr not in succs):
+#                     if self.str_dic_vertex_names[k] == "proc_COL29":
+#                         print("YES 1 proc_COL29")
+#                         print("res_vector[i+1][k]", res_vector[i+1][k])
+#                         print(i+1, k)
+#                     print("not in succs", self.str_dic_vertex_names[k])
+#                     print("chkstr", chkstr)
+#                     print("chkstr is in succs?", chkstr in succs)
+#                     print("proc_COL12 is in succs?", "proc_COL12" in succs)
+#                     print("chkstr == proc_COL12", chkstr == "proc_COL12")
+            
+                    res_vector[i+1][k] = 0
+#                     if self.str_dic_vertex_names[k] == "proc_COL29":
+#                         print("YES 1 proc_COL29")
+#                         print("res_vector[i+1][k]", res_vector[i+1][k])
+#                         print(i+1, k)
+                    continue
+            
         for i in range(len(res_vector)):
             if sum(res_vector[i]) == 0:
                 break
             for j in range(len(res_vector[i])):
                 if res_vector[i][j] != 0 and j != self.str_size_matrix: 
                     if self.str_dic_vertex_names[j][0:5] == "proc_":
+#                         if self.str_dic_vertex_names[j] == "proc_COL29":
+#                             print("YES 2 proc_COL29")
+#                             print("res_vector[i][j]", res_vector[i][j])
+#                             print(i, j)
                         selected_vertices2.add(j)
                         selected_vertices1.add(j)
                     else:
@@ -1160,6 +1222,10 @@ class DataJourneyDAG:
 
         node_labels = {i: name for i, name in enumerate(self.str_vertex_names) if i in selected_vertices1 or i in selected_vertices2}
         
+        print("procs:")
+        for s in [self.str_dic_vertex_names[k] for k in selected_vertices1 if self.str_dic_vertex_names[k][0:5] == "proc_"]:
+            print(s)
+        
         print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.str_dic_vertex_names[k][0:5] != "proc_"])))
         print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.str_dic_vertex_names[k][0:5] == "proc_"])))
         if title == "":
@@ -1182,6 +1248,12 @@ class DataJourneyDAG:
                 print(target_vertex + " is not an element")
                 return
             target_vertex = self.dic_vertex_id[target_vertex]
+        
+#         succs = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=target_vertex))])
+#         print("succs:")
+#         for s in succs:
+#             print(self.dic_vertex_names[s])
+        
         
 #         Draw the path FROM the target
         position = {}
@@ -1617,6 +1689,7 @@ class DataJourneyDAG:
         self.str_G = nx.DiGraph(self.str_adjacency_matrix)
         self.str_G_T = nx.DiGraph(self.str_adjacency_matrix_T)
         
+#         print("self.str_vertex_names", self.str_vertex_names)
         for i in range(len(self.str_vertex_names)):
             self.str_dic_vertex_names[i] = self.str_vertex_names[i]
             self.str_dic_vertex_id[self.str_vertex_names[i]] = i
@@ -1668,7 +1741,8 @@ class DataJourneyDAG:
             for i in range(len(copy.deepcopy(self.vertex_names))):
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
-            
+
+
 
 mydag = DataJourneyDAG()
 # mydag.data_import('/kaggle/input/matrix2/adjacency_matrix2.txt')
