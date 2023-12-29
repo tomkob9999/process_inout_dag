@@ -1,4 +1,4 @@
-# Extract the adjacency matrix# Version: 1.2.7
+# Extract the adjacency matrix# Version: 1.2.8
 # Last Update: 2023/12/29
 # Author: Tomio Kobayashi
 
@@ -67,7 +67,7 @@ class DataJourneyDAG:
         return brightness
 
     def draw_selected_vertices_reverse_proc(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, 
-                                            pos, reverse=False, figsize=(12, 8), showWeight=False, forStretch=False):
+                                            pos, wait_edges=None, reverse=False, figsize=(12, 8), showWeight=False, forStretch=False):
 
         # Create a subgraph with only the selected vertices
         subgraph1 = G.subgraph(selected_vertices1)
@@ -153,6 +153,12 @@ class DataJourneyDAG:
             critical_edges = [(longest_path[i], longest_path[i + 1]) for i in range(len(longest_path) - 1)]
             nx.draw_networkx_edges(subgraph1, pos, edgelist=critical_edges, edge_color='brown', width=1.25)
 
+        if wait_edges is not None:
+            wait_edge_list = [(w[0], w[1]) for w in wait_edges if w[2] < 5]
+            nx.draw_networkx_edges(subgraph1, pos, edgelist=wait_edge_list, edge_color='aqua', width=1.00)
+            wait_edge_list = [(w[0], w[1]) for w in wait_edges if w[2] >= 5]
+            nx.draw_networkx_edges(subgraph1, pos, edgelist=wait_edge_list, edge_color='aqua', width=1.00)
+            
         plt.title(title)
         plt.show()
 
@@ -504,6 +510,36 @@ class DataJourneyDAG:
                     res_vector[i+1][k] = 0
                     continue
 
+                    
+#         This part is to find the starting steps.  Currently not used.
+        succs2 = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
+        succs2 = set([self.dic_old2new[s] for s in succs2.nodes()])
+        succLastReached = {}
+        for i in range(len(res_vector)):
+            if sum(res_vector[i]) == 0:
+                break
+            for j in range(len(res_vector[i])):
+                if res_vector[i][j] != 0:
+                    if self.str_dic_vertex_names[j] in succs:
+                        succLastReached[j] = i
+        last_pos = 0
+        for i in range(len(res_vector)):
+            if sum(res_vector[i]) == 0:
+                break
+            last_pos += 1
+        print("WAITING STEPS:")
+        for v in sorted([[v, k] for k, v in succLastReached.items()], reverse=True):
+            start_step = last_pos-v[0]-1
+
+            for e in self.G.out_edges(self.dic_new2old[v[1]]):
+                if self.dic_old2new[e[1]] not in succLastReached:
+                    continue
+                if (last_pos - succLastReached[self.dic_old2new[e[1]]] - 1) - (start_step + self.G[e[0]][e[1]]["weight"]) - 1 > 0:
+                    print(self.str_dic_vertex_names[v[1]] + " (" + str(start_step) + ") -> " + self.dic_vertex_names[e[1]] + " (" + str(start_step + self.G[e[0]][e[1]]["weight"]) + 
+                          ") with wait " + str((last_pos - succLastReached[self.dic_old2new[e[1]]] - 1) - (start_step + self.G[e[0]][e[1]]["weight"] - 1)))
+
+                    
+                    
         for i in range(len(res_vector)):
             if sum(res_vector[i]) == 0:
                 break
@@ -644,6 +680,39 @@ class DataJourneyDAG:
                     continue
             
 
+#         This part is to find the starting steps.  Currently not used.
+        succs2 = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
+        succs2 = set([self.dic_old2new[s] for s in succs2.nodes()])
+        succLastReached = {}
+        for i in range(len(res_vector)):
+            if sum(res_vector[i]) == 0:
+                break
+            for j in range(len(res_vector[i])):
+                if res_vector[i][j] != 0:
+                    if self.str_dic_vertex_names[j] in succs:
+                        succLastReached[j] = i
+        last_pos = 0
+        for i in range(len(res_vector)):
+            if sum(res_vector[i]) == 0:
+                break
+            last_pos += 1
+        print("WAITING STEPS:")
+        wait_edges = []
+        for v in sorted([[v, k] for k, v in succLastReached.items()], reverse=True):
+            start_step = last_pos-v[0]-1
+
+            for e in self.G.out_edges(self.dic_new2old[v[1]]):
+                if self.dic_old2new[e[1]] not in succLastReached:
+                    continue
+                if (last_pos - succLastReached[self.dic_old2new[e[1]]] - 1) - (start_step + self.G[e[0]][e[1]]["weight"]) - 1 > 0:
+                    print(self.str_dic_vertex_names[v[1]] + " (" + str(start_step) + ") -> " + self.dic_vertex_names[e[1]] + " (" + str(start_step + self.G[e[0]][e[1]]["weight"]) + 
+                          ") with wait " + str((last_pos - succLastReached[self.dic_old2new[e[1]]] - 1) - (start_step + self.G[e[0]][e[1]]["weight"])))
+                    wait_edges.append((e[0], e[1], (last_pos - succLastReached[self.dic_old2new[e[1]]] - 1) - (start_step + self.G[e[0]][e[1]]["weight"] - 1)))
+
+
+                
+            
+            
         for i in range(len(res_vector)):
             if sum(res_vector[i]) == 0:
                 break
@@ -747,7 +816,7 @@ class DataJourneyDAG:
             figsize = (12, 8)
         
         self.draw_selected_vertices_reverse_proc(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
-                                title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True)
+                                title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges)
 
         
     def drawOrigins(self, target_vertex, title="", figsize=None, showWeight=False):
@@ -913,6 +982,27 @@ class DataJourneyDAG:
                     continue
                     
 
+#         This part is to find the starting steps.  Currently not used.
+        succs2 = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
+        succs2 = set([self.dic_old2new[s] for s in succs2.nodes()])
+        succLastReached = {}
+        for i in range(len(res_vector)):
+            if sum(res_vector[i]) == 0:
+                break
+            for j in range(len(res_vector[i])):
+                if res_vector[i][j] != 0:
+                    if self.str_dic_vertex_names[j] in succs:
+                        succLastReached[j] = i
+        print("WAITING STEPS:")             
+        wait_edges = []
+        for v in sorted([[v, k] for k, v in succLastReached.items()]):
+            for e in self.G.out_edges(self.dic_new2old[v[1]]):
+                if succLastReached[self.dic_old2new[e[1]]] - (v[0] + self.G[e[0]][e[1]]["weight"]) > 0:
+                    print(self.str_dic_vertex_names[v[1]] + " (" + str(v[0]) + ") -> " + self.dic_vertex_names[e[1]] + " (" + str(v[0] + self.G[e[0]][e[1]]["weight"]) + 
+                          ") with wait " + str(succLastReached[self.dic_old2new[e[1]]] - (v[0] + self.G[e[0]][e[1]]["weight"])))   
+                    wait_edges.append((e[0], e[1], succLastReached[self.dic_old2new[e[1]]] - (v[0] + self.G[e[0]][e[1]]["weight"])))        
+                    
+                    
         for i in range(len(res_vector)):
             if sum(res_vector[i]) == 0:
                 break
@@ -1014,7 +1104,7 @@ class DataJourneyDAG:
             figsize = (12, 8)
         
         self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
-                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, forStretch=True)
+                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges)
 
 
 
@@ -1054,22 +1144,25 @@ class DataJourneyDAG:
                     res_vector[i+1][k] = 0
                     continue
 
+                    
 #         This part is to find the starting steps.  Currently not used.
-#         succs2 = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
-#         succs2 = set([self.dic_old2new[s] for s in succs2.nodes()])
-#         succLastRached = {}
-#         for i in range(len(res_vector)):
-#             if sum(res_vector[i]) == 0:
-#                 break
-#             for j in range(len(res_vector[i])):
-#                 if res_vector[i][j] != 0:
-#                     chkstr = re.sub(pattern, '', self.str_dic_vertex_names[j])
-#                     if chkstr in succs:
-#                         new_id = self.str_dic_vertex_id[chkstr]
-#                         succLastRached[new_id] = i
-#         print("STARTING STEP:")
-#         for k, v in succLastRached.items():
-#             print(self.str_dic_vertex_names[k], v)
+        succs2 = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
+        succs2 = set([self.dic_old2new[s] for s in succs2.nodes()])
+        succLastReached = {}
+        for i in range(len(res_vector)):
+            if sum(res_vector[i]) == 0:
+                break
+            for j in range(len(res_vector[i])):
+                if res_vector[i][j] != 0:
+                    if self.str_dic_vertex_names[j] in succs:
+                        succLastReached[j] = i
+        print("WAITING STEPS:")
+        for v in sorted([[v, k] for k, v in succLastReached.items()]):
+            for e in self.G.out_edges(self.dic_new2old[v[1]]):
+                if succLastReached[self.dic_old2new[e[1]]] - (v[0] + self.G[e[0]][e[1]]["weight"]) > 0:
+                    print(self.str_dic_vertex_names[v[1]] + " (" + str(v[0]) + ") -> " + self.dic_vertex_names[e[1]] + " (" + str(v[0] + self.G[e[0]][e[1]]["weight"]) + 
+                          ") with wait " + str(succLastReached[self.dic_old2new[e[1]]] - (v[0] + self.G[e[0]][e[1]]["weight"])))
+
 
         for i in range(len(res_vector)):
             if sum(res_vector[i]) == 0:
@@ -1661,6 +1754,10 @@ class DataJourneyDAG:
             for i in range(len(copy.deepcopy(self.vertex_names))):
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
+
+
+
+
 
 
 
