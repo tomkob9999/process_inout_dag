@@ -1,4 +1,4 @@
-# Extract the adjacency matrix# Version: 1.2.6
+# Extract the adjacency matrix# Version: 1.2.7
 # Last Update: 2023/12/29
 # Author: Tomio Kobayashi
 
@@ -600,7 +600,7 @@ class DataJourneyDAG:
         if title == "":
             title = "Data Origins with Weight-Based Pipelining Including Dummy Nodes"
         has_proc = len([k for k in self.str_dic_vertex_id if k[0:5]  == "proc_"]) > 0
-        title += " (" + str(last_pos-1) + " stages)"
+        title += " (" + str(last_pos-1) + " steps)"
         
         if figsize is None:
             figsize = (12, 8)
@@ -741,7 +741,7 @@ class DataJourneyDAG:
         if title == "":
             title = "Data Origins with Weight-Based Pipelining"
         has_proc = len([k for k in self.dic_vertex_id if k[0:5]  == "proc_"]) > 0
-        title += " (" + str(last_pos-1) + " stages)"
+        title += " (" + str(last_pos-1) + " steps)"
         
         if figsize is None:
             figsize = (12, 8)
@@ -863,7 +863,7 @@ class DataJourneyDAG:
         if title == "":
             title = "Data Origins"
         has_proc = len([k for k in self.dic_vertex_id if k[0:5]  == "proc_"]) > 0
-        title += " (" + str(len(set([v[0] for k, v in position.items() if (has_proc and self.dic_vertex_names[k][0:5] == "proc_") or (not has_proc and self.dic_vertex_names[k][0:5] != "proc_")]))-1) + " stages)"
+        title += " (" + str(len(set([v[0] for k, v in position.items() if (has_proc and self.dic_vertex_names[k][0:5] == "proc_") or (not has_proc and self.dic_vertex_names[k][0:5] != "proc_")]))-1) + " steps)"
     
         selected_vertices1 = list(selected_vertices1)
         selected_vertices2 = list(selected_vertices2)
@@ -1007,8 +1007,8 @@ class DataJourneyDAG:
         print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
         if title == "":
             title = "Data Offsprings with Weight-Based Pipelining"
+        title += " (" + str(last_pos-1) + " steps)"
         has_proc = len([k for k in self.dic_vertex_id if k[0:5]  == "proc_"]) > 0
-        title += " (" + str(last_pos-1) + " stages)"
 
         if figsize is None:
             figsize = (12, 8)
@@ -1053,7 +1053,24 @@ class DataJourneyDAG:
                 if res_vector[i+1][k] > 0 and (chkstr not in succs and "proc_" + chkstr not in succs):
                     res_vector[i+1][k] = 0
                     continue
-            
+
+#         This part is to find the starting steps.  Currently not used.
+#         succs2 = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
+#         succs2 = set([self.dic_old2new[s] for s in succs2.nodes()])
+#         succLastRached = {}
+#         for i in range(len(res_vector)):
+#             if sum(res_vector[i]) == 0:
+#                 break
+#             for j in range(len(res_vector[i])):
+#                 if res_vector[i][j] != 0:
+#                     chkstr = re.sub(pattern, '', self.str_dic_vertex_names[j])
+#                     if chkstr in succs:
+#                         new_id = self.str_dic_vertex_id[chkstr]
+#                         succLastRached[new_id] = i
+#         print("STARTING STEP:")
+#         for k, v in succLastRached.items():
+#             print(self.str_dic_vertex_names[k], v)
+
         for i in range(len(res_vector)):
             if sum(res_vector[i]) == 0:
                 break
@@ -1142,17 +1159,18 @@ class DataJourneyDAG:
 
         node_labels = {i: name for i, name in enumerate(self.str_vertex_names) if i in selected_vertices1 or i in selected_vertices2}
         
-        print("procs:")
-        for s in [self.str_dic_vertex_names[k] for k in selected_vertices1 if self.str_dic_vertex_names[k][0:5] == "proc_"]:
-            print(s)
+#         print("procs:")
+#         for s in [self.str_dic_vertex_names[k] for k in selected_vertices1 if self.str_dic_vertex_names[k][0:5] == "proc_"]:
+#             print(s)
         
         print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.str_dic_vertex_names[k][0:5] != "proc_"])))
         print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.str_dic_vertex_names[k][0:5] == "proc_"])))
         if title == "":
             title = "Data Offsprings with Weight-Based Pipelining Including Dummy Nodes"
         has_proc = len([k for k in self.str_dic_vertex_id if k[0:5]  == "proc_"]) > 0
-        title += " (" + str(len(set([v[0] for k, v in position.items() if (has_proc and self.str_dic_vertex_names[k][0:5] == "proc_") or (not has_proc and self.str_dic_vertex_names[k][0:5] != "proc_")]))-1) + " stages)"
-
+#         title += " (" + str(len(set([v[0] for k, v in position.items() if (has_proc and self.str_dic_vertex_names[k][0:5] == "proc_") or (not has_proc and self.str_dic_vertex_names[k][0:5] != "proc_")]))-1) + " steps)"
+        title += " (" + str(last_pos-1) + " steps)"
+        
         if figsize is None:
             figsize = (12, 8)
         
@@ -1274,7 +1292,7 @@ class DataJourneyDAG:
         if title == "":
             title = "Data Offsprings"
         has_proc = len([k for k in self.dic_vertex_id if k[0:5]  == "proc_"]) > 0
-        title += " (" + str(len(set([v[0] for k, v in position.items() if (has_proc and self.dic_vertex_names[k][0:5] == "proc_") or (not has_proc and self.dic_vertex_names[k][0:5] != "proc_")]))-1) + " stages)"
+        title += " (" + str(len(set([v[0] for k, v in position.items() if (has_proc and self.dic_vertex_names[k][0:5] == "proc_") or (not has_proc and self.dic_vertex_names[k][0:5] != "proc_")]))-1) + " steps)"
         if figsize is None:
             figsize = (12, 8)
             
@@ -1645,17 +1663,59 @@ class DataJourneyDAG:
                     self.vertex_names.pop(i)
 
 
+
+##### EXECUTION SAMPLE
+
+import time
+
+def measure(start_time):
+    end_time = time.time()
+
+    elapsed_time = end_time - start_time
+    minutes, seconds = divmod(elapsed_time, 60)
+    milliseconds = int(elapsed_time * 1000 % 1000)
+    return f"{int(minutes)}:{str(int(seconds)).zfill(2)}:{str(int(milliseconds)).zfill(3)}"
+           
+start_time = time.time()
+
 mydag = DataJourneyDAG()
-# mydag.data_import('/kaggle/input/matrix2/adjacency_matrix2.txt')
-# mydag.data_import('dag_data_with_headers.txt')
-mydag.data_import('dag_data9.txt')
-# mydag.data_import('edge_list.txt', is_edge_list=True)
-mydag.write_edge_list_to_file('edge_list2.txt')
-# mydag.write_adjacency_matrix_to_file('dag_data9.txt')
+
+showWeight = True
+
+print("DataJourneyDAG() finished", measure(start_time))
+start_time = time.time()
+
+
+mydag.data_import('/kaggle/input/matrix12/weighted_matrix12.txt') #100
+print("data_import() finished", measure(start_time))
+start_time = time.time()
+
+
+# mydag.drawFromLargestComponent(figsize=(50, 50), showWeight=True, showCriticality=True)
+
+# print("drawFromLargestComponent() finished", measure(start_time))
+# start_time = time.time()
 
 mydag.genProcesses()
-mydag.coupleProcesses("proc_b", "proc_d")
-mydag.drawOrigins(250)
-mydag.drawOffsprings(250)
 
+print("genProcesses() finished", measure(start_time))
+start_time = time.time()
 
+mydag.keepOnlyProcesses()
+
+print("keepOnlyProcesses() finished", measure(start_time))
+start_time = time.time()
+
+mydag.populateStretch()
+print("populateStretch() finished", measure(start_time))
+start_time = time.time()
+
+target_vertex = "proc_COL39"
+
+mydag.drawOffspringsStretchDummy(target_vertex, figsize=(12,8), showWeight=showWeight)
+print("drawOffspringsStretchDummy() finished", measure(start_time))
+start_time = time.time()
+
+mydag.drawOffspringsStretch(target_vertex, figsize=(12,8), showWeight=showWeight)
+print("drawOffspringsStretch() finished", measure(start_time))
+start_time = time.time()
