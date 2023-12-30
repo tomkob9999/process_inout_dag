@@ -1,5 +1,5 @@
-# Extract the adjacency matrix# Version: 1.2.8
-# Last Update: 2023/12/29
+# Extract the adjacency matrix# Version: 1.2.9
+# Last Update: 2023/12/30
 # Author: Tomio Kobayashi
 
 # - generateProcesses  genProcesses() DONE
@@ -144,8 +144,10 @@ class DataJourneyDAG:
             nx.draw(subgraph2, pos, linewidths=0, with_labels=True, labels=node_labels2, node_size=defNodeSize, node_color='orange', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
         nx.draw(subgraph3, pos, linewidths=0, with_labels=True, labels=node_labels3, node_size=defNodeSize, node_color='pink', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
             
+        dicWait = {(w[0], w[1]): w[2] for w in wait_edges}
         if showWeight:
-            edge_labels = {(i, j): subgraph1[i][j]['weight'] for i, j in subgraph1.edges()}
+#             edge_labels = {(i, j): subgraph1[i][j]['weight'] for i, j in subgraph1.edges()}
+            edge_labels = {(i, j): subgraph1[i][j]['weight'] if (i, j) not in dicWait else str(subgraph1[i][j]['weight']) + " (& " + str(dicWait[(i, j)]) + ")"  for i, j in subgraph1.edges()}
             nx.draw_networkx_edge_labels(subgraph1, pos, edge_labels=edge_labels)
         
             # Draw critical path edges with a different color
@@ -696,7 +698,9 @@ class DataJourneyDAG:
             if sum(res_vector[i]) == 0:
                 break
             last_pos += 1
-        print("WAITING STEPS:")
+            
+            
+#         print("WAITING STEPS:")
         wait_edges = []
         for v in sorted([[v, k] for k, v in succLastReached.items()], reverse=True):
             start_step = last_pos-v[0]-1
@@ -705,12 +709,9 @@ class DataJourneyDAG:
                 if self.dic_old2new[e[1]] not in succLastReached:
                     continue
                 if (last_pos - succLastReached[self.dic_old2new[e[1]]] - 1) - (start_step + self.G[e[0]][e[1]]["weight"]) - 1 > 0:
-                    print(self.str_dic_vertex_names[v[1]] + " (" + str(start_step) + ") -> " + self.dic_vertex_names[e[1]] + " (" + str(start_step + self.G[e[0]][e[1]]["weight"]) + 
-                          ") with wait " + str((last_pos - succLastReached[self.dic_old2new[e[1]]] - 1) - (start_step + self.G[e[0]][e[1]]["weight"])))
+#                     print(self.str_dic_vertex_names[v[1]] + " (" + str(start_step) + ") -> " + self.dic_vertex_names[e[1]] + " (" + str(start_step + self.G[e[0]][e[1]]["weight"]) + 
+#                           ") with wait " + str((last_pos - succLastReached[self.dic_old2new[e[1]]] - 1) - (start_step + self.G[e[0]][e[1]]["weight"])))
                     wait_edges.append((e[0], e[1], (last_pos - succLastReached[self.dic_old2new[e[1]]] - 1) - (start_step + self.G[e[0]][e[1]]["weight"] - 1)))
-
-
-                
             
             
         for i in range(len(res_vector)):
@@ -993,13 +994,13 @@ class DataJourneyDAG:
                 if res_vector[i][j] != 0:
                     if self.str_dic_vertex_names[j] in succs:
                         succLastReached[j] = i
-        print("WAITING STEPS:")             
+#         print("WAITING STEPS:")             
         wait_edges = []
         for v in sorted([[v, k] for k, v in succLastReached.items()]):
             for e in self.G.out_edges(self.dic_new2old[v[1]]):
                 if succLastReached[self.dic_old2new[e[1]]] - (v[0] + self.G[e[0]][e[1]]["weight"]) > 0:
-                    print(self.str_dic_vertex_names[v[1]] + " (" + str(v[0]) + ") -> " + self.dic_vertex_names[e[1]] + " (" + str(v[0] + self.G[e[0]][e[1]]["weight"]) + 
-                          ") with wait " + str(succLastReached[self.dic_old2new[e[1]]] - (v[0] + self.G[e[0]][e[1]]["weight"])))   
+#                     print(self.str_dic_vertex_names[v[1]] + " (" + str(v[0]) + ") -> " + self.dic_vertex_names[e[1]] + " (" + str(v[0] + self.G[e[0]][e[1]]["weight"]) + 
+#                           ") with wait " + str(succLastReached[self.dic_old2new[e[1]]] - (v[0] + self.G[e[0]][e[1]]["weight"])))   
                     wait_edges.append((e[0], e[1], succLastReached[self.dic_old2new[e[1]]] - (v[0] + self.G[e[0]][e[1]]["weight"])))        
                     
                     
@@ -1754,7 +1755,6 @@ class DataJourneyDAG:
             for i in range(len(copy.deepcopy(self.vertex_names))):
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
-
 
 
 
