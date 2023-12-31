@@ -1,4 +1,4 @@
-# Extract the adjacency matrix# Version: 1.3.3
+# Extract the adjacency matrix# Version: 1.3.4
 # Last Update: 2024/01/01
 # Author: Tomio Kobayashi
 
@@ -217,21 +217,17 @@ class DataJourneyDAG:
         
         # Convert the adjacency matrix to a NumPy array of integers
         self.adjacency_matrix = np.array(self.adjacency_matrix, dtype=int)
-
-#         # Generate random weights between 1 and 8 for testing
-#         for i in range(len(self.adjacency_matrix)):
-#             random_integer = random.randint(1, 8)
-#             for j in range(len(self.adjacency_matrix)):
-#                 if self.adjacency_matrix[i][j] == 1:
-#                     self.adjacency_matrix[i][j] = random_integer
-
-#         print("self.adjacency_matrix")
-#         for i in range(len(self.adjacency_matrix)):
-#             print(self.adjacency_matrix[i])
-        
+                    
         if self.has_cycle(self.adjacency_matrix):
             print("The result graph is not a DAG")
             return
+
+        # Generate random weights between 1 and 5 for testing
+        for i in range(len(self.adjacency_matrix)):
+            random_integer = random.randint(1, 5)
+            for j in range(len(self.adjacency_matrix)):
+                if self.adjacency_matrix[i][j] == 1:
+                    self.adjacency_matrix[i][j] = random_integer
 
         self.adjacency_matrix_T = self.adjacency_matrix.T
 
@@ -1794,7 +1790,7 @@ class DataJourneyDAG:
             for i in range(len(copy.deepcopy(self.vertex_names))):
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
-
+                    
 
 
 
