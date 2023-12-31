@@ -1,12 +1,11 @@
-# Extract the adjacency matrix# Version: 1.3.2
-# Last Update: 2023/12/31
+# Extract the adjacency matrix# Version: 1.3.3
+# Last Update: 2024/01/01
 # Author: Tomio Kobayashi
 
 # - generateProcesses  genProcesses() DONE
 # - DAG check  checkDAG(from, to) DONE
 # - Process coupling  (process1, process2) DONE
 # - Link Node  linkFields(from, to) DONE
-# - Add Node  addField(name) NOT YET
   
 import numpy as np
 import networkx as nx
@@ -114,7 +113,7 @@ class DataJourneyDAG:
                 
                 color_map = [plt.cm.viridis(node_parameter[node]) for node in subgraph2]
 
-        if forStretch:
+        if forStretch and len(selected_vertices1) > 10:
             max_height = max([v[1] for k, v in pos.items()])
             for k, v in pos.items():
                 if v[0] % 3 == 1:
@@ -219,14 +218,12 @@ class DataJourneyDAG:
         # Convert the adjacency matrix to a NumPy array of integers
         self.adjacency_matrix = np.array(self.adjacency_matrix, dtype=int)
 
-        # Generate random weights between 1 and 8 for testing
-        for i in range(len(self.adjacency_matrix)):
-            random_integer = random.randint(1, 8)
-            for j in range(len(self.adjacency_matrix)):
-#                 if self.adjacency_matrix[j][i] == 1:
-#                     self.adjacency_matrix[j][i] = random_integer
-                if self.adjacency_matrix[i][j] == 1:
-                    self.adjacency_matrix[i][j] = random_integer
+#         # Generate random weights between 1 and 8 for testing
+#         for i in range(len(self.adjacency_matrix)):
+#             random_integer = random.randint(1, 8)
+#             for j in range(len(self.adjacency_matrix)):
+#                 if self.adjacency_matrix[i][j] == 1:
+#                     self.adjacency_matrix[i][j] = random_integer
 
 #         print("self.adjacency_matrix")
 #         for i in range(len(self.adjacency_matrix)):
@@ -1413,7 +1410,8 @@ class DataJourneyDAG:
         
         # Show stats of procs
         has_proc = len([k for k in self.dic_vertex_id if k[0:5]  == "proc_"]) > 0
-        if has_proc:
+#         if has_proc:
+        if has_proc and list(nx.weakly_connected_components(g)) == 1:
             is_bipartite = nx.bipartite.sets(g)
             if is_bipartite:
                 self.showBipartiteStats(g)
@@ -1511,6 +1509,10 @@ class DataJourneyDAG:
     def suggest_coupling(self, g):
                 
         longest_path_length = nx.dag_longest_path_length(g)
+        
+        if longest_path_length == 0:
+            return
+        
         longest_path = nx.dag_longest_path(g)
         node_criticality = None
         node_criticality = [((nx.dag_longest_path_length(g.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(g, target_node))])) + 
@@ -1519,7 +1521,10 @@ class DataJourneyDAG:
 
         
         print("SUGGESTED COUPLINGS")
+        cnt = 0
         for i in range(len(node_criticality)):
+            if cnt > 20:
+                break
             if node_criticality[i][1] in longest_path:
                 continue
             for j in range(i+1, len(node_criticality), 1):
@@ -1535,6 +1540,11 @@ class DataJourneyDAG:
                     diff_longest = np.abs(nx.dag_longest_path_length(lowers) - nx.dag_longest_path_length(lowers_j))
                     if diff_longest < 6:
                         print(self.dic_vertex_names[node_criticality[i][1]], self.dic_vertex_names[node_criticality[j][1]])
+                        
+                        cnt += 1
+                        if cnt > 20:
+                            break
+                            
         
         print("")
         
@@ -1727,12 +1737,34 @@ class DataJourneyDAG:
             print("There are no processe nodes in the graph.")
             return
         
-
-        is_bipartite = nx.bipartite.sets(self.G)
-        if not is_bipartite:
-            print("There is not a bipartite graph.")
-            return
-
+#         is_bipartite = nx.bipartite.sets(self.G)
+#         if not is_bipartite:
+#             print("There is not a bipartite graph.")
+#             return
+            
+        connected_components = list(nx.weakly_connected_components(self.G))
+        largest_connected_component = None
+        if len(connected_components) > 0:
+            print("Keeping only the largest connected graph.")
+            sorted_graphs = sorted([[len(c), c] for c in connected_components], reverse=True)
+            for i in range(len(sorted_graphs)):
+                if i == 0:
+                    largest_connected_component = sorted_graphs[i][1]
+            largest_G = self.G.subgraph(largest_connected_component)
+        
+            is_bipartite = nx.bipartite.sets(largest_G)
+            if not is_bipartite:
+                print("There is not a bipartite graph.")
+                return
+        
+            self.G =  largest_G
+        else:
+            is_bipartite = nx.bipartite.sets(self.G)
+            if not is_bipartite:
+                print("There is not a bipartite graph.")
+                return
+        
+        
         edges = self.adjacency_matrix_to_edge_list(self.adjacency_matrix)
 #         print("edges", edges)
         new_edges = []
