@@ -1,5 +1,5 @@
-# Extract the adjacency matrix# Version: 1.3.0
-# Last Update: 2023/12/30
+# Extract the adjacency matrix# Version: 1.3.2
+# Last Update: 2023/12/31
 # Author: Tomio Kobayashi
 
 # - generateProcesses  genProcesses() DONE
@@ -182,10 +182,10 @@ class DataJourneyDAG:
             print("LONGEST PATH (" + str(longest_path_length) + "):")
             print(" > ".join([self.dic_vertex_names[t] for t in longest_path if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
             print("")
-            print("CRITICALITY:")
-            for n in sorted(node_criticality, reverse=True):
-                print(self.dic_vertex_names[n[1]], round(n[0], 3))
-            print("")
+#             print("CRITICALITY:")
+#             for n in sorted(node_criticality, reverse=True):
+#                 print(self.dic_vertex_names[n[1]], round(n[0], 3))
+#             print("")
             self.suggest_coupling(subgraph1)
             self.suggest_opportunities(subgraph1)
             
@@ -219,12 +219,14 @@ class DataJourneyDAG:
         # Convert the adjacency matrix to a NumPy array of integers
         self.adjacency_matrix = np.array(self.adjacency_matrix, dtype=int)
 
-#         # Generate random weights between 1 and 5 for testing
-#         for i in range(len(self.adjacency_matrix)):
-#             random_integer = random.randint(1, 5)
-#             for j in range(len(self.adjacency_matrix)):
+        # Generate random weights between 1 and 8 for testing
+        for i in range(len(self.adjacency_matrix)):
+            random_integer = random.randint(1, 8)
+            for j in range(len(self.adjacency_matrix)):
 #                 if self.adjacency_matrix[j][i] == 1:
 #                     self.adjacency_matrix[j][i] = random_integer
+                if self.adjacency_matrix[i][j] == 1:
+                    self.adjacency_matrix[i][j] = random_integer
 
 #         print("self.adjacency_matrix")
 #         for i in range(len(self.adjacency_matrix)):
@@ -1166,26 +1168,6 @@ class DataJourneyDAG:
                 if succLastReached[self.dic_old2new[e[1]]] - (v[0] + self.G[e[0]][e[1]]["weight"]) > 0:
                     print(self.str_dic_vertex_names[v[1]] + " (" + str(v[0]) + ") -> " + self.dic_vertex_names[e[1]] + " (" + str(v[0] + self.G[e[0]][e[1]]["weight"]) + 
                           ") with wait " + str(succLastReached[self.dic_old2new[e[1]]] - (v[0] + self.G[e[0]][e[1]]["weight"])))
-
-#         print("")
-#         print("EDGES OF self.G")
-#         for f in sorted(list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))):
-#             print(self.dic_vertex_names[f[0]], self.dic_vertex_names[f[1]])
-            
-#         print("")
-#         print("EDGES OF self.G_T")
-#         for f in sorted(list(nx.edge_dfs(self.G_T, source=self.dic_new2old[target_vertex]))):
-#             print(self.dic_vertex_names[f[0]], self.dic_vertex_names[f[1]])
-            
-#         print("")
-#         print("EDGES OF self.str_G")
-#         for f in sorted(list(nx.edge_dfs(self.str_G, source=target_vertex))):
-#             print(self.str_dic_vertex_names[f[0]], self.str_dic_vertex_names[f[1]])
-            
-#         print("")
-#         print("EDGES OF self.str_G_T")
-#         for f in sorted(list(nx.edge_dfs(self.str_G_T, source=target_vertex))):
-#             print(self.str_dic_vertex_names[f[0]], self.str_dic_vertex_names[f[1]])
                                         
         for i in range(len(res_vector)):
             if sum(res_vector[i]) == 0:
@@ -1274,18 +1256,6 @@ class DataJourneyDAG:
         selected_vertices3 = [target_vertex]
 
         node_labels = {i: name for i, name in enumerate(self.str_vertex_names) if i in selected_vertices1 or i in selected_vertices2}
-        
-#         subgraph1 = self.str_G_T.subgraph(selected_vertices1)
-#         print("")
-#         print("")
-#         print("draw subgraph1 edges")
-#         for i, j in subgraph1.edges():
-#             print(self.str_dic_vertex_names[i], self.str_dic_vertex_names[j])
-#         edge_labels = {(i, j): subgraph1[i][j]['weight'] for i, j in subgraph1.edges()}
-            
-#         print("procs:")
-#         for s in [self.str_dic_vertex_names[k] for k in selected_vertices1 if self.str_dic_vertex_names[k][0:5] == "proc_"]:
-#             print(s)
         
         print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.str_dic_vertex_names[k][0:5] != "proc_"])))
         print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.str_dic_vertex_names[k][0:5] == "proc_"])))
@@ -1687,20 +1657,13 @@ class DataJourneyDAG:
             weight = f[1]  # Insert at the second row (index 1)
 
             col_name = vv[col]
-#             if col == 64:
-#                 matrix[col]
             for t in tt:
                 matrix[col][t] = 0
-#             if col == 64:
-#                 matrix[col]
             for i in range(weight-1):
                 vv.insert(col+1, "dumm_" + str(i+1) + "_" + col_name)
 
                 zero_row = np.zeros((1, matrix.shape[1]))  # Same
                 zero_col = np.zeros((1, matrix.shape[1]+1))  # Same
-#                 if "dumm_" + str(i+1) + "_" + col_name == "dumm_2_COL64":
-#                     print("zero_row", zero_row)
-#                     print("zero_col", zero_row)
                 
                 if len(matrix) <= col+i+1:
                     matrix = np.vstack((matrix, zero_row))
@@ -1712,30 +1675,6 @@ class DataJourneyDAG:
         #     set from to for new rows except the last one
             for i in range(weight-2):
                 matrix[col+i+1][col+i+2] = 1
-
-#         print("vv", vv)
-
-#         print("matrix[208][233]", matrix[208][233])
-#         print("matrix[207]", matrix[207])
-#         print("matrix[208]", matrix[208])
-#         print("matrix[209]", matrix[209])
-        
-#         for i in range(len(self.str_vertex_names)):
-#             self.str_dic_vertex_names[i] = self.str_vertex_names[i]
-#             self.str_dic_vertex_id[self.str_vertex_names[i]] = i
-        
-
-#         print("self.adjacency_matrix")
-#         for i in range(len(self.adjacency_matrix)):
-#             print(i, self.adjacency_matrix[i])
-        
-        
-#         print("matrix")
-#         for i in range(len(matrix)):
-#             print(i, matrix[i])
-            
-#         print(self.str_vertex_names)
-#         print("id of dumm_2_COL64" + self.str_dic_vertex_id["dumm_2_COL64"])
         
         for f in list_weights:
             old_fr = f[0]
@@ -1762,8 +1701,6 @@ class DataJourneyDAG:
             # for 2<weight 
                 matrix[new_fr][new_fr+1] = 1
 
-#         print("matrix[208][233]", matrix[208][233])
-#         print("has_cycle", self.has_cycle(matrix))
         
         self.str_adjacency_matrix = matrix
         self.str_vertex_names = vv
@@ -1780,14 +1717,8 @@ class DataJourneyDAG:
 
         self.dic_new2old = {v: k for k,v in self.dic_old2new.items()}
     
-    
-#         print("")
-#         print("EDGES OF self.str_G")
-#         print(self.str_vertex_names)
-#         print(self.str_dic_vertex_names)
-#         for f in sorted(list(nx.edge_dfs(self.str_G, source=target_vertex))):
-#             print(self.str_dic_vertex_names[f[0]], self.str_dic_vertex_names[f[1]])
-                
+#         print("has_cycle", self.has_cycle(matrix))
+
     def keepOnlyProcesses(self):
         
         # Show stats of procs
@@ -1831,8 +1762,6 @@ class DataJourneyDAG:
             for i in range(len(copy.deepcopy(self.vertex_names))):
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
-                    
-
 
 
 
