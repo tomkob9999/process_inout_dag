@@ -1,5 +1,5 @@
-# Extract the adjacency matrix# Version: 1.3.7
-# Last Update: 2024/01/01
+# Extract the adjacency matrix# Version: 1.3.8
+# Last Update: 2024/01/02
 # Author: Tomio Kobayashi
 
 # - generateProcesses  genProcesses() DONE
@@ -16,6 +16,7 @@ from datetime import date
 import textwrap
 import re
 
+# from scipy.sparse import csr_matrix
 
 # import matplotlib.cm as cm
 
@@ -498,10 +499,10 @@ class DataJourneyDAG:
         pattern = re.compile(r'^dumm_(\d+)_')
 
                     
-        # Draw the path TO the target
-        if self.has_cycle(self.str_adjacency_matrix):
-            print("The result graph is not a DAG")
-            return
+#         # Draw the path TO the target
+#         if self.has_cycle(self.str_adjacency_matrix):
+#             print("The result graph is not a DAG")
+#             return
         
         res_vector = np.zeros((1, self.str_size_matrix))
         res_vector[0][target_vertex] = 1
@@ -682,10 +683,10 @@ class DataJourneyDAG:
         succs = [self.dic_vertex_names[s] for s in succs]
         pattern = re.compile(r'^dumm_(\d+)_')
         
-        # Draw the path TO the target
-        if self.has_cycle(self.str_adjacency_matrix):
-            print("The result graph is not a DAG")
-            return
+#         # Draw the path TO the target
+#         if self.has_cycle(self.str_adjacency_matrix):
+#             print("The result graph is not a DAG")
+#             return
         
         res_vector = np.zeros((1, self.str_size_matrix))
         res_vector[0][target_vertex] = 1
@@ -864,10 +865,10 @@ class DataJourneyDAG:
 #                 break
 #             res_vector[i+1] = self.adjacency_matrix @ res_vector[i]
             
-        # Draw the path TO the target
-        if self.has_cycle(self.adjacency_matrix):
-            print("The result graph is not a DAG")
-            return
+#         # Draw the path TO the target
+#         if self.has_cycle(self.adjacency_matrix):
+#             print("The result graph is not a DAG")
+#             return
         
         res_vector = np.zeros((1, self.size_matrix))
         res_vector[0][target_vertex] = 1
@@ -992,13 +993,15 @@ class DataJourneyDAG:
 
 
     def drawOffspringsStretch(self, target_vertex, title="", figsize=None, showWeight=False):
+
         
         if isinstance(target_vertex, str):
             if target_vertex not in self.str_dic_vertex_id:
                 print(target_vertex + " is not an element")
                 return
             target_vertex = self.str_dic_vertex_id[target_vertex]
-                    
+
+        
 #         Draw the path FROM the target
         position = {}
         colpos = {}
@@ -1008,14 +1011,23 @@ class DataJourneyDAG:
 #         res_vector = np.array([np.zeros(self.str_size_matrix) for i in range(self.str_size_matrix+1)])
 #         res_vector[0][target_vertex] = 1
 
+    
         succs = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
         succs = [self.dic_vertex_names[s] for s in succs]
         pattern = re.compile(r'^dumm_(\d+)_')
 
-        # Draw the path TO the target
-        if self.has_cycle(self.str_adjacency_matrix):
-            print("The result graph is not a DAG")
-            return
+        
+#         # Draw the path TO the target - too time consuming, not needed as this has been tested before
+#         if self.has_cycle(self.str_adjacency_matrix):
+#             print("The result graph is not a DAG")
+#             return
+        
+#         print("before converting to CSR")
+#         csr_T = csr_matrix(self.str_adjacency_matrix_T)
+#         print("after converting to CSR")
+#         csr_vectors = []
+#         csr_vectors.append(csr_matrix(np.zeros((1, self.str_size_matrix))))
+#         print("csr_vectors initialized")
         
         res_vector = np.zeros((1, self.str_size_matrix))
         res_vector[0][target_vertex] = 1
@@ -1036,6 +1048,8 @@ class DataJourneyDAG:
                     res_vector[i+1][k] = 0
                     continue
                     
+#         print("matrix calculation finished")
+        
         for i in range(len(res_vector)):
             colpos[i] = 0
             
@@ -1160,9 +1174,11 @@ class DataJourneyDAG:
         if figsize is None:
             figsize = (12, 8)
         
+#         print("position calculation finished")
         self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
                         title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges)
 
+#         print("drawing finished")
 
 
     def drawOffspringsStretchDummy(self, target_vertex, title="", figsize=None, showWeight=False):
@@ -1187,10 +1203,10 @@ class DataJourneyDAG:
         succs = [self.dic_vertex_names[s] for s in succs]
         pattern = re.compile(r'^dumm_(\d+)_')
 
-        # Draw the path TO the target
-        if self.has_cycle(self.str_adjacency_matrix):
-            print("The result graph is not a DAG")
-            return
+#         # Draw the path TO the target
+#         if self.has_cycle(self.str_adjacency_matrix):
+#             print("The result graph is not a DAG")
+#             return
         
         res_vector = np.zeros((1, self.str_size_matrix))
         res_vector[0][target_vertex] = 1
@@ -1354,10 +1370,10 @@ class DataJourneyDAG:
 #         res_vector = np.array([np.zeros(self.size_matrix) for i in range(self.size_matrix+1)])
 #         res_vector[0][target_vertex] = 1
             
-        # Draw the path TO the target
-        if self.has_cycle(self.adjacency_matrix):
-            print("The result graph is not a DAG")
-            return
+#         # Draw the path TO the target
+#         if self.has_cycle(self.adjacency_matrix):
+#             print("The result graph is not a DAG")
+#             return
         
         res_vector = np.zeros((1, self.size_matrix))
         res_vector[0][target_vertex] = 1
@@ -2002,6 +2018,7 @@ class DataJourneyDAG:
             for i in range(len(copy.deepcopy(self.vertex_names))):
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
+
                     
 
                     
