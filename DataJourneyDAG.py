@@ -1,4 +1,4 @@
-# Extract the adjacency matrix# Version: 1.3.6
+# Extract the adjacency matrix# Version: 1.3.7
 # Last Update: 2024/01/01
 # Author: Tomio Kobayashi
 
@@ -489,20 +489,31 @@ class DataJourneyDAG:
         posfill = set()
         selected_vertices1 = set()
         selected_vertices2 = set()
-        res_vector = np.array([np.zeros(self.str_size_matrix) for i in range(self.str_size_matrix+1)])
-        res_vector[0][target_vertex] = 1
+#         res_vector = np.array([np.zeros(self.str_size_matrix) for i in range(self.str_size_matrix+1)])
+#         res_vector[0][target_vertex] = 1
 
-        for i in range(len(res_vector)):
-            colpos[i] = 0
             
         succs = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex], orientation="reverse"))])
         succs = [self.dic_vertex_names[s] for s in succs]
         pattern = re.compile(r'^dumm_(\d+)_')
 
+                    
+        # Draw the path TO the target
+        if self.has_cycle(self.str_adjacency_matrix):
+            print("The result graph is not a DAG")
+            return
         
-        for i in range(self.str_size_matrix):
+        res_vector = np.zeros((1, self.str_size_matrix))
+        res_vector[0][target_vertex] = 1
+        for i in range(50000):
             if sum(res_vector[i]) == 0:
                 break
+            res_vector.resize((res_vector.shape[0] + 1, res_vector.shape[1]))
+            new_row = np.zeros(self.str_size_matrix)
+            res_vector[-1, :] = new_row
+#         for i in range(self.str_size_matrix):
+#             if sum(res_vector[i]) == 0:
+#                 break
             res_vector[i+1] = self.str_adjacency_matrix @ res_vector[i]
             for k in range(len(res_vector[i+1])):
                 chkstr = re.sub(pattern, '', self.str_dic_vertex_names[k])
@@ -510,6 +521,8 @@ class DataJourneyDAG:
                     res_vector[i+1][k] = 0
                     continue
 
+        for i in range(len(res_vector)):
+            colpos[i] = 0
                     
 #         This part is to find the starting steps.  Currently not used.
         succs2 = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
@@ -658,19 +671,34 @@ class DataJourneyDAG:
         posfill = set()
         selected_vertices1 = set()
         selected_vertices2 = set()
-        res_vector = np.array([np.zeros(self.str_size_matrix) for i in range(self.str_size_matrix+1)])
-        res_vector[0][target_vertex] = 1
+#         res_vector = np.array([np.zeros(self.str_size_matrix) for i in range(self.str_size_matrix+1)])
+#         res_vector = np.zeros((1, self.size_matrix))
+#         res_vector[0][target_vertex] = 1
 
-        for i in range(len(res_vector)):
-            colpos[i] = 0
+#         for i in range(len(res_vector)):
+#             colpos[i] = 0
 
         succs = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex], orientation="reverse"))])
         succs = [self.dic_vertex_names[s] for s in succs]
         pattern = re.compile(r'^dumm_(\d+)_')
         
-        for i in range(self.str_size_matrix):
+        # Draw the path TO the target
+        if self.has_cycle(self.str_adjacency_matrix):
+            print("The result graph is not a DAG")
+            return
+        
+        res_vector = np.zeros((1, self.str_size_matrix))
+        res_vector[0][target_vertex] = 1
+        for i in range(50000):
             if sum(res_vector[i]) == 0:
                 break
+            res_vector.resize((res_vector.shape[0] + 1, res_vector.shape[1]))
+            new_row = np.zeros(self.str_size_matrix)
+            res_vector[-1, :] = new_row
+
+#         for i in range(self.str_size_matrix):
+#             if sum(res_vector[i]) == 0:
+#                 break
             res_vector[i+1] = self.str_adjacency_matrix @ res_vector[i]
             
             for k in range(len(res_vector[i+1])):
@@ -678,7 +706,9 @@ class DataJourneyDAG:
                 if res_vector[i+1][k] > 0 and (chkstr not in succs and "proc_" + chkstr not in succs):
                     res_vector[i+1][k] = 0
                     continue
-            
+
+        for i in range(len(res_vector)):
+            colpos[i] = 0
 
 #         This part is to find the starting steps.  Currently not used.
         succs2 = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
@@ -825,15 +855,31 @@ class DataJourneyDAG:
                 print(target_vertex + " is not an element")
                 return
             target_vertex = self.dic_vertex_id[target_vertex]
-
+            
+#         # Draw the path TO the target
+#         res_vector = np.array([np.zeros(self.size_matrix) for i in range(self.size_matrix+1)])
+#         res_vector[0][target_vertex] = 1
+#         for i in range(self.size_matrix):
+#             if sum(res_vector[i]) == 0:
+#                 break
+#             res_vector[i+1] = self.adjacency_matrix @ res_vector[i]
+            
         # Draw the path TO the target
-        res_vector = np.array([np.zeros(self.size_matrix) for i in range(self.size_matrix+1)])
+        if self.has_cycle(self.adjacency_matrix):
+            print("The result graph is not a DAG")
+            return
+        
+        res_vector = np.zeros((1, self.size_matrix))
         res_vector[0][target_vertex] = 1
-        for i in range(self.size_matrix):
+        for i in range(50000):
             if sum(res_vector[i]) == 0:
                 break
+            res_vector.resize((res_vector.shape[0] + 1, res_vector.shape[1]))
+            new_row = np.zeros(self.size_matrix)
+            res_vector[-1, :] = new_row
+            
             res_vector[i+1] = self.adjacency_matrix @ res_vector[i]
-
+            
         selected_vertices1 = set()
         selected_vertices2 = set()
         for i in range(len(res_vector)):
@@ -959,19 +1005,29 @@ class DataJourneyDAG:
         posfill = set()
         selected_vertices1 = set()
         selected_vertices2 = set()
-        res_vector = np.array([np.zeros(self.str_size_matrix) for i in range(self.str_size_matrix+1)])
-        res_vector[0][target_vertex] = 1
-
-        for i in range(len(res_vector)):
-            colpos[i] = 0
+#         res_vector = np.array([np.zeros(self.str_size_matrix) for i in range(self.str_size_matrix+1)])
+#         res_vector[0][target_vertex] = 1
 
         succs = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
         succs = [self.dic_vertex_names[s] for s in succs]
         pattern = re.compile(r'^dumm_(\d+)_')
+
+        # Draw the path TO the target
+        if self.has_cycle(self.str_adjacency_matrix):
+            print("The result graph is not a DAG")
+            return
         
-        for i in range(self.str_size_matrix):
+        res_vector = np.zeros((1, self.str_size_matrix))
+        res_vector[0][target_vertex] = 1
+        for i in range(50000):
             if sum(res_vector[i]) == 0:
                 break
+            res_vector.resize((res_vector.shape[0] + 1, res_vector.shape[1]))
+            new_row = np.zeros(self.str_size_matrix)
+            res_vector[-1, :] = new_row
+#         for i in range(self.str_size_matrix):
+#             if sum(res_vector[i]) == 0:
+#                 break
             res_vector[i+1] = self.str_adjacency_matrix_T @ res_vector[i]
     
             for k in range(len(res_vector[i+1])):
@@ -980,7 +1036,9 @@ class DataJourneyDAG:
                     res_vector[i+1][k] = 0
                     continue
                     
-
+        for i in range(len(res_vector)):
+            colpos[i] = 0
+            
 #         This part is to find the starting steps.  Currently not used.
         succs2 = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
         succs2 = set([self.dic_old2new[s] for s in succs2.nodes()])
@@ -1122,19 +1180,30 @@ class DataJourneyDAG:
         posfill = set()
         selected_vertices1 = set()
         selected_vertices2 = set()
-        res_vector = np.array([np.zeros(self.str_size_matrix) for i in range(self.str_size_matrix+1)])
-        res_vector[0][target_vertex] = 1
-
-        for i in range(len(res_vector)):
-            colpos[i] = 0
+#         res_vector = np.array([np.zeros(self.str_size_matrix) for i in range(self.str_size_matrix+1)])
+#         res_vector[0][target_vertex] = 1
 
         succs = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
         succs = [self.dic_vertex_names[s] for s in succs]
         pattern = re.compile(r'^dumm_(\d+)_')
-            
-        for i in range(self.str_size_matrix):
+
+        # Draw the path TO the target
+        if self.has_cycle(self.str_adjacency_matrix):
+            print("The result graph is not a DAG")
+            return
+        
+        res_vector = np.zeros((1, self.str_size_matrix))
+        res_vector[0][target_vertex] = 1
+        for i in range(50000):
             if sum(res_vector[i]) == 0:
                 break
+            res_vector.resize((res_vector.shape[0] + 1, res_vector.shape[1]))
+            new_row = np.zeros(self.str_size_matrix)
+            res_vector[-1, :] = new_row
+
+#         for i in range(self.str_size_matrix):
+#             if sum(res_vector[i]) == 0:
+#                 break
             res_vector[i+1] = self.str_adjacency_matrix_T @ res_vector[i]
             
             for k in range(len(res_vector[i+1])):
@@ -1143,6 +1212,8 @@ class DataJourneyDAG:
                     res_vector[i+1][k] = 0
                     continue
 
+        for i in range(len(res_vector)):
+            colpos[i] = 0
                     
 #         This part is to find the starting steps.  Currently not used.
         succs2 = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
@@ -1280,15 +1351,25 @@ class DataJourneyDAG:
         posfill = set()
         selected_vertices1 = set()
         selected_vertices2 = set()
-        res_vector = np.array([np.zeros(self.size_matrix) for i in range(self.size_matrix+1)])
+#         res_vector = np.array([np.zeros(self.size_matrix) for i in range(self.size_matrix+1)])
+#         res_vector[0][target_vertex] = 1
+            
+        # Draw the path TO the target
+        if self.has_cycle(self.adjacency_matrix):
+            print("The result graph is not a DAG")
+            return
+        
+        res_vector = np.zeros((1, self.size_matrix))
         res_vector[0][target_vertex] = 1
-
-        for i in range(len(res_vector)):
-            colpos[i] = 0
-
-        for i in range(self.size_matrix):
+        for i in range(50000):
             if sum(res_vector[i]) == 0:
                 break
+            res_vector.resize((res_vector.shape[0] + 1, res_vector.shape[1]))
+            new_row = np.zeros(self.size_matrix)
+            res_vector[-1, :] = new_row
+#         for i in range(self.size_matrix):
+#             if sum(res_vector[i]) == 0:
+#                 break
             res_vector[i+1] = self.adjacency_matrix_T @ res_vector[i]
 
         for i in range(len(res_vector)):
@@ -1302,6 +1383,10 @@ class DataJourneyDAG:
                     else:
                         selected_vertices1.add(j)
 
+        for i in range(len(res_vector)):
+            colpos[i] = 0
+            
+            
 #         initialize the positions
         last_pos = 0
         for i in range(len(res_vector)):
