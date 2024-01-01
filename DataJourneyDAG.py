@@ -1,4 +1,4 @@
-# Extract the adjacency matrix# Version: 1.3.4
+# Extract the adjacency matrix# Version: 1.3.6
 # Last Update: 2024/01/01
 # Author: Tomio Kobayashi
 
@@ -1619,13 +1619,15 @@ class DataJourneyDAG:
         plt.show()
             
             
+            
     def populateStretch(self):
 
         self.str_adjacency_matrix = copy.deepcopy(self.adjacency_matrix)
         self.str_vertex_names = copy.deepcopy(self.vertex_names)
 
 
-        matrix = copy.deepcopy(self.adjacency_matrix)
+#         matrix = copy.deepcopy(self.adjacency_matrix)
+        matrix = self.adjacency_matrix
         vv = copy.deepcopy(self.vertex_names)
 
         list_weights = []
@@ -1651,36 +1653,55 @@ class DataJourneyDAG:
             if i in dic_weights:
                 weights_so_far += dic_weights[i]-1
 
-        # zeroize all cell
-        for i in range(len(matrix)):
-            for j in range(len(matrix)):
-                matrix[i][j] = 0
+#         # zeroize all cell
+#         for i in range(len(matrix)):
+#             for j in range(len(matrix)):
+#                 matrix[i][j] = 0
                 
+#         # insert new blank records
+#         for f in sorted(list_weights, reverse=True):
+#             tt = f[2]
+#             col = f[0] # Insert at the second row (index 1)
+#             weight = f[1]  # Insert at the second row (index 1)
+
+#             col_name = vv[col]
+#             for t in tt:
+#                 matrix[col][t] = 0
+#             for i in range(weight-1):
+#                 vv.insert(col+1, "dumm_" + str(i+1) + "_" + col_name)
+
+#                 zero_row = np.zeros((1, matrix.shape[1]))  # Same
+#                 zero_col = np.zeros((1, matrix.shape[1]+1))  # Same
+                
+#                 if len(matrix) <= col+i+1:
+#                     matrix = np.vstack((matrix, zero_row))
+#                     matrix = np.hstack((matrix, zero_col.reshape(-1, 1)))
+#                 else:
+#                     matrix = np.insert(matrix, col+i+1, zero_row, axis=1)
+#                     matrix = np.insert(matrix, col+1+1, zero_col, axis=0)
+
+#         #     set from to for new rows except the last one
+#             for i in range(weight-2):
+#                 matrix[col+i+1][col+i+2] = 1
+        
+    
         # insert new blank records
         for f in sorted(list_weights, reverse=True):
-            tt = f[2]
-            col = f[0] # Insert at the second row (index 1)
+            row = f[0] # Insert at the second row (index 1)
+            row_name = vv[row]
             weight = f[1]  # Insert at the second row (index 1)
-
-            col_name = vv[col]
-            for t in tt:
-                matrix[col][t] = 0
             for i in range(weight-1):
-                vv.insert(col+1, "dumm_" + str(i+1) + "_" + col_name)
+                vv.insert(row+1, "dumm_" + str(i+1) + "_" + row_name)
 
-                zero_row = np.zeros((1, matrix.shape[1]))  # Same
-                zero_col = np.zeros((1, matrix.shape[1]+1))  # Same
+        # insert new blank records
+        matrix = np.zeros((len(vv), len(vv)))
+        for i in range(len(vv)):
+            if i < len(vv)-1:
+                if vv[i][0:5] == "dumm_" and vv[i+1][0:5] == "dumm_":
+                    matrix[i][i+1] = 1
                 
-                if len(matrix) <= col+i+1:
-                    matrix = np.vstack((matrix, zero_row))
-                    matrix = np.hstack((matrix, zero_col.reshape(-1, 1)))
-                else:
-                    matrix = np.insert(matrix, col+i+1, zero_row, axis=1)
-                    matrix = np.insert(matrix, col+1+1, zero_col, axis=0)
-
-        #     set from to for new rows except the last one
-            for i in range(weight-2):
-                matrix[col+i+1][col+i+2] = 1
+#         print("len(matrix)", len(matrix))
+#         print("len(vv)", len(vv))
         
         for f in list_weights:
             old_fr = f[0]
@@ -1724,6 +1745,112 @@ class DataJourneyDAG:
         self.dic_new2old = {v: k for k,v in self.dic_old2new.items()}
     
 #         print("has_cycle", self.has_cycle(matrix))
+
+#     def populateStretch(self):
+
+#         self.str_adjacency_matrix = copy.deepcopy(self.adjacency_matrix)
+#         self.str_vertex_names = copy.deepcopy(self.vertex_names)
+
+
+#         matrix = copy.deepcopy(self.adjacency_matrix)
+#         vv = copy.deepcopy(self.vertex_names)
+
+#         list_weights = []
+#         for i in range(len(matrix)):
+#             lis = []
+#             for j in range(len(matrix[i])):
+#                 if matrix[i][j] != 0:
+#                     if len(lis) > 0:
+#                         lis[2].append(j)
+#                     else:
+#                         lis = [i, matrix[i][j], [j]]
+#             if len(lis) > 0:
+#                     list_weights.append(lis)
+
+# #         print("list_weights", list_weights)
+
+#         dic_old2new = {}
+#         weights_so_far = 0
+#         dic_weights = {t[0]: t[1] for t in list_weights}
+
+#         for i in range(len(matrix)):
+#             dic_old2new[i] = i + weights_so_far
+#             if i in dic_weights:
+#                 weights_so_far += dic_weights[i]-1
+
+#         # zeroize all cell
+#         for i in range(len(matrix)):
+#             for j in range(len(matrix)):
+#                 matrix[i][j] = 0
+                
+#         # insert new blank records
+#         for f in sorted(list_weights, reverse=True):
+#             tt = f[2]
+#             col = f[0] # Insert at the second row (index 1)
+#             weight = f[1]  # Insert at the second row (index 1)
+
+#             col_name = vv[col]
+#             for t in tt:
+#                 matrix[col][t] = 0
+#             for i in range(weight-1):
+#                 vv.insert(col+1, "dumm_" + str(i+1) + "_" + col_name)
+
+#                 zero_row = np.zeros((1, matrix.shape[1]))  # Same
+#                 zero_col = np.zeros((1, matrix.shape[1]+1))  # Same
+                
+#                 if len(matrix) <= col+i+1:
+#                     matrix = np.vstack((matrix, zero_row))
+#                     matrix = np.hstack((matrix, zero_col.reshape(-1, 1)))
+#                 else:
+#                     matrix = np.insert(matrix, col+i+1, zero_row, axis=1)
+#                     matrix = np.insert(matrix, col+1+1, zero_col, axis=0)
+
+#         #     set from to for new rows except the last one
+#             for i in range(weight-2):
+#                 matrix[col+i+1][col+i+2] = 1
+        
+#         for f in list_weights:
+#             old_fr = f[0]
+#             new_fr = dic_old2new[f[0]]
+#             tt = f[2]
+#             weight = f[1]
+#             # new jump 
+#             # for weight 1 only
+#             if weight == 1:
+#                 for t in tt:
+#                     old_to = t
+#                     new_to = dic_old2new[t]
+#                     matrix[new_fr][new_to] = 1
+#             else:
+
+#             # new jump 
+#             # for 2<weight last new line
+#                 for t in tt:
+#                     old_to = t
+#                     new_to = dic_old2new[t]
+#                     matrix[new_fr+weight-1][new_to] = 1
+
+#             # new jump 
+#             # for 2<weight 
+#                 matrix[new_fr][new_fr+1] = 1
+
+        
+#         self.str_adjacency_matrix = matrix
+#         self.str_vertex_names = vv
+#         self.dic_old2new = dic_old2new
+    
+#         self.str_adjacency_matrix_T = self.str_adjacency_matrix.T
+#         self.str_size_matrix = len(self.str_adjacency_matrix)
+#         self.str_G = nx.DiGraph(self.str_adjacency_matrix)
+#         self.str_G_T = nx.DiGraph(self.str_adjacency_matrix_T)
+        
+#         for i in range(len(self.str_vertex_names)):
+#             self.str_dic_vertex_names[i] = self.str_vertex_names[i]
+#             self.str_dic_vertex_id[self.str_vertex_names[i]] = i
+
+#         self.dic_new2old = {v: k for k,v in self.dic_old2new.items()}
+    
+# #         print("has_cycle", self.has_cycle(matrix))
 
     def keepOnlyProcesses(self):
         
@@ -1790,6 +1917,8 @@ class DataJourneyDAG:
             for i in range(len(copy.deepcopy(self.vertex_names))):
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
+                    
+
                     
 
 
