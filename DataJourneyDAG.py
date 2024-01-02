@@ -1,4 +1,4 @@
-# Extract the adjacency matrix# Version: 1.3.8
+# Extract the adjacency matrix# Version: 1.3.9
 # Last Update: 2024/01/02
 # Author: Tomio Kobayashi
 
@@ -219,7 +219,8 @@ class DataJourneyDAG:
         # Convert the adjacency matrix to a NumPy array of integers
         self.adjacency_matrix = np.array(self.adjacency_matrix, dtype=int)
                     
-        if self.has_cycle(self.adjacency_matrix):
+#         if self.has_cycle(self.adjacency_matrix):
+        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.adjacency_matrix)):
             print("The result graph is not a DAG")
             return
 
@@ -379,8 +380,9 @@ class DataJourneyDAG:
             new_edges.append((id1, id2, weight))
     
         tmp_matrix = self.edge_list_to_adjacency_matrix(new_edges)
-        
-        if self.has_cycle(tmp_matrix):
+                   
+#         if self.has_cycle(tmp_matrix):
+        if not nx.is_directed_acyclic_graph(nx.DiGraph(tmp_matrix)):       
             print("The result graph is not a DAG")
         else:
             self.adjacency_matrix = tmp_matrix
@@ -433,7 +435,8 @@ class DataJourneyDAG:
     
         tmp_matrix = self.edge_list_to_adjacency_matrix(new_edges)
         
-        if self.has_cycle(tmp_matrix):
+#         if self.has_cycle(tmp_matrix):
+        if not nx.is_directed_acyclic_graph(nx.DiGraph(tmp_matrix)):
             print("The resulting graph is not a DAG")
         else:
             self.adjacency_matrix = tmp_matrix
@@ -450,31 +453,31 @@ class DataJourneyDAG:
             
             
             
-    def has_cycle(self, adjacency_matrix):
-        visited = [False] * len(adjacency_matrix)
-        recursively_visited = [False] * len(adjacency_matrix)
+#     def has_cycle(self, adjacency_matrix):
+#         visited = [False] * len(adjacency_matrix)
+#         recursively_visited = [False] * len(adjacency_matrix)
 
-        def dfs(node):
-            visited[node] = True
-            recursively_visited[node] = True
+#         def dfs(node):
+#             visited[node] = True
+#             recursively_visited[node] = True
 
-            for neighbor in range(len(adjacency_matrix)):
-                if adjacency_matrix[node][neighbor] == 1:
-                    if visited[neighbor] and recursively_visited[neighbor]:
-                        return True  # Cycle detected
-                    elif not visited[neighbor]:
-                        if dfs(neighbor):
-                            return True
+#             for neighbor in range(len(adjacency_matrix)):
+#                 if adjacency_matrix[node][neighbor] == 1:
+#                     if visited[neighbor] and recursively_visited[neighbor]:
+#                         return True  # Cycle detected
+#                     elif not visited[neighbor]:
+#                         if dfs(neighbor):
+#                             return True
 
-            recursively_visited[node] = False
-            return False
+#             recursively_visited[node] = False
+#             return False
 
-        for i in range(len(adjacency_matrix)):
-            if not visited[i]:
-                if dfs(i):
-                    return True
+#         for i in range(len(adjacency_matrix)):
+#             if not visited[i]:
+#                 if dfs(i):
+#                     return True
 
-        return False
+#         return False
     
     def drawOriginsStretchDummy(self, target_vertex, title="", figsize=None, showWeight=False):
         
@@ -499,10 +502,10 @@ class DataJourneyDAG:
         pattern = re.compile(r'^dumm_(\d+)_')
 
                     
-#         # Draw the path TO the target
-#         if self.has_cycle(self.str_adjacency_matrix):
-#             print("The result graph is not a DAG")
-#             return
+        # Draw the path TO the target
+        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_adjacency_matrix)):
+            print("The result graph is not a DAG")
+            return
         
         res_vector = np.zeros((1, self.str_size_matrix))
         res_vector[0][target_vertex] = 1
@@ -685,8 +688,9 @@ class DataJourneyDAG:
         
 #         # Draw the path TO the target
 #         if self.has_cycle(self.str_adjacency_matrix):
-#             print("The result graph is not a DAG")
-#             return
+        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_adjacency_matrix)):
+            print("The result graph is not a DAG")
+            return
         
         res_vector = np.zeros((1, self.str_size_matrix))
         res_vector[0][target_vertex] = 1
@@ -865,10 +869,11 @@ class DataJourneyDAG:
 #                 break
 #             res_vector[i+1] = self.adjacency_matrix @ res_vector[i]
             
-#         # Draw the path TO the target
+        # Draw the path TO the target
 #         if self.has_cycle(self.adjacency_matrix):
-#             print("The result graph is not a DAG")
-#             return
+        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.adjacency_matrix)):
+            print("The result graph is not a DAG")
+            return
         
         res_vector = np.zeros((1, self.size_matrix))
         res_vector[0][target_vertex] = 1
@@ -1018,9 +1023,10 @@ class DataJourneyDAG:
 
         
 #         # Draw the path TO the target - too time consuming, not needed as this has been tested before
-#         if self.has_cycle(self.str_adjacency_matrix):
-#             print("The result graph is not a DAG")
-#             return
+#         if self.has_cycle(self.str_adjacency_matrix):                           
+        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_adjacency_matrix)):
+            print("The result graph is not a DAG")
+            return
         
 #         print("before converting to CSR")
 #         csr_T = csr_matrix(self.str_adjacency_matrix_T)
@@ -1205,8 +1211,9 @@ class DataJourneyDAG:
 
 #         # Draw the path TO the target
 #         if self.has_cycle(self.str_adjacency_matrix):
-#             print("The result graph is not a DAG")
-#             return
+        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_adjacency_matrix)):
+            print("The result graph is not a DAG")
+            return
         
         res_vector = np.zeros((1, self.str_size_matrix))
         res_vector[0][target_vertex] = 1
@@ -1372,8 +1379,9 @@ class DataJourneyDAG:
             
 #         # Draw the path TO the target
 #         if self.has_cycle(self.adjacency_matrix):
-#             print("The result graph is not a DAG")
-#             return
+        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.adjacency_matrix)):
+            print("The result graph is not a DAG")
+            return
         
         res_vector = np.zeros((1, self.size_matrix))
         res_vector[0][target_vertex] = 1
@@ -1846,6 +1854,7 @@ class DataJourneyDAG:
         self.dic_new2old = {v: k for k,v in self.dic_old2new.items()}
     
 #         print("has_cycle", self.has_cycle(matrix))
+#         print("is_dag", nx.is_directed_acyclic_graph(nx.DiGraph(matrix))
 
 #     def populateStretch(self):
 
@@ -1952,6 +1961,7 @@ class DataJourneyDAG:
 #         self.dic_new2old = {v: k for k,v in self.dic_old2new.items()}
     
 # #         print("has_cycle", self.has_cycle(matrix))
+#         print("is_dag", nx.is_directed_acyclic_graph(nx.DiGraph(matrix))
 
     def keepOnlyProcesses(self):
         
@@ -2004,10 +2014,12 @@ class DataJourneyDAG:
 
 #         print("new_edges", new_edges)
         tmp_matrix = self.edge_list_to_adjacency_matrix(new_edges)
-        
-        if self.has_cycle(tmp_matrix):
+
+#         if self.has_cycle(tmp_matrix):
+        if not nx.is_directed_acyclic_graph(nx.DiGraph(tmp_matrix)):
             print("The result graph is not a DAG")
         else:
+#             print("keepOnlyProcesses 3")
             self.adjacency_matrix = tmp_matrix
             self.adjacency_matrix_T = self.adjacency_matrix.T
             self.size_matrix = len(self.adjacency_matrix)
@@ -2018,7 +2030,7 @@ class DataJourneyDAG:
             for i in range(len(copy.deepcopy(self.vertex_names))):
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
-
+                    
                     
 
                     
