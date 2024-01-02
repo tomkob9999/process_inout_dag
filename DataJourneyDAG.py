@@ -1,4 +1,4 @@
-# Extract the adjacency matrix# Version: 1.3.9
+# Extract the adjacency matrix# Version: 1.4.0
 # Last Update: 2024/01/02
 # Author: Tomio Kobayashi
 
@@ -381,7 +381,6 @@ class DataJourneyDAG:
     
         tmp_matrix = self.edge_list_to_adjacency_matrix(new_edges)
                    
-#         if self.has_cycle(tmp_matrix):
         if not nx.is_directed_acyclic_graph(nx.DiGraph(tmp_matrix)):       
             print("The result graph is not a DAG")
         else:
@@ -425,8 +424,8 @@ class DataJourneyDAG:
             newID = max([max(e[0], e[1]) for e in edges]) + 1
             new_edges.append((id1, newID, 1))
             new_edges.append((newID, id2, weight))
-            print("new_edge", (id1, newID, 1))
-            print("new_edge", (newID, id2, weight))
+#             print("new_edge", (id1, newID, 1))
+#             print("new_edge", (newID, id2, weight))
             self.vertex_names.append(procName)
             self.dic_vertex_names[newID] = procName
             self.dic_vertex_id[procName] = newID
@@ -452,32 +451,6 @@ class DataJourneyDAG:
                 self.dic_vertex_id[procName] = newID
             
             
-            
-#     def has_cycle(self, adjacency_matrix):
-#         visited = [False] * len(adjacency_matrix)
-#         recursively_visited = [False] * len(adjacency_matrix)
-
-#         def dfs(node):
-#             visited[node] = True
-#             recursively_visited[node] = True
-
-#             for neighbor in range(len(adjacency_matrix)):
-#                 if adjacency_matrix[node][neighbor] == 1:
-#                     if visited[neighbor] and recursively_visited[neighbor]:
-#                         return True  # Cycle detected
-#                     elif not visited[neighbor]:
-#                         if dfs(neighbor):
-#                             return True
-
-#             recursively_visited[node] = False
-#             return False
-
-#         for i in range(len(adjacency_matrix)):
-#             if not visited[i]:
-#                 if dfs(i):
-#                     return True
-
-#         return False
     
     def drawOriginsStretchDummy(self, target_vertex, title="", figsize=None, showWeight=False):
         
@@ -687,7 +660,6 @@ class DataJourneyDAG:
         pattern = re.compile(r'^dumm_(\d+)_')
         
 #         # Draw the path TO the target
-#         if self.has_cycle(self.str_adjacency_matrix):
         if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_adjacency_matrix)):
             print("The result graph is not a DAG")
             return
@@ -1761,37 +1733,6 @@ class DataJourneyDAG:
             dic_old2new[i] = i + weights_so_far
             if i in dic_weights:
                 weights_so_far += dic_weights[i]-1
-
-#         # zeroize all cell
-#         for i in range(len(matrix)):
-#             for j in range(len(matrix)):
-#                 matrix[i][j] = 0
-                
-#         # insert new blank records
-#         for f in sorted(list_weights, reverse=True):
-#             tt = f[2]
-#             col = f[0] # Insert at the second row (index 1)
-#             weight = f[1]  # Insert at the second row (index 1)
-
-#             col_name = vv[col]
-#             for t in tt:
-#                 matrix[col][t] = 0
-#             for i in range(weight-1):
-#                 vv.insert(col+1, "dumm_" + str(i+1) + "_" + col_name)
-
-#                 zero_row = np.zeros((1, matrix.shape[1]))  # Same
-#                 zero_col = np.zeros((1, matrix.shape[1]+1))  # Same
-                
-#                 if len(matrix) <= col+i+1:
-#                     matrix = np.vstack((matrix, zero_row))
-#                     matrix = np.hstack((matrix, zero_col.reshape(-1, 1)))
-#                 else:
-#                     matrix = np.insert(matrix, col+i+1, zero_row, axis=1)
-#                     matrix = np.insert(matrix, col+1+1, zero_col, axis=0)
-
-#         #     set from to for new rows except the last one
-#             for i in range(weight-2):
-#                 matrix[col+i+1][col+i+2] = 1
         
     
         # insert new blank records
@@ -1853,115 +1794,6 @@ class DataJourneyDAG:
 
         self.dic_new2old = {v: k for k,v in self.dic_old2new.items()}
     
-#         print("has_cycle", self.has_cycle(matrix))
-#         print("is_dag", nx.is_directed_acyclic_graph(nx.DiGraph(matrix))
-
-#     def populateStretch(self):
-
-#         self.str_adjacency_matrix = copy.deepcopy(self.adjacency_matrix)
-#         self.str_vertex_names = copy.deepcopy(self.vertex_names)
-
-
-#         matrix = copy.deepcopy(self.adjacency_matrix)
-#         vv = copy.deepcopy(self.vertex_names)
-
-#         list_weights = []
-#         for i in range(len(matrix)):
-#             lis = []
-#             for j in range(len(matrix[i])):
-#                 if matrix[i][j] != 0:
-#                     if len(lis) > 0:
-#                         lis[2].append(j)
-#                     else:
-#                         lis = [i, matrix[i][j], [j]]
-#             if len(lis) > 0:
-#                     list_weights.append(lis)
-
-# #         print("list_weights", list_weights)
-
-#         dic_old2new = {}
-#         weights_so_far = 0
-#         dic_weights = {t[0]: t[1] for t in list_weights}
-
-#         for i in range(len(matrix)):
-#             dic_old2new[i] = i + weights_so_far
-#             if i in dic_weights:
-#                 weights_so_far += dic_weights[i]-1
-
-#         # zeroize all cell
-#         for i in range(len(matrix)):
-#             for j in range(len(matrix)):
-#                 matrix[i][j] = 0
-                
-#         # insert new blank records
-#         for f in sorted(list_weights, reverse=True):
-#             tt = f[2]
-#             col = f[0] # Insert at the second row (index 1)
-#             weight = f[1]  # Insert at the second row (index 1)
-
-#             col_name = vv[col]
-#             for t in tt:
-#                 matrix[col][t] = 0
-#             for i in range(weight-1):
-#                 vv.insert(col+1, "dumm_" + str(i+1) + "_" + col_name)
-
-#                 zero_row = np.zeros((1, matrix.shape[1]))  # Same
-#                 zero_col = np.zeros((1, matrix.shape[1]+1))  # Same
-                
-#                 if len(matrix) <= col+i+1:
-#                     matrix = np.vstack((matrix, zero_row))
-#                     matrix = np.hstack((matrix, zero_col.reshape(-1, 1)))
-#                 else:
-#                     matrix = np.insert(matrix, col+i+1, zero_row, axis=1)
-#                     matrix = np.insert(matrix, col+1+1, zero_col, axis=0)
-
-#         #     set from to for new rows except the last one
-#             for i in range(weight-2):
-#                 matrix[col+i+1][col+i+2] = 1
-        
-#         for f in list_weights:
-#             old_fr = f[0]
-#             new_fr = dic_old2new[f[0]]
-#             tt = f[2]
-#             weight = f[1]
-#             # new jump 
-#             # for weight 1 only
-#             if weight == 1:
-#                 for t in tt:
-#                     old_to = t
-#                     new_to = dic_old2new[t]
-#                     matrix[new_fr][new_to] = 1
-#             else:
-
-#             # new jump 
-#             # for 2<weight last new line
-#                 for t in tt:
-#                     old_to = t
-#                     new_to = dic_old2new[t]
-#                     matrix[new_fr+weight-1][new_to] = 1
-
-#             # new jump 
-#             # for 2<weight 
-#                 matrix[new_fr][new_fr+1] = 1
-
-        
-#         self.str_adjacency_matrix = matrix
-#         self.str_vertex_names = vv
-#         self.dic_old2new = dic_old2new
-    
-#         self.str_adjacency_matrix_T = self.str_adjacency_matrix.T
-#         self.str_size_matrix = len(self.str_adjacency_matrix)
-#         self.str_G = nx.DiGraph(self.str_adjacency_matrix)
-#         self.str_G_T = nx.DiGraph(self.str_adjacency_matrix_T)
-        
-#         for i in range(len(self.str_vertex_names)):
-#             self.str_dic_vertex_names[i] = self.str_vertex_names[i]
-#             self.str_dic_vertex_id[self.str_vertex_names[i]] = i
-
-#         self.dic_new2old = {v: k for k,v in self.dic_old2new.items()}
-    
-# #         print("has_cycle", self.has_cycle(matrix))
-#         print("is_dag", nx.is_directed_acyclic_graph(nx.DiGraph(matrix))
 
     def keepOnlyProcesses(self):
         
@@ -2031,8 +1863,6 @@ class DataJourneyDAG:
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
                     
-                    
-
                     
 
 
