@@ -1,4 +1,4 @@
-
+# Extract the adjacency matrix# Version: 1.4.8
 # Last Update: 2024/01/04
 # Author: Tomio Kobayashi
 
@@ -262,7 +262,7 @@ class DataJourneyDAG:
 
         # Find the largest connected component
         connected_components = list(nx.weakly_connected_components(self.G))
-
+        
         largest_connected_component = None
         print("Sizes of Connected Graphs")
         print("---")
@@ -1776,7 +1776,10 @@ class DataJourneyDAG:
             w = self.G[id1][id2]["weight"]
             for s in list(self.G.successors(id2)):
                 w2 = self.G[id2][s]["weight"]
-                new_edges.append((id1, s, w + w2))
+#                 new_edges.append((id1, s, w + w2))
+                weight = int((w + w2)/2)
+                if weight == 0: weight = 1
+                new_edges.append((id1, s, weight))
         tmp_matrix = self.edge_list_to_csr_matrix(new_edges)
 
         if not nx.is_directed_acyclic_graph(nx.DiGraph(tmp_matrix)):
@@ -1793,6 +1796,8 @@ class DataJourneyDAG:
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
                     
+                    
+
                     
                     
 
