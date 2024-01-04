@@ -1,5 +1,5 @@
-# Extract the adjacency matrix# Version: 1.5.1
-# Last Update: 2024/01/04
+# Extract the adjacency matrix# Version: 1.5.2
+# Last Update: 2024/01/05
 # Author: Tomio Kobayashi
 
 # - generateProcesses  genProcesses() DONE
@@ -319,6 +319,7 @@ class DataJourneyDAG:
             print("Already contains processes.")
             return
         
+# Old didn't work: TO BE REMOVED
 #         edges = self.csr_matrix_to_edge_list(self.csr_matrix)
 # #         new_edges = {}
 #         new_edges = []
@@ -352,7 +353,71 @@ class DataJourneyDAG:
         new_edges = {}
         dicNewID = {}
         setVertex = set(self.vertex_names)
-        
+
+# Old didn't work: TO BE REMOVED
+#         for i in range(len(edges)):
+# #             new_vertex_name = "proc_" + self.dic_vertex_names[edges[i][0]] + self.dic_vertex_names[edges[i][1]]
+#             new_vertex_name = "proc_" + self.dic_vertex_names[edges[i][1]]
+#             new_id = 0
+#             if new_vertex_name not in setVertex:
+#                 new_id = len(self.vertex_names)
+#                 np.append(self.vertex_names, new_vertex_name)
+#                 self.vertex_names.append(new_vertex_name)
+#                 self.dic_vertex_names[new_id] = new_vertex_name
+#                 self.dic_vertex_id[new_vertex_name] = new_id
+#                 dicNewID[edges[i][1]] = new_id
+#                 setVertex.add(new_vertex_name)
+#             else:
+#                 new_id = dicNewID[edges[i][1]]
+# #             new_edges.append((edges[i][0], new_id, 1))
+# #             new_edges.append((new_id, edges[i][1], edges[i][2] * 2 - 1))     
+# #             if (edges[i][0], new_id) not in edgeset:
+# #                 new_edges.append((edges[i][0], new_id, 1))
+# #                 edgeset.add((edges[i][0], new_id))
+# #             if (new_id, edges[i][1]) not in edgeset:
+# #                 new_edges.append((new_id, edges[i][1], edges[i][2] * 2 - 1))
+# #                 edgeset.add((new_id, edges[i][1]))
+            
+# #             if self.dic_vertex_names[edges[i][0]] == "COL55" and self.dic_vertex_names[edges[i][1]] == "COL64":
+# #                 print("edges[i][0]", edges[i][0])
+# #                 print("edges[i][1]", edges[i][1])
+# #                 print("edges[i][2]", edges[i][2])
+# #                 print("new_id", new_id)
+#             if (edges[i][0], new_id) not in new_edges:
+# #                 if self.dic_vertex_names[edges[i][0]] == "COL55" and self.dic_vertex_names[edges[i][1]] == "COL64":
+# #                     print("ENTER 1")
+#                 new_edges[(edges[i][0], new_id)] = 1
+# #                 if edges[i][0] == 172 and new_id == 65:
+# #                     print("YES ENTERED")
+# #                     print("new_edges[(new_id, edges[i][1])]", new_edges[(new_id, edges[i][1])])
+#             if (new_id, edges[i][1]) not in new_edges:
+#                 new_edges[(new_id, edges[i][1])] = edges[i][2] * 2 - 1
+# #                 if self.dic_vertex_names[edges[i][0]] == "COL55" and self.dic_vertex_names[edges[i][1]] == "COL64":
+# #                     print("ENTER 2")
+# #                     print("new_edges[(new_id, edges[i][1])]", new_edges[(new_id, edges[i][1])])
+# #                 if edges[i][0] == 172 and new_id == 65:
+# #                     print("YES ENTERED")
+# #                     print("new_edges[(new_id, edges[i][1])]", new_edges[(new_id, edges[i][1])])
+#             elif edges[i][2] * 2 - 1 > new_edges[(new_id, edges[i][1])]:
+#                 new_edges[(new_id, edges[i][1])] = edges[i][2] * 2 - 1
+# #                 if self.dic_vertex_names[edges[i][0]] == "COL55" and self.dic_vertex_names[edges[i][1]] == "COL64":
+# #                     print("ENTER 3")
+# #                     print("new_edges[(new_id, edges[i][1])]", new_edges[(new_id, edges[i][1])])
+
+# #                 if edges[i][0] == 172 and new_id == 65:
+# #                     print("YES ENTERED")
+# #                     print("new_edges[(new_id, edges[i][1])]", new_edges[(new_id, edges[i][1])])
+# #             if self.dic_vertex_names[edges[i][0]] == "COL55" and self.dic_vertex_names[edges[i][1]] == "COL64":
+# #                 print("new_edges[(edges[i][0], new_id)]", new_edges[(edges[i][0], new_id)])
+# #                 print("new_edges[(new_id, edges[i][1])]", new_edges[(new_id, edges[i][1])])
+# #             if (172, 65) in new_edges:
+# #                 print("new_edges[(172, 65)]", new_edges[(172, 65)])
+#         new_edges = [(k[0], k[1], v) for k, v in new_edges.items()]
+
+        dicEdgeWeight = {}
+        for k in edges:
+            if k[0] not in dicEdgeWeight or (k[0] in dicEdgeWeight and dicEdgeWeight[k[0]] < k[2]):
+                dicEdgeWeight[k[0]] = k[2]
         for i in range(len(edges)):
 #             new_vertex_name = "proc_" + self.dic_vertex_names[edges[i][0]] + self.dic_vertex_names[edges[i][1]]
             new_vertex_name = "proc_" + self.dic_vertex_names[edges[i][1]]
@@ -367,51 +432,20 @@ class DataJourneyDAG:
                 setVertex.add(new_vertex_name)
             else:
                 new_id = dicNewID[edges[i][1]]
-#             new_edges.append((edges[i][0], new_id, 1))
-#             new_edges.append((new_id, edges[i][1], edges[i][2] * 2 - 1))     
-#             if (edges[i][0], new_id) not in edgeset:
-#                 new_edges.append((edges[i][0], new_id, 1))
-#                 edgeset.add((edges[i][0], new_id))
-#             if (new_id, edges[i][1]) not in edgeset:
-#                 new_edges.append((new_id, edges[i][1], edges[i][2] * 2 - 1))
-#                 edgeset.add((new_id, edges[i][1]))
-            
-#             if self.dic_vertex_names[edges[i][0]] == "COL55" and self.dic_vertex_names[edges[i][1]] == "COL64":
-#                 print("edges[i][0]", edges[i][0])
-#                 print("edges[i][1]", edges[i][1])
-#                 print("edges[i][2]", edges[i][2])
-#                 print("new_id", new_id)
+            w = 1
+            if edges[i][1] in dicEdgeWeight: 
+                w = dicEdgeWeight[edges[i][1]]
             if (edges[i][0], new_id) not in new_edges:
-#                 if self.dic_vertex_names[edges[i][0]] == "COL55" and self.dic_vertex_names[edges[i][1]] == "COL64":
-#                     print("ENTER 1")
                 new_edges[(edges[i][0], new_id)] = 1
-#                 if edges[i][0] == 172 and new_id == 65:
-#                     print("YES ENTERED")
-#                     print("new_edges[(new_id, edges[i][1])]", new_edges[(new_id, edges[i][1])])
-            if (new_id, edges[i][1]) not in new_edges:
-                new_edges[(new_id, edges[i][1])] = edges[i][2] * 2 - 1
-#                 if self.dic_vertex_names[edges[i][0]] == "COL55" and self.dic_vertex_names[edges[i][1]] == "COL64":
-#                     print("ENTER 2")
-#                     print("new_edges[(new_id, edges[i][1])]", new_edges[(new_id, edges[i][1])])
-#                 if edges[i][0] == 172 and new_id == 65:
-#                     print("YES ENTERED")
-#                     print("new_edges[(new_id, edges[i][1])]", new_edges[(new_id, edges[i][1])])
-            elif edges[i][2] * 2 - 1 > new_edges[(new_id, edges[i][1])]:
-                new_edges[(new_id, edges[i][1])] = edges[i][2] * 2 - 1
-#                 if self.dic_vertex_names[edges[i][0]] == "COL55" and self.dic_vertex_names[edges[i][1]] == "COL64":
-#                     print("ENTER 3")
-#                     print("new_edges[(new_id, edges[i][1])]", new_edges[(new_id, edges[i][1])])
-
-#                 if edges[i][0] == 172 and new_id == 65:
-#                     print("YES ENTERED")
-#                     print("new_edges[(new_id, edges[i][1])]", new_edges[(new_id, edges[i][1])])
-#             if self.dic_vertex_names[edges[i][0]] == "COL55" and self.dic_vertex_names[edges[i][1]] == "COL64":
-#                 print("new_edges[(edges[i][0], new_id)]", new_edges[(edges[i][0], new_id)])
-#                 print("new_edges[(new_id, edges[i][1])]", new_edges[(new_id, edges[i][1])])
-#             if (172, 65) in new_edges:
-#                 print("new_edges[(172, 65)]", new_edges[(172, 65)])
+#             if (new_id, edges[i][1]) not in new_edges:
+#                 new_edges[(new_id, edges[i][1])] = edges[i][2] * 2 - 1
+#             elif edges[i][2] * 2 - 1 > new_edges[(new_id, edges[i][1])]:
+#                 new_edges[(new_id, edges[i][1])] = edges[i][2] * 2 - 1
+            if (new_id, edges[i][1]) not in new_edges or ((new_id, edges[i][1]) in new_edges and w * 2 - 1 > new_edges[(new_id, edges[i][1])]):
+                new_edges[(new_id, edges[i][1])] = w * 2 - 1
+            
         new_edges = [(k[0], k[1], v) for k, v in new_edges.items()]
-        
+    
         self.csr_matrix = self.edge_list_to_csr_matrix(new_edges)
         self.csr_matrix_T = self.csr_matrix.transpose()
         self.size_matrix = self.csr_matrix.shape[0]
