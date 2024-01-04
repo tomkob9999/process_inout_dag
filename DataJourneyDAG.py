@@ -1,4 +1,4 @@
-# Extract the adjacency matrix# Version: 1.4.6
+
 # Last Update: 2024/01/04
 # Author: Tomio Kobayashi
 
@@ -57,16 +57,16 @@ class DataJourneyDAG:
         return edge_list
         
         
-#     def adjacency_matrix_to_edge_list(self, adc_matrix):
-#         edge_list = []
-#         num_nodes = len(adc_matrix)
+    def adjacency_matrix_to_edge_list(self, adc_matrix):
+        edge_list = []
+        num_nodes = len(adc_matrix)
 
-#         for i in range(num_nodes):
-#             for j in range(num_nodes):
-#                 if adc_matrix[i][j] >= 1:
-#                     edge_list.append((i, j, adc_matrix[i][j]))  # Add edges only for non-zero entries
+        for i in range(num_nodes):
+            for j in range(num_nodes):
+                if adc_matrix[i][j] >= 1:
+                    edge_list.append((i, j, adc_matrix[i][j]))  # Add edges only for non-zero entries
 
-#         return edge_list
+        return edge_list
     
     def parameter_to_brightness(self, parameter_value):
         cmap = plt.cm.get_cmap('viridis')  # Choose a colormap
@@ -203,18 +203,18 @@ class DataJourneyDAG:
         return matrix
 
     
-#     def edge_list_to_adjacency_matrix(self, edges):
+    def edge_list_to_adjacency_matrix(self, edges):
 
-#         num_nodes = max(max(edge) for edge in edges) + 1  # Determine the number of nodes
+        num_nodes = max(max(edge) for edge in edges) + 1  # Determine the number of nodes
 #         adjacency_matrix = np.array([np.array([0] * num_nodes) for _ in range(num_nodes)])
+        adjacency_matrix = np.zeros((num_nodes, num_nodes))
+        for edge in edges:
+            if len(edge) >= 3:
+                adjacency_matrix[edge[0]][edge[1]] = edge[2]
+            else:
+                adjacency_matrix[edge[0]][edge[1]] = 1
 
-#         for edge in edges:
-#             if len(edge) >= 3:
-#                 adjacency_matrix[edge[0]][edge[1]] = edge[2]
-#             else:
-#                 adjacency_matrix[edge[0]][edge[1]] = 1
-
-#         return adjacency_matrix
+        return adjacency_matrix
 
     def data_import(self, file_path, is_edge_list=False):
 #         Define rows as TO and columns as FROM
@@ -288,7 +288,8 @@ class DataJourneyDAG:
             # Write headers
             file.write("\t".join(self.vertex_names) + "\n")
             for edge in edges:
-                file.write(f"{edge[0]}\t{edge[1]}\n")
+#                 file.write(f"{edge[0]}\t{edge[1]}\n")
+                file.write(f"{edge[0]}\t{edge[1]}\t{edge[2]}\n")
 
     def read_edge_list_from_file(self, filename):
         edges = []
@@ -299,8 +300,8 @@ class DataJourneyDAG:
                     self.vertex_names = line.strip().split("\t")
                     ini = False
                 else:
-                    source, target = map(int, line.strip().split())
-                    edges.append((source, target))
+                    source, target, weight = map(int, line.strip().split())
+                    edges.append((source, target, weight))
         return edges
 
     def write_adjacency_matrix_to_file(self, filename):
@@ -1791,6 +1792,7 @@ class DataJourneyDAG:
             for i in range(len(copy.deepcopy(self.vertex_names))):
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
+                    
                     
                     
 
