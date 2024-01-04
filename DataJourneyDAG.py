@@ -1,5 +1,5 @@
-# Extract the adjacency matrix# Version: 1.4.2
-# Last Update: 2024/01/02
+# Extract the adjacency matrix# Version: 1.4.5
+# Last Update: 2024/01/04
 # Author: Tomio Kobayashi
 
 # - generateProcesses  genProcesses() DONE
@@ -196,34 +196,33 @@ class DataJourneyDAG:
             self.suggest_coupling(subgraph1)
             self.suggest_opportunities(subgraph1)
 
-#     Not working properly
-#     def edge_list_to_csr_matrix(self, edges):
+    def edge_list_to_csr_matrix(self, edges):
 
-# #         nodes = list(set([i for edge in weighted_edges for i in edge[:2]]))
-# #         weights = [edge[2] for edge in weighted_edges]
+#         nodes = list(set([i for edge in weighted_edges for i in edge[:2]]))
+#         weights = [edge[2] for edge in weighted_edges]
 
-# #         num_nodes = len(nodes)
-# #         matrix = csr_matrix((weights, (zip(*zip(*weighted_edges)[:2]))), shape=(num_nodes, num_nodes))
-#         rows = [edge[0] for edge in edges]
-#         cols = [edge[1] for edge in edges]
-#         weights = [edge[2] for edge in edges]
-#         num_nodes = max(max(rows), max(cols))+1
-#         matrix = csr_matrix((weights, (rows, cols)), shape=(num_nodes, num_nodes))
-#         return matrix
+#         num_nodes = len(nodes)
+#         matrix = csr_matrix((weights, (zip(*zip(*weighted_edges)[:2]))), shape=(num_nodes, num_nodes))
+        rows = [edge[0] for edge in edges]
+        cols = [edge[1] for edge in edges]
+        weights = [edge[2] for edge in edges]
+        num_nodes = max(max(rows), max(cols))+1
+        matrix = csr_matrix((weights, (rows, cols)), shape=(num_nodes, num_nodes))
+        return matrix
 
     
-    def edge_list_to_adjacency_matrix(self, edges):
+#     def edge_list_to_adjacency_matrix(self, edges):
 
-        num_nodes = max(max(edge) for edge in edges) + 1  # Determine the number of nodes
-        adjacency_matrix = np.array([np.array([0] * num_nodes) for _ in range(num_nodes)])
+#         num_nodes = max(max(edge) for edge in edges) + 1  # Determine the number of nodes
+#         adjacency_matrix = np.array([np.array([0] * num_nodes) for _ in range(num_nodes)])
 
-        for edge in edges:
-            if len(edge) >= 3:
-                adjacency_matrix[edge[0]][edge[1]] = edge[2]
-            else:
-                adjacency_matrix[edge[0]][edge[1]] = 1
+#         for edge in edges:
+#             if len(edge) >= 3:
+#                 adjacency_matrix[edge[0]][edge[1]] = edge[2]
+#             else:
+#                 adjacency_matrix[edge[0]][edge[1]] = 1
 
-        return adjacency_matrix
+#         return adjacency_matrix
 
     def data_import(self, file_path, is_edge_list=False):
 #         Define rows as TO and columns as FROM
@@ -248,12 +247,12 @@ class DataJourneyDAG:
             print("The result graph is not a DAG")
             return
 
-        # Generate random weights between 1 and 5 for testing
-        for i in range(len(adjacency_matrix)):
-            random_integer = random.randint(1, 5)
-            for j in range(len(adjacency_matrix)):
-                if adjacency_matrix[i][j] == 1:
-                    adjacency_matrix[i][j] = random_integer
+#         # Generate random weights between 1 and 5 for testing
+#         for i in range(len(adjacency_matrix)):
+#             random_integer = random.randint(1, 5)
+#             for j in range(len(adjacency_matrix)):
+#                 if adjacency_matrix[i][j] == 1:
+#                     adjacency_matrix[i][j] = random_integer
 
         adjacency_matrix_T = adjacency_matrix.T
         
@@ -332,8 +331,10 @@ class DataJourneyDAG:
         new_edges = []
         dicNewID = {}
         setVertex = set(self.vertex_names)
+        edgeset = set()
         for i in range(len(edges)):
-            new_vertex_name = "proc_" + self.dic_vertex_names[edges[i][1]]
+#             new_vertex_name = "proc_" + self.dic_vertex_names[edges[i][1]]
+            new_vertex_name = "proc_" + self.dic_vertex_names[edges[i][0]]
             new_id = 0
             if new_vertex_name not in setVertex:
                 new_id = len(self.vertex_names)
@@ -341,22 +342,53 @@ class DataJourneyDAG:
                 self.vertex_names.append(new_vertex_name)
                 self.dic_vertex_names[new_id] = new_vertex_name
                 self.dic_vertex_id[new_vertex_name] = new_id
-                dicNewID[edges[i][1]] = new_id
+#                 dicNewID[edges[i][1]] = new_id
+                dicNewID[edges[i][0]] = new_id
                 setVertex.add(new_vertex_name)
             else:
-                new_id = dicNewID[edges[i][1]]
-            new_edges.append((edges[i][0], new_id, 1))
-            new_edges.append((new_id, edges[i][1], edges[i][2] * 2 - 1))
+#                 new_id = dicNewID[edges[i][1]]
+                new_id = dicNewID[edges[i][0]]
+            
+            if (edges[i][0], new_id) not in edgeset:
+                new_edges.append((edges[i][0], new_id, 1))
+                edgeset.add((edges[i][0], new_id))
+            if (new_id, edges[i][1]) not in edgeset:
+                new_edges.append((new_id, edges[i][1], edges[i][2] * 2 - 1))
+                edgeset.add((new_id, edges[i][1]))
     
-        adjacency_matrix = self.edge_list_to_adjacency_matrix(new_edges)
-        adjacency_matrix_T = adjacency_matrix.T
-        self.size_matrix = len(adjacency_matrix)
-        self.csr_matrix = csr_matrix(adjacency_matrix)
-        self.csr_matrix_T = csr_matrix(adjacency_matrix_T)
+#         adjacency_matrix = self.edge_list_to_adjacency_matrix(new_edges)
+#         adjacency_matrix_T = adjacency_matrix.T
+#         self.size_matrix = len(adjacency_matrix)
+#         self.csr_matrix = csr_matrix(adjacency_matrix)
+#         self.csr_matrix_T = csr_matrix(adjacency_matrix_T)
         
-#         self.csr_matrix = self.edge_list_to_csr_matrix(new_edges)
-#         self.csr_matrix_T = self.csr_matrix.transpose()
-#         self.size_matrix = self.csr_matrix.shape[0]
+#         adjacency_matrix = self.edge_list_to_adjacency_matrix(new_edges)
+#         self.csr_matrix = csr_matrix(adjacency_matrix)
+        self.csr_matrix = self.edge_list_to_csr_matrix(new_edges)
+        self.csr_matrix_T = self.csr_matrix.transpose()
+        self.size_matrix = self.csr_matrix.shape[0]
+        
+        
+#         tmp_matrix = self.edge_list_to_csr_matrix(new_edges).toarray()
+#         print("len(adjacency_matrix)", len(adjacency_matrix))
+#         print("len(tmp_matrix)", len(tmp_matrix))
+#         unmatch = False
+#         for i in range(len(adjacency_matrix)):
+#             for j in range(len(adjacency_matrix)):
+#                 if adjacency_matrix[i][j] != tmp_matrix[i][j]:
+#                     print("i", i)
+#                     print("j", j)
+#                     print("adjacency_matrix[i]", adjacency_matrix[i])
+#                     print("tmp_matrix[i]", tmp_matrix[i])
+#                     for n in new_edges:
+#                         if n[0] == i and n[1] == j:
+#                             print("n", n)
+#                     unmatch = True
+#                     break
+#             if unmatch:
+#                 break
+        
+        
         
 #         print("self.size_matrix after", self.size_matrix)
         
@@ -413,18 +445,23 @@ class DataJourneyDAG:
             
             new_edges.append((id1, id2, weight))
     
-        tmp_matrix = self.edge_list_to_adjacency_matrix(new_edges)
+#         tmp_matrix = self.edge_list_to_adjacency_matrix(new_edges)
+        tmp_matrix = self.edge_list_to_csr_matrix(new_edges)
                    
         if not nx.is_directed_acyclic_graph(nx.DiGraph(tmp_matrix)):       
             print("The result graph is not a DAG")
         else:
-            adjacency_matrix = tmp_matrix
-            adjacency_matrix_T = adjacency_matrix.T
-            self.size_matrix = len(adjacency_matrix)
-
-            self.csr_matrix = csr_matrix(adjacency_matrix)
-            self.csr_matrix_T = csr_matrix(adjacency_matrix_T)
+#             adjacency_matrix = tmp_matrix
+#             adjacency_matrix_T = adjacency_matrix.T
+#             self.size_matrix = len(adjacency_matrix)
+#             self.csr_matrix = csr_matrix(adjacency_matrix)
+#             self.csr_matrix_T = csr_matrix(adjacency_matrix_T)
             
+#             self.csr_matrix = csr_matrix(tmp_matrix)
+            self.csr_matrix = tmp_matrix
+            self.csr_matrix_T = self.csr_matrix.transpose()
+            self.size_matrix = self.csr_matrix.shape[0]
+        
             self.G = nx.DiGraph(self.csr_matrix)
             self.G_T = nx.DiGraph(self.csr_matrix_T)
 
@@ -468,22 +505,23 @@ class DataJourneyDAG:
         else:
             new_edges.append((id1, id2, weight))
     
-        tmp_matrix = self.edge_list_to_adjacency_matrix(new_edges)
-#         tmp_matrix = self.edge_list_to_csr_matrix(new_edges)
+#         tmp_matrix = self.edge_list_to_adjacency_matrix(new_edges)
+        tmp_matrix = self.edge_list_to_csr_matrix(new_edges)
         
 #         if self.has_cycle(tmp_matrix):
         if not nx.is_directed_acyclic_graph(nx.DiGraph(tmp_matrix)):
             print("The resulting graph is not a DAG")
         else:
-            adjacency_matrix = tmp_matrix
-            adjacency_matrix_T = adjacency_matrix.T
-            self.size_matrix = len(adjacency_matrix)
-            self.csr_matrix = csr_matrix(adjacency_matrix)
-            self.csr_matrix_T = csr_matrix(adjacency_matrix_T)
+#             adjacency_matrix = tmp_matrix
+#             adjacency_matrix_T = adjacency_matrix.T
+#             self.size_matrix = len(adjacency_matrix)
+#             self.csr_matrix = csr_matrix(adjacency_matrix)
+#             self.csr_matrix_T = csr_matrix(adjacency_matrix_T)
         
-#             self.csr_matrix = tmp_matrix
-#             self.csr_matrix_T = self.csr_matrix.transpose()
-#             self.size_matrix = self.csr_matrix.shape[0]
+#             self.csr_matrix = csr_matrix(tmp_matrix)
+            self.csr_matrix = tmp_matrix
+            self.csr_matrix_T = self.csr_matrix.transpose()
+            self.size_matrix = self.csr_matrix.shape[0]
         
             self.G = nx.DiGraph(self.csr_matrix)
             self.G_T = nx.DiGraph(self.csr_matrix_T)
@@ -518,7 +556,8 @@ class DataJourneyDAG:
 
                     
         # Draw the path TO the target
-        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_adjacency_matrix)):
+#         if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_adjacency_matrix)):
+        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_csr_matrix)):
             print("The result graph is not a DAG")
             return
         
@@ -705,7 +744,8 @@ class DataJourneyDAG:
         pattern = re.compile(r'^dumm_(\d+)_')
         
 #         # Draw the path TO the target
-        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_adjacency_matrix)):
+#         if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_adjacency_matrix)):
+        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_csr_matrix)):
             print("The result graph is not a DAG")
             return
         
@@ -881,7 +921,7 @@ class DataJourneyDAG:
     
             
         # Draw the path TO the target
-        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.csr_matrix.toarray())):
+        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.csr_matrix)):
             print("The result graph is not a DAG")
             return
         
@@ -1034,7 +1074,8 @@ class DataJourneyDAG:
         
 #         # Draw the path TO the target - too time consuming, not needed as this has been tested before
 #         if self.has_cycle(self.str_adjacency_matrix):                           
-        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_adjacency_matrix)):
+#         if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_adjacency_matrix)):
+        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_csr_matrix)):
             print("The result graph is not a DAG")
             return
         
@@ -1235,7 +1276,8 @@ class DataJourneyDAG:
 
 #         # Draw the path TO the target
 #         if self.has_cycle(self.str_adjacency_matrix):
-        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_adjacency_matrix)):
+#         if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_adjacency_matrix)):
+        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_csr_matrix)):
             print("The result graph is not a DAG")
             return
         
@@ -1402,7 +1444,7 @@ class DataJourneyDAG:
         selected_vertices2 = set()
             
 #         # Draw the path TO the target
-        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.csr_matrix.toarray())):
+        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.csr_matrix)):
             print("The result graph is not a DAG")
             return
         
@@ -1823,20 +1865,26 @@ class DataJourneyDAG:
                 matrix[new_fr][new_fr+1] = 1
 
         
-        self.str_adjacency_matrix = matrix
+#         self.str_adjacency_matrix = matrix
         self.str_vertex_names = vv
         self.dic_old2new = dic_old2new
     
-        self.str_adjacency_matrix_T = self.str_adjacency_matrix.T
-        self.str_size_matrix = len(self.str_adjacency_matrix)
+#         self.str_adjacency_matrix_T = self.str_adjacency_matrix.T
+#         self.str_size_matrix = len(self.str_adjacency_matrix)
         
         
-        self.str_csr_matrix = csr_matrix(self.str_adjacency_matrix)
-        self.str_csr_matrix_T = csr_matrix(self.str_adjacency_matrix_T)
+#         self.str_csr_matrix = csr_matrix(self.str_adjacency_matrix)
+#         self.str_csr_matrix_T = csr_matrix(self.str_adjacency_matrix_T)
         
-        self.str_G = nx.DiGraph(self.str_adjacency_matrix)
-        self.str_G_T = nx.DiGraph(self.str_adjacency_matrix_T)
+#         self.str_G = nx.DiGraph(self.str_adjacency_matrix)
+#         self.str_G_T = nx.DiGraph(self.str_adjacency_matrix_T)
         
+        self.str_csr_matrix = csr_matrix(matrix)
+        self.str_csr_matrix_T = self.str_csr_matrix.transpose()
+        self.str_size_matrix = self.str_csr_matrix.shape[0]
+        self.str_G = nx.DiGraph(self.str_csr_matrix)
+        self.str_G_T = nx.DiGraph(self.str_csr_matrix_T)
+    
         for i in range(len(self.str_vertex_names)):
             self.str_dic_vertex_names[i] = self.str_vertex_names[i]
             self.str_dic_vertex_id[self.str_vertex_names[i]] = i
@@ -1894,23 +1942,24 @@ class DataJourneyDAG:
                 new_edges.append((id1, s, w + w2))
 
 #         print("new_edges", new_edges)
-        tmp_matrix = self.edge_list_to_adjacency_matrix(new_edges)
-#         tmp_matrix = self.edge_list_to_csr_matrix(new_edges)
+#         tmp_matrix = self.edge_list_to_adjacency_matrix(new_edges)
+        tmp_matrix = self.edge_list_to_csr_matrix(new_edges)
 
 #         if self.has_cycle(tmp_matrix):
         if not nx.is_directed_acyclic_graph(nx.DiGraph(tmp_matrix)):
             print("The result graph is not a DAG")
         else:
 #             print("keepOnlyProcesses 3")
-            adjacency_matrix = tmp_matrix
-            adjacency_matrix_T = adjacency_matrix.T
-            self.size_matrix = len(adjacency_matrix)
-            self.csr_matrix = csr_matrix(adjacency_matrix)
-            self.csr_matrix_T = csr_matrix(adjacency_matrix_T)
+#             adjacency_matrix = tmp_matrix
+#             adjacency_matrix_T = adjacency_matrix.T
+#             self.size_matrix = len(adjacency_matrix)
+#             self.csr_matrix = csr_matrix(adjacency_matrix)
+#             self.csr_matrix_T = csr_matrix(adjacency_matrix_T)
         
-#             self.csr_matrix = tmp_matrix
-#             self.csr_matrix_T = self.csr_matrix.transpose()
-#             self.size_matrix = self.csr_matrix.shape[0]
+#             self.csr_matrix = csr_matrix(tmp_matrix)
+            self.csr_matrix = tmp_matrix
+            self.csr_matrix_T = self.csr_matrix.transpose()
+            self.size_matrix = self.csr_matrix.shape[0]
         
             self.G = nx.DiGraph(self.csr_matrix)
             self.G_T = nx.DiGraph(self.csr_matrix_T)
@@ -1918,6 +1967,7 @@ class DataJourneyDAG:
             for i in range(len(copy.deepcopy(self.vertex_names))):
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
+                    
                     
 
 
