@@ -1,4 +1,4 @@
-# Extract the adjacency matrix# Version: 1.5.3
+# Extract the adjacency matrix# Version: 1.5.4
 # Last Update: 2024/01/05
 # Author: Tomio Kobayashi
 
@@ -239,7 +239,14 @@ class DataJourneyDAG:
         adjacency_matrix = np.array(adjacency_matrix, dtype=int)
                     
         if not nx.is_directed_acyclic_graph(nx.DiGraph(adjacency_matrix)):
-            print("The result graph is not a DAG")
+            print("The graph is not a Directed Acyclic Graph (DAG).")
+
+            # Find cycles in the graph
+            cycles = list(nx.simple_cycles(nx.DiGraph(adjacency_matrix)))
+
+            print("Cycles in the graph:")
+            for cycle in cycles:
+                print(cycle)
             return
 
 #         # Generate random weights between 1 and 5 for testing
@@ -541,7 +548,15 @@ class DataJourneyDAG:
         tmp_matrix = self.edge_list_to_csr_matrix(new_edges)
                    
         if not nx.is_directed_acyclic_graph(nx.DiGraph(tmp_matrix)):       
-            print("The result graph is not a DAG")
+            print("The graph is not a Directed Acyclic Graph (DAG).")
+
+            # Find cycles in the graph
+            cycles = list(nx.simple_cycles(nx.DiGraph(tmp_matrix)))
+
+            print("Cycles in the graph:")
+            for cycle in cycles:
+                print(cycle)
+            return
         else:
             self.csr_matrix = tmp_matrix
             self.csr_matrix_T = self.csr_matrix.transpose()
@@ -592,7 +607,15 @@ class DataJourneyDAG:
         
 #         if self.has_cycle(tmp_matrix):
         if not nx.is_directed_acyclic_graph(nx.DiGraph(tmp_matrix)):
-            print("The resulting graph is not a DAG")
+            print("The graph is not a Directed Acyclic Graph (DAG).")
+
+            # Find cycles in the graph
+            cycles = list(nx.simple_cycles(nx.DiGraph(tmp_matrix)))
+
+            print("Cycles in the graph:")
+            for cycle in cycles:
+                print(cycle)
+            return
         else:
             self.csr_matrix_T = self.csr_matrix.transpose()
             self.size_matrix = self.csr_matrix.shape[0]
@@ -628,7 +651,14 @@ class DataJourneyDAG:
 
                     
         if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_csr_matrix)):
-            print("The result graph is not a DAG")
+            print("The graph is not a Directed Acyclic Graph (DAG).")
+
+            # Find cycles in the graph
+            cycles = list(nx.simple_cycles(nx.DiGraph(self.str_csr_matrix)))
+
+            print("Cycles in the graph:")
+            for cycle in cycles:
+                print(cycle)
             return
         
         res_vector = np.zeros((1, self.str_size_matrix))
@@ -801,7 +831,14 @@ class DataJourneyDAG:
         pattern = re.compile(r'^dumm_(\d+)_')
         
         if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_csr_matrix)):
-            print("The result graph is not a DAG")
+            print("The graph is not a Directed Acyclic Graph (DAG).")
+
+            # Find cycles in the graph
+            cycles = list(nx.simple_cycles(nx.DiGraph(self.str_csr_matrix)))
+
+            print("Cycles in the graph:")
+            for cycle in cycles:
+                print(cycle)
             return
         
         res_vector = np.zeros((1, self.str_size_matrix))
@@ -969,7 +1006,14 @@ class DataJourneyDAG:
             
         # Draw the path TO the target
         if not nx.is_directed_acyclic_graph(nx.DiGraph(self.csr_matrix)):
-            print("The result graph is not a DAG")
+            print("The graph is not a Directed Acyclic Graph (DAG).")
+
+            # Find cycles in the graph
+            cycles = list(nx.simple_cycles(nx.DiGraph(self.csr_matrix)))
+
+            print("Cycles in the graph:")
+            for cycle in cycles:
+                print(cycle)
             return
         
         res_vector = np.zeros((1, self.size_matrix))
@@ -1117,7 +1161,14 @@ class DataJourneyDAG:
         pattern = re.compile(r'^dumm_(\d+)_')
 
         if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_csr_matrix)):
-            print("The result graph is not a DAG")
+            print("The graph is not a Directed Acyclic Graph (DAG).")
+
+            # Find cycles in the graph
+            cycles = list(nx.simple_cycles(nx.DiGraph(self.str_csr_matrix)))
+
+            print("Cycles in the graph:")
+            for cycle in cycles:
+                print(cycle)
             return
         
         res_vector = np.zeros((1, self.str_size_matrix))
@@ -1283,7 +1334,14 @@ class DataJourneyDAG:
         pattern = re.compile(r'^dumm_(\d+)_')
 
         if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_csr_matrix)):
-            print("The result graph is not a DAG")
+            print("The graph is not a Directed Acyclic Graph (DAG).")
+
+            # Find cycles in the graph
+            cycles = list(nx.simple_cycles(nx.DiGraph(self.str_csr_matrix)))
+
+            print("Cycles in the graph:")
+            for cycle in cycles:
+                print(cycle)
             return
         
         res_vector = np.zeros((1, self.str_size_matrix))
@@ -1444,7 +1502,14 @@ class DataJourneyDAG:
             
 #         # Draw the path TO the target
         if not nx.is_directed_acyclic_graph(nx.DiGraph(self.csr_matrix)):
-            print("The result graph is not a DAG")
+            print("The graph is not a Directed Acyclic Graph (DAG).")
+
+            # Find cycles in the graph
+            cycles = list(nx.simple_cycles(nx.DiGraph(self.csr_matrix)))
+
+            print("Cycles in the graph:")
+            for cycle in cycles:
+                print(cycle)
             return
         
         res_vector = np.zeros((1, self.size_matrix))
@@ -1910,10 +1975,10 @@ class DataJourneyDAG:
                 continue
             
             w = self.G[id1][id2]["weight"]
-            if self.dic_vertex_names[id1] == "proc_COL68" and self.dic_vertex_names[id2] == "proc_COL71":
-                print("edges[i][0]", edges[i][0])
-                print("edges[i][1]", edges[i][1])
-                print("w", w)
+#             if self.dic_vertex_names[id1] == "proc_COL68" and self.dic_vertex_names[id2] == "proc_COL71":
+#                 print("edges[i][0]", edges[i][0])
+#                 print("edges[i][1]", edges[i][1])
+#                 print("w", w)
                 
             for s in list(self.G.successors(id2)):
                 w2 = self.G[id2][s]["weight"]
@@ -1921,14 +1986,21 @@ class DataJourneyDAG:
                 weight = int((w + w2)/2)
                 if weight == 0: weight = 1
                 new_edges.append((id1, s, weight))
-            if self.dic_vertex_names[id1] == "proc_COL68" and self.dic_vertex_names[id2] == "proc_COL71":
-                print("s", s)
-                print("w2", w2)
-                print("weight", weight)
+#             if self.dic_vertex_names[id1] == "proc_COL68" and self.dic_vertex_names[id2] == "proc_COL71":
+#                 print("s", s)
+#                 print("w2", w2)
+#                 print("weight", weight)
         tmp_matrix = self.edge_list_to_csr_matrix(new_edges)
 
         if not nx.is_directed_acyclic_graph(nx.DiGraph(tmp_matrix)):
-            print("The result graph is not a DAG")
+            print("The graph is not a Directed Acyclic Graph (DAG).")
+
+            # Find cycles in the graph
+            cycles = list(nx.simple_cycles(nx.DiGraph(tmp_matrix)))
+
+            print("Cycles in the graph:")
+            for cycle in cycles:
+                print(cycle)
         else:
             self.csr_matrix = tmp_matrix
             self.csr_matrix_T = self.csr_matrix.transpose()
@@ -1940,6 +2012,10 @@ class DataJourneyDAG:
             for i in range(len(copy.deepcopy(self.vertex_names))):
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
+                    
+                    
+
+
                     
 
                     
