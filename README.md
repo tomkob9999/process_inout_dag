@@ -5,9 +5,8 @@
 
 After processes are created between data fields by genProcesses() command, the graph becomes a bipartite graph and it shows as follows.  Processes can be merged by coupleProcesses() as well.
 
-![aa14](https://github.com/tomkob9999/data_journey_dag/assets/96751911/9def45aa-b027-41e7-99d9-720ddacbe3f0)
+![aa5](https://github.com/tomkob9999/data_journey_dag/assets/96751911/01355890-0545-49b8-b654-571cd87ef539)
 
-![aa15](https://github.com/tomkob9999/data_journey_dag/assets/96751911/e1d609b4-3bf4-4dc1-83c3-eea387a051d2)
 
 Well-Alligned Bipartite-DAG Layout
 
