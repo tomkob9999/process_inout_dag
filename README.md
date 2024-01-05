@@ -17,15 +17,15 @@ Graphs's are displayed in the well aligned layout.
 - The underlying graph data is a bipartite graph.
 - The chart starts and ends with a data eleent.  They data element and the process should show side by side and each column should only show either of them.
 
-It has two forms: compact and stretched.  Both locate the horizontal positions at the expected completion time.  The compact form uses the assumption that each process takes the same unit length of 1.  The stretched form uses the weights.  The compact form has better overall visibility and better view of parallelism.  The stretched form shows more relistic view of how each process should flow.
+It has two forms: compact and stretched.  Both locate the horizontal positions at the expected completion time.  The compact form uses the assumption that each process takes the same unit length of 1.  The stretched form uses the weights.  The compact form has better overall visibility and better view of dependencies and parallelism.  The stretched form shows more relistic view of when events start and ends where the vertex indicates the start and the edge arrow indicates the end.
 
 Hilights:
 
 - The graph is kept as a DAG.
-- After the processes are added, the graph becomes a bipartite graph of elements and processes as well.
+- After the processes are added, the graph also becomes a bipartite graph of elements and processes.
 - compatible with adjacency matrix and edge list formats.
-- The generated flow graphs show as topologically ordered.
-- any node with the prefix "proc_" is regarded as a process, and everything else is regarded as an element by the tool.
+- The generated flow graphs show as topologically ordered, meaning no edges point backwards.
+- any node with the prefix "proc_" is regarded as a process, and everything else is regarded as an element.
 
 Implemented Features
 - Edge List file read/write DONE
@@ -35,7 +35,7 @@ Implemented Features
 - Link Elements  linkElements(element1, element1) DONE
 
 
-With edge weights added, this tool can be used as the schedule planning tool where the inputs and outputs are specified as data elements.  The existing longest path identifies the critical path.
+With edge weights added, this tool can also be used as the schedule planning tool where the inputs and outputs are specified as data elements.  The existing longest path identifies the critical path.
 
 With showWeight option on, the critical path is shown as brown line and the brightness indicates higher the criticality of the process.
 
@@ -57,8 +57,6 @@ For example, in the diagram below, proc_COL88 flows into proc_COL90 and the wedg
 
 
 
-
-Still, the initial and the main analysis should be done without the weights to identify the ideal flow and the stages needed assuming all the processes take the same unit duration because the analysis is purely based on the input/output invariants.  Weights are much less reliable information as they merely represent the current suboptimal state.
 
 
 
