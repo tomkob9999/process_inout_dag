@@ -1,5 +1,12 @@
 # Data Journey DAG
 
+The tool is to provide solutions to typical problems like below:
+- An data element has wrong value.  Where was the cause and where did it go wrong?
+- In order to improve the overall performance/throughput, which processes can be parallelized?
+- The performance improvements of which process lead to the overall performance improvement most or more?
+- Which processes are more critical to the end-to-end completion?
+
+
 ### Input: tab-delimited file containing adjacency matrix (rows=FROM, columns=TO) with headers (adjacency_matrix2.txt as a sample)
 ### Output: Graph of origin data and offspring data for the specified data element
 
