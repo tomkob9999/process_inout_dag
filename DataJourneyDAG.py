@@ -1,4 +1,4 @@
-# Extract the adjacency matrix# Version: 1.5.2
+# Extract the adjacency matrix# Version: 1.5.3
 # Last Update: 2024/01/05
 # Author: Tomio Kobayashi
 
@@ -216,11 +216,14 @@ class DataJourneyDAG:
 
         return adjacency_matrix
 
-    def data_import(self, file_path, is_edge_list=False):
+    def data_import(self, file_path, is_edge_list=False, is_oup_list=False):
 #         Define rows as TO and columns as FROM
         adjacency_matrix = None
-        adjacency_matrix_T = None
-        if is_edge_list:
+#         adjacency_matrix_T = None
+        if is_oup_list:
+            edges = self.read_oup_list_from_file(file_path)
+            adjacency_matrix = self.edge_list_to_adjacency_matrix(edges)
+        elif is_edge_list:
             edges = self.read_edge_list_from_file(file_path)
             adjacency_matrix = self.edge_list_to_adjacency_matrix(edges)
         else:
@@ -290,6 +293,37 @@ class DataJourneyDAG:
             for edge in edges:
 #                 file.write(f"{edge[0]}\t{edge[1]}\n")
                 file.write(f"{edge[0]}\t{edge[1]}\t{edge[2]}\n")
+    
+    def read_oup_list_from_file(self, filename):
+#         Format is tab-delimited taxt file:
+#             0 - Output Field Name
+#             1 - Weight
+#             2-n - Input Field Names
+        dictf = {}
+        dicfields = {}
+        with open(filename, "r") as file:
+            ini = True
+            for line in file:
+    #             print("line", line)
+                ff = line.strip().split("\t")
+                for i in [0] + [j for j in range(2, len(ff), 1)]:
+                    if ff[i] not in dicfields:
+                        dicfields[ff[i]] = len(dicfields)
+
+                oup_ind = dicfields[ff[0]]
+                if dicfields[ff[0]] not in dictf:
+                    inp = [dicfields[ff[i]] for i in range(2, len(ff), 1)]
+                    dictf[oup_ind] = (int(ff[1]), inp)
+                else:
+                    dictf[oup_ind][1].extend([dicfields[ff[i]] for i in range(2, len(ff), 1)]) 
+
+    #     print("dictf", dictf)
+
+        headers = [k[1] for k in sorted([(v, k) for k, v in dicfields.items()])]
+        edges = [(vv, k, v[0]) for k, v in dictf.items() for vv in v[1]]
+
+        self.vertex_names = headers
+        return edges
 
     def read_edge_list_from_file(self, filename):
         edges = []
@@ -1906,7 +1940,6 @@ class DataJourneyDAG:
             for i in range(len(copy.deepcopy(self.vertex_names))):
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
-                    
                     
 
                     
