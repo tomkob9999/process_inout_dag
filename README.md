@@ -17,7 +17,7 @@ Graphs's are displayed in the well aligned layout.
 - The underlying graph data is a bipartite graph.
 - The chart starts and ends with a data eleent.  They data element and the process should show side by side and each column should only show either of them.
 
-It has two forms: compact and stretched.  Both locate the horizontal positions at the expected completion time.  The compact form uses the assumption that each process takes the same unit duration of 1.  The stretched form uses the weights.  The compact form has better overall visibility and better view of dependencies and parallelism.  The stretched form shows more relistic view of when events start and ends where the vertex indicates the start and the edge arrow indicates the end.
+It has two forms: compact and stretched.  Both locate the horizontal positions at the expected completion time.  The compact form uses the assumption that each process takes the same unit duration of 1.  The stretched form uses the weights to represent the horizontal length of edge.  The compact form has better overall visibility and better view of dependencies and parallelism.  The stretched form shows more relistic view of when events start and ends where the vertex indicates the start and the edge arrow indicates the end.
 
 Hilights:
 
