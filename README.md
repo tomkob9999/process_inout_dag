@@ -50,7 +50,7 @@ Stretched form
 
 
 The stretch form has a feature of showing edges with wait time in light blue. It shows its wait time in the bracket next to the weight.
-For example, in the diagram below, proc_COL88 flows into proc_COL90 and the wedge shows 2 (& 2).  proc_COL90 starts 2 clocks, or steps, after proc_COL90 arrives because it also has proc_COL88 as the pre-condition and it needs to wait for its arrival.
+For example, in the diagram below, proc_COL88 flows into proc_COL90 and the wedge shows 2 (& 2).  proc_COL90 starts 2 clocks, or steps, after proc_COL88 arrives because it also has proc_COL86 as the pre-condition and it needs to wait for its arrival.
 
 
 ![aa3](https://github.com/tomkob9999/data_journey_dag/assets/96751911/62c1cb9c-7c0c-47bf-9e70-b452f28e8f97)
