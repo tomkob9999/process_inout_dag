@@ -1,5 +1,5 @@
 # Data Journey DAG
-# Version: 1.5.7
+# Version: 1.5.8
 # Last Update: 2024/01/07
 # Author: Tomio Kobayashi
 
@@ -685,7 +685,7 @@ class DataJourneyDAG:
             
             
     
-    def drawOriginsStretchDummy(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False):
+    def drawOriginsStretchDummy(self, target_vertex, title="", figsize=None, showWeight=False):
         
         if isinstance(target_vertex, str):
             if target_vertex not in self.str_dic_vertex_id:
@@ -865,7 +865,7 @@ class DataJourneyDAG:
             figsize = (12, 8)
 
         self.draw_dummy(self.str_G, selected_vertices1,selected_vertices2, selected_vertices3, 
-                        title=title, node_labels=node_labels, pos=position, reverse=False, figsize=figsize, showWeight=showWeight, forStretch=True, excludeComp=excludeComp)
+                        title=title, node_labels=node_labels, pos=position, reverse=False, figsize=figsize, showWeight=showWeight, forStretch=True)
     
     def drawOriginsStretch(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False):
         
@@ -1369,7 +1369,7 @@ class DataJourneyDAG:
                         title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, excludeComp=excludeComp)
 
 
-    def drawOffspringsStretchDummy(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False):
+    def drawOffspringsStretchDummy(self, target_vertex, title="", figsize=None, showWeight=False):
 
         
         if isinstance(target_vertex, str):
@@ -1537,7 +1537,7 @@ class DataJourneyDAG:
             figsize = (12, 8)
         
         self.draw_dummy(self.str_G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
-                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, forStretch=True, excludeComp=excludeComp)
+                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, forStretch=True)
 
 
         
@@ -1775,7 +1775,7 @@ class DataJourneyDAG:
 #             cnt += 1
 #         print("")
         
-    def drawFromLargestComponent(self, figsize=(30, 30), showWeight=False):
+    def drawFromLargestComponent(self, figsize=(30, 30), showWeight=False, excludeComp=False):
         
         connected_components = list(nx.weakly_connected_components(self.G))
         largest_connected_component = None
@@ -1787,8 +1787,8 @@ class DataJourneyDAG:
         
         # Find the topological order
         topological_order = list(nx.topological_sort(largest_G))
-        self.drawOffsprings(topological_order[0], figsize=figsize, showWeight=showWeight)
-        self.drawOrigins(topological_order[-1], figsize=figsize, showWeight=showWeight)
+        self.drawOffsprings(topological_order[0], figsize=figsize, showWeight=showWeight, excludeComp=excludeComp)
+        self.drawOrigins(topological_order[-1], figsize=figsize, showWeight=showWeight, excludeComp=excludeComp)
         
     
     def suggest_coupling(self, g):
@@ -1866,15 +1866,7 @@ class DataJourneyDAG:
         return self.dic_vertex_names
   
     def draw_dummy(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, 
-                                            pos, reverse=False, figsize=(12, 8), showWeight=False, forStretch=False, excludeComp=False):
-        if excludeComp:
-            if reverse:
-                excluded_tup = [(f[0], f[1]) for s in self.set_complete for f in list(nx.edge_dfs(G, source=self.dic_vertex_id[s]))]
-            else:
-                excluded_tup = [(f[0], f[1]) for s in self.set_complete for f in list(nx.edge_dfs(G, source=self.dic_vertex_id[s], orientation="reverse"))]
-            excluded = set([f[0] for f in excluded_tup] + [f[1] for f in excluded_tup])
-            selected_vertices1 = [s for s in selected_vertices1 if s not in excluded]
-            selected_vertices2 = [s for s in selected_vertices2 if s not in excluded]
+                                            pos, reverse=False, figsize=(12, 8), showWeight=False, forStretch=False):
             
         # Create a subgraph with only the selected vertices
         subgraph1 = G.subgraph(selected_vertices1)
@@ -2069,7 +2061,8 @@ class DataJourneyDAG:
                     self.vertex_names.pop(i)
                     
                     
-                    
+
+
 
 
 
