@@ -1,6 +1,6 @@
 # Data Journey DAG
-# Version: 1.5.8
-# Last Update: 2024/01/07
+# Version: 1.5.9
+# Last Update: 2024/01/08
 # Author: Tomio Kobayashi
 
 # - generateProcesses  genProcesses() DONE
@@ -89,8 +89,6 @@ class DataJourneyDAG:
             else:
                 excluded_tup = [(f[0], f[1]) for s in self.set_complete for f in list(nx.edge_dfs(G, source=self.dic_vertex_id[s], orientation="reverse"))]
             excluded = set([f[0] for f in excluded_tup] + [f[1] for f in excluded_tup])
-#             selected_vertices1 = [s for s in selected_vertices1 if s not in excluded]
-#             selected_vertices2 = [s for s in selected_vertices2 if s not in excluded]
             comp_vertices = [s for s in selected_vertices1 if s in excluded]
             noncomp_vertices = [s for s in selected_vertices1 if s not in excluded]
             subgraph_comp = G.subgraph(comp_vertices)
@@ -143,8 +141,8 @@ class DataJourneyDAG:
                 
             node_parameter = {n[1]: round(n[0]*0.7+0.3, 3) for n in node_criticality} # make it between 0.2 and 1.0 to prevent too dark color
             if len(node_parameter) > 0:
-                min_param = min(node_parameter.values())
-                max_param = max(node_parameter.values())
+#                 min_param = min(node_parameter.values())
+#                 max_param = max(node_parameter.values())
 #                 normalized_param = {node: (param - min_param) / (max_param - min_param) for node, param in node_parameter.items()}
                 
                 color_map = [plt.cm.viridis(node_parameter[node]) for node in subgraph2]
@@ -177,11 +175,11 @@ class DataJourneyDAG:
         else:
             nx.draw(subgraph2, pos, linewidths=0, with_labels=True, labels=node_labels2, node_size=defNodeSize, node_color='orange', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
 
+        nx.draw(subgraph3, pos, linewidths=0, with_labels=True, labels=node_labels3, node_size=defNodeSize, node_color='pink', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
+        
         if excludeComp:
             nx.draw(subgraph_comp, pos, linewidths=0, with_labels=True, labels=node_labels1, node_size=defNodeSize, node_color='#DDDDDD', font_size=defFontSize, font_color=defFontColor, arrowsize=10, edgecolors='black')
-
-        nx.draw(subgraph3, pos, linewidths=0, with_labels=True, labels=node_labels3, node_size=defNodeSize, node_color='pink', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
-            
+    
         if showWeight:
             if wait_edges is None:
                 edge_labels = {(i, j): subgraph1[i][j]['weight'] for i, j in subgraph1.edges()}
@@ -415,101 +413,13 @@ class DataJourneyDAG:
         if has_proc:
             print("Already contains processes.")
             return
-        
-# Old didn't work: TO BE REMOVED
-#         edges = self.csr_matrix_to_edge_list(self.csr_matrix)
-# #         new_edges = {}
-#         new_edges = []
-#         dicNewID = {}
-#         setVertex = set(self.vertex_names)
-#         edgeset = set()
-        
-#         for i in range(len(edges)):
-#             new_vertex_name = "proc_" + self.dic_vertex_names[edges[i][0]]
-#             new_id = 0
-#             if new_vertex_name not in setVertex:
-#                 new_id = len(self.vertex_names)
-#                 np.append(self.vertex_names, new_vertex_name)
-#                 self.vertex_names.append(new_vertex_name)
-#                 self.dic_vertex_names[new_id] = new_vertex_name
-#                 self.dic_vertex_id[new_vertex_name] = new_id
-#                 dicNewID[edges[i][0]] = new_id
-#                 setVertex.add(new_vertex_name)
-#             else:
-# #                 new_id = dicNewID[edges[i][1]]
-#                 new_id = dicNewID[edges[i][0]]
-            
-#             if (edges[i][0], new_id) not in edgeset:
-#                 new_edges.append((edges[i][0], new_id, 1))
-#                 edgeset.add((edges[i][0], new_id))
-#             if (new_id, edges[i][1]) not in edgeset:
-#                 new_edges.append((new_id, edges[i][1], edges[i][2] * 2 - 1))
-#                 edgeset.add((new_id, edges[i][1]))
+
                 
         edges = self.csr_matrix_to_edge_list(self.csr_matrix)
         new_edges = {}
         dicNewID = {}
         setVertex = set(self.vertex_names)
 
-# Old didn't work: TO BE REMOVED
-#         for i in range(len(edges)):
-# #             new_vertex_name = "proc_" + self.dic_vertex_names[edges[i][0]] + self.dic_vertex_names[edges[i][1]]
-#             new_vertex_name = "proc_" + self.dic_vertex_names[edges[i][1]]
-#             new_id = 0
-#             if new_vertex_name not in setVertex:
-#                 new_id = len(self.vertex_names)
-#                 np.append(self.vertex_names, new_vertex_name)
-#                 self.vertex_names.append(new_vertex_name)
-#                 self.dic_vertex_names[new_id] = new_vertex_name
-#                 self.dic_vertex_id[new_vertex_name] = new_id
-#                 dicNewID[edges[i][1]] = new_id
-#                 setVertex.add(new_vertex_name)
-#             else:
-#                 new_id = dicNewID[edges[i][1]]
-# #             new_edges.append((edges[i][0], new_id, 1))
-# #             new_edges.append((new_id, edges[i][1], edges[i][2] * 2 - 1))     
-# #             if (edges[i][0], new_id) not in edgeset:
-# #                 new_edges.append((edges[i][0], new_id, 1))
-# #                 edgeset.add((edges[i][0], new_id))
-# #             if (new_id, edges[i][1]) not in edgeset:
-# #                 new_edges.append((new_id, edges[i][1], edges[i][2] * 2 - 1))
-# #                 edgeset.add((new_id, edges[i][1]))
-            
-# #             if self.dic_vertex_names[edges[i][0]] == "COL55" and self.dic_vertex_names[edges[i][1]] == "COL64":
-# #                 print("edges[i][0]", edges[i][0])
-# #                 print("edges[i][1]", edges[i][1])
-# #                 print("edges[i][2]", edges[i][2])
-# #                 print("new_id", new_id)
-#             if (edges[i][0], new_id) not in new_edges:
-# #                 if self.dic_vertex_names[edges[i][0]] == "COL55" and self.dic_vertex_names[edges[i][1]] == "COL64":
-# #                     print("ENTER 1")
-#                 new_edges[(edges[i][0], new_id)] = 1
-# #                 if edges[i][0] == 172 and new_id == 65:
-# #                     print("YES ENTERED")
-# #                     print("new_edges[(new_id, edges[i][1])]", new_edges[(new_id, edges[i][1])])
-#             if (new_id, edges[i][1]) not in new_edges:
-#                 new_edges[(new_id, edges[i][1])] = edges[i][2] * 2 - 1
-# #                 if self.dic_vertex_names[edges[i][0]] == "COL55" and self.dic_vertex_names[edges[i][1]] == "COL64":
-# #                     print("ENTER 2")
-# #                     print("new_edges[(new_id, edges[i][1])]", new_edges[(new_id, edges[i][1])])
-# #                 if edges[i][0] == 172 and new_id == 65:
-# #                     print("YES ENTERED")
-# #                     print("new_edges[(new_id, edges[i][1])]", new_edges[(new_id, edges[i][1])])
-#             elif edges[i][2] * 2 - 1 > new_edges[(new_id, edges[i][1])]:
-#                 new_edges[(new_id, edges[i][1])] = edges[i][2] * 2 - 1
-# #                 if self.dic_vertex_names[edges[i][0]] == "COL55" and self.dic_vertex_names[edges[i][1]] == "COL64":
-# #                     print("ENTER 3")
-# #                     print("new_edges[(new_id, edges[i][1])]", new_edges[(new_id, edges[i][1])])
-
-# #                 if edges[i][0] == 172 and new_id == 65:
-# #                     print("YES ENTERED")
-# #                     print("new_edges[(new_id, edges[i][1])]", new_edges[(new_id, edges[i][1])])
-# #             if self.dic_vertex_names[edges[i][0]] == "COL55" and self.dic_vertex_names[edges[i][1]] == "COL64":
-# #                 print("new_edges[(edges[i][0], new_id)]", new_edges[(edges[i][0], new_id)])
-# #                 print("new_edges[(new_id, edges[i][1])]", new_edges[(new_id, edges[i][1])])
-# #             if (172, 65) in new_edges:
-# #                 print("new_edges[(172, 65)]", new_edges[(172, 65)])
-#         new_edges = [(k[0], k[1], v) for k, v in new_edges.items()]
 
         dicEdgeWeight = {}
         for k in edges:
@@ -534,10 +444,6 @@ class DataJourneyDAG:
                 w = dicEdgeWeight[edges[i][1]]
             if (edges[i][0], new_id) not in new_edges:
                 new_edges[(edges[i][0], new_id)] = 1
-#             if (new_id, edges[i][1]) not in new_edges:
-#                 new_edges[(new_id, edges[i][1])] = edges[i][2] * 2 - 1
-#             elif edges[i][2] * 2 - 1 > new_edges[(new_id, edges[i][1])]:
-#                 new_edges[(new_id, edges[i][1])] = edges[i][2] * 2 - 1
             if (new_id, edges[i][1]) not in new_edges or ((new_id, edges[i][1]) in new_edges and w * 2 - 1 > new_edges[(new_id, edges[i][1])]):
                 new_edges[(new_id, edges[i][1])] = w * 2 - 1
             
@@ -2061,6 +1967,9 @@ class DataJourneyDAG:
                     self.vertex_names.pop(i)
                     
                     
+
+
+
 
 
 
