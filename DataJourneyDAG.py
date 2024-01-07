@@ -1,5 +1,6 @@
-# Extract the adjacency matrix# Version: 1.5.4
-# Last Update: 2024/01/05
+# Data Journey DAG
+# Version: 1.5.6
+# Last Update: 2024/01/07
 # Author: Tomio Kobayashi
 
 # - generateProcesses  genProcesses() DONE
@@ -49,6 +50,8 @@ class DataJourneyDAG:
         
         self.dic_new2old = {}
         self.dic_old2new = {}
+
+        self.set_complete = set()
         
     def csr_matrix_to_edge_list(self, csr_matrix):
         rows, cols = csr_matrix.nonzero()
@@ -74,8 +77,17 @@ class DataJourneyDAG:
         return brightness
 
     def draw_selected_vertices_reverse_proc(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, 
-                                            pos, wait_edges=None, reverse=False, figsize=(12, 8), showWeight=False, forStretch=False):
+                                            pos, wait_edges=None, reverse=False, figsize=(12, 8), showWeight=False, forStretch=False, excludeComp=False):
 
+        if excludeComp:
+            if reverse:
+                excluded_tup = [(f[0], f[1]) for s in self.set_complete for f in list(nx.edge_dfs(G, source=self.dic_vertex_id[s]))]
+            else:
+                excluded_tup = [(f[0], f[1]) for s in self.set_complete for f in list(nx.edge_dfs(G, source=self.dic_vertex_id[s], orientation="reverse"))]
+            excluded = set([f[0] for f in excluded_tup] + [f[1] for f in excluded_tup])
+            selected_vertices1 = [s for s in selected_vertices1 if s not in excluded]
+            selected_vertices2 = [s for s in selected_vertices2 if s not in excluded]
+            
         # Create a subgraph with only the selected vertices
         subgraph1 = G.subgraph(selected_vertices1)
         subgraph2 = G.subgraph(selected_vertices2)
@@ -331,6 +343,13 @@ class DataJourneyDAG:
 
         self.vertex_names = headers
         return edges
+    
+    def read_complete_list_from_file(self, filename):
+        with open(filename, "r") as file:
+            ini = True
+            for line in file:
+                self.set_complete.add(line.strip())
+        print("self.set_complete", self.set_complete)
 
     def read_edge_list_from_file(self, filename):
         edges = []
@@ -629,7 +648,7 @@ class DataJourneyDAG:
             
             
     
-    def drawOriginsStretchDummy(self, target_vertex, title="", figsize=None, showWeight=False):
+    def drawOriginsStretchDummy(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False):
         
         if isinstance(target_vertex, str):
             if target_vertex not in self.str_dic_vertex_id:
@@ -809,9 +828,9 @@ class DataJourneyDAG:
             figsize = (12, 8)
 
         self.draw_dummy(self.str_G, selected_vertices1,selected_vertices2, selected_vertices3, 
-                        title=title, node_labels=node_labels, pos=position, reverse=False, figsize=figsize, showWeight=showWeight, forStretch=True)
+                        title=title, node_labels=node_labels, pos=position, reverse=False, figsize=figsize, showWeight=showWeight, forStretch=True, excludeComp=excludeComp)
     
-    def drawOriginsStretch(self, target_vertex, title="", figsize=None, showWeight=False):
+    def drawOriginsStretch(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False):
         
         if isinstance(target_vertex, str):
             if target_vertex not in self.str_dic_vertex_id:
@@ -992,10 +1011,10 @@ class DataJourneyDAG:
             figsize = (12, 8)
         
         self.draw_selected_vertices_reverse_proc(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
-                                title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges)
+                                title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, excludeComp=excludeComp)
 
         
-    def drawOrigins(self, target_vertex, title="", figsize=None, showWeight=False):
+    def drawOrigins(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False):
 
         if isinstance(target_vertex, str):
             if target_vertex not in self.dic_vertex_id:
@@ -1133,12 +1152,12 @@ class DataJourneyDAG:
         if figsize is None:
             figsize = (12, 8)
         self.draw_selected_vertices_reverse_proc(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
-                                title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight)
+                                title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, excludeComp=excludeComp)
 
         
 
 
-    def drawOffspringsStretch(self, target_vertex, title="", figsize=None, showWeight=False):
+    def drawOffspringsStretch(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False):
 
         
         if isinstance(target_vertex, str):
@@ -1310,10 +1329,10 @@ class DataJourneyDAG:
             figsize = (12, 8)
         
         self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
-                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges)
+                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, excludeComp=excludeComp)
 
 
-    def drawOffspringsStretchDummy(self, target_vertex, title="", figsize=None, showWeight=False):
+    def drawOffspringsStretchDummy(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False):
 
         
         if isinstance(target_vertex, str):
@@ -1481,11 +1500,11 @@ class DataJourneyDAG:
             figsize = (12, 8)
         
         self.draw_dummy(self.str_G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
-                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, forStretch=True)
+                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, forStretch=True, excludeComp=excludeComp)
 
 
         
-    def drawOffsprings(self, target_vertex, title="", figsize=None, showWeight=False):
+    def drawOffsprings(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False):
         
         if isinstance(target_vertex, str):
             if target_vertex not in self.dic_vertex_id:
@@ -1622,7 +1641,7 @@ class DataJourneyDAG:
         selected_vertices3 = [target_vertex]
         
         self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
-                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight)
+                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, excludeComp=excludeComp)
         
         
     def showSourceNodes(self):
@@ -1810,8 +1829,16 @@ class DataJourneyDAG:
         return self.dic_vertex_names
   
     def draw_dummy(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, 
-                                            pos, reverse=False, figsize=(12, 8), showWeight=False, forStretch=False):
-
+                                            pos, reverse=False, figsize=(12, 8), showWeight=False, forStretch=False, excludeComp=False):
+        if excludeComp:
+            if reverse:
+                excluded_tup = [(f[0], f[1]) for s in self.set_complete for f in list(nx.edge_dfs(G, source=self.dic_vertex_id[s]))]
+            else:
+                excluded_tup = [(f[0], f[1]) for s in self.set_complete for f in list(nx.edge_dfs(G, source=self.dic_vertex_id[s], orientation="reverse"))]
+            excluded = set([f[0] for f in excluded_tup] + [f[1] for f in excluded_tup])
+            selected_vertices1 = [s for s in selected_vertices1 if s not in excluded]
+            selected_vertices2 = [s for s in selected_vertices2 if s not in excluded]
+            
         # Create a subgraph with only the selected vertices
         subgraph1 = G.subgraph(selected_vertices1)
         subgraph2 = G.subgraph(selected_vertices2)
@@ -1975,21 +2002,12 @@ class DataJourneyDAG:
                 continue
             
             w = self.G[id1][id2]["weight"]
-#             if self.dic_vertex_names[id1] == "proc_COL68" and self.dic_vertex_names[id2] == "proc_COL71":
-#                 print("edges[i][0]", edges[i][0])
-#                 print("edges[i][1]", edges[i][1])
-#                 print("w", w)
                 
             for s in list(self.G.successors(id2)):
                 w2 = self.G[id2][s]["weight"]
-#                 new_edges.append((id1, s, w + w2))
                 weight = int((w + w2)/2)
                 if weight == 0: weight = 1
                 new_edges.append((id1, s, weight))
-#             if self.dic_vertex_names[id1] == "proc_COL68" and self.dic_vertex_names[id2] == "proc_COL71":
-#                 print("s", s)
-#                 print("w2", w2)
-#                 print("weight", weight)
         tmp_matrix = self.edge_list_to_csr_matrix(new_edges)
 
         if not nx.is_directed_acyclic_graph(nx.DiGraph(tmp_matrix)):
@@ -2013,9 +2031,6 @@ class DataJourneyDAG:
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
                     
-                    
-
-
                     
 
                     
