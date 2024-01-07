@@ -1,5 +1,5 @@
 # Data Journey DAG
-# Version: 1.5.6
+# Version: 1.5.7
 # Last Update: 2024/01/07
 # Author: Tomio Kobayashi
 
@@ -79,14 +79,22 @@ class DataJourneyDAG:
     def draw_selected_vertices_reverse_proc(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, 
                                             pos, wait_edges=None, reverse=False, figsize=(12, 8), showWeight=False, forStretch=False, excludeComp=False):
 
+        comp_vertices = None
+        subgraph_comp = None
+        noncomp_vertices = None
+        subgraph_noncomp = None
         if excludeComp:
             if reverse:
                 excluded_tup = [(f[0], f[1]) for s in self.set_complete for f in list(nx.edge_dfs(G, source=self.dic_vertex_id[s]))]
             else:
                 excluded_tup = [(f[0], f[1]) for s in self.set_complete for f in list(nx.edge_dfs(G, source=self.dic_vertex_id[s], orientation="reverse"))]
             excluded = set([f[0] for f in excluded_tup] + [f[1] for f in excluded_tup])
-            selected_vertices1 = [s for s in selected_vertices1 if s not in excluded]
-            selected_vertices2 = [s for s in selected_vertices2 if s not in excluded]
+#             selected_vertices1 = [s for s in selected_vertices1 if s not in excluded]
+#             selected_vertices2 = [s for s in selected_vertices2 if s not in excluded]
+            comp_vertices = [s for s in selected_vertices1 if s in excluded]
+            noncomp_vertices = [s for s in selected_vertices1 if s not in excluded]
+            subgraph_comp = G.subgraph(comp_vertices)
+            subgraph_noncomp = G.subgraph(noncomp_vertices)
             
         # Create a subgraph with only the selected vertices
         subgraph1 = G.subgraph(selected_vertices1)
@@ -97,6 +105,9 @@ class DataJourneyDAG:
             subgraph1 = subgraph1.reverse()
             subgraph2 = subgraph2.reverse()
             subgraph3 = subgraph3.reverse()
+            if excludeComp:
+                subgraph_comp = subgraph_comp.reverse()
+                subgraph_noncomp = subgraph_noncomp.reverse()
 
         # Set figure size to be larger
         plt.figure(figsize=figsize)
@@ -110,8 +121,13 @@ class DataJourneyDAG:
         longest_path_length = None
         
         if showWeight:
-        
-            longest_path_length = nx.dag_longest_path_length(subgraph1)
+
+            longest_path_length = None
+            if not excludeComp:
+                longest_path_length = nx.dag_longest_path_length(subgraph1)
+            else:
+                longest_path_length = nx.dag_longest_path_length(subgraph_noncomp)
+                
             node_criticality = None
             if longest_path_length == 0:
                 node_criticality = []
@@ -160,6 +176,10 @@ class DataJourneyDAG:
             nx.draw(subgraph2, pos, linewidths=0, with_labels=True, labels=node_labels2, node_size=defNodeSize, node_color=color_map, font_size=10, font_color='black', arrowsize=10, edgecolors='black')
         else:
             nx.draw(subgraph2, pos, linewidths=0, with_labels=True, labels=node_labels2, node_size=defNodeSize, node_color='orange', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
+
+        if excludeComp:
+            nx.draw(subgraph_comp, pos, linewidths=0, with_labels=True, labels=node_labels1, node_size=defNodeSize, node_color='#DDDDDD', font_size=defFontSize, font_color=defFontColor, arrowsize=10, edgecolors='black')
+
         nx.draw(subgraph3, pos, linewidths=0, with_labels=True, labels=node_labels3, node_size=defNodeSize, node_color='pink', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
             
         if showWeight:
@@ -171,9 +191,18 @@ class DataJourneyDAG:
             nx.draw_networkx_edge_labels(subgraph1, pos, edge_labels=edge_labels)
         
             # Draw critical path edges with a different color
-            longest_path = nx.dag_longest_path(subgraph1)  # Use NetworkX's built-in function
-            critical_edges = [(longest_path[i], longest_path[i + 1]) for i in range(len(longest_path) - 1)]
-            nx.draw_networkx_edges(subgraph1, pos, edgelist=critical_edges, edge_color='brown', width=1.25)
+            
+            longest_path = None
+            if not excludeComp:
+                longest_path_length = nx.dag_longest_path_length(subgraph1)
+                longest_path = nx.dag_longest_path(subgraph1)  # Use NetworkX's built-in function
+                critical_edges = [(longest_path[i], longest_path[i + 1]) for i in range(len(longest_path) - 1)]
+                nx.draw_networkx_edges(subgraph1, pos, edgelist=critical_edges, edge_color='brown', width=1.25)
+            else:
+                longest_path_length = nx.dag_longest_path_length(subgraph_noncomp)
+                longest_path = nx.dag_longest_path(subgraph_noncomp)  # Use NetworkX's built-in function
+                critical_edges = [(longest_path[i], longest_path[i + 1]) for i in range(len(longest_path) - 1)]
+                nx.draw_networkx_edges(subgraph_noncomp, pos, edgelist=critical_edges, edge_color='brown', width=1.25)
 
         if wait_edges is not None:
             wait_edge_list = [(w[0], w[1]) for w in wait_edges if w[2] < 5]
@@ -188,7 +217,12 @@ class DataJourneyDAG:
 
             self.showStats(subgraph1)
             # Find the topological order
-            topological_order = list(nx.topological_sort(subgraph1))
+            topological_order = None
+            if not excludeComp:
+                topological_order = list(nx.topological_sort(subgraph1))
+            else:
+                topological_order = list(nx.topological_sort(subgraph_noncomp))
+                
             # Print the topological order
             print("TOPOLOGICAL ORDER:")
             print(" > ".join([self.dic_vertex_names[t] for t in topological_order if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
@@ -346,10 +380,13 @@ class DataJourneyDAG:
     
     def read_complete_list_from_file(self, filename):
         with open(filename, "r") as file:
-            ini = True
             for line in file:
-                self.set_complete.add(line.strip())
-        print("self.set_complete", self.set_complete)
+                s = line.strip()
+                self.set_complete.add(s)
+                if s[0:5] != "proc_":
+                    self.set_complete.add("proc_" + s)
+                    
+#         print("self.set_complete", self.set_complete)
 
     def read_edge_list_from_file(self, filename):
         edges = []
@@ -2031,8 +2068,6 @@ class DataJourneyDAG:
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
                     
-                    
-
                     
                     
 
