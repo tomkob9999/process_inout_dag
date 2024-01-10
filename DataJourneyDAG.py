@@ -1,5 +1,5 @@
 # Data Journey DAG
-# Version: 1.5.9
+# Version: 1.6.0
 # Last Update: 2024/01/08
 # Author: Tomio Kobayashi
 
@@ -16,12 +16,7 @@ import random
 from datetime import date
 import textwrap
 import re
-
 from scipy.sparse import csr_matrix
-
-# import matplotlib.cm as cm
-
-# from networkx.algorithms import bipartite
 
 class DataJourneyDAG:
 
@@ -207,6 +202,14 @@ class DataJourneyDAG:
             nx.draw_networkx_edges(subgraph1, pos, edgelist=wait_edge_list, edge_color='aqua', width=1.00)
             wait_edge_list = [(w[0], w[1]) for w in wait_edges if w[2] >= 5]
             nx.draw_networkx_edges(subgraph1, pos, edgelist=wait_edge_list, edge_color='aqua', width=1.00)
+            
+
+        if forStretch:
+            # Draw a vertical line at x=0.5 using matplotlib
+            max_horizontal_pos = max([v[0] for k, v in pos.items()])
+            for i in range(max_horizontal_pos, 0, -5):
+                plt.axvline(x=i, color="orange", linestyle="--", linewidth=0.3)
+            
             
         plt.title(title)
         plt.show()
@@ -763,7 +766,7 @@ class DataJourneyDAG:
         print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.str_dic_vertex_names[k][0:5] != "proc_"])))
         print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.str_dic_vertex_names[k][0:5] == "proc_"])))
         if title == "":
-            title = "Data Origins with Weight-Based Pipelining Including Dummy Nodes"
+            title = "Data Origins with Weighted Pipelining Including Dummy Nodes"
         has_proc = len([k for k in self.str_dic_vertex_id if k[0:5]  == "proc_"]) > 0
         title += " (" + str(last_pos-1) + " steps)"
         
@@ -946,7 +949,7 @@ class DataJourneyDAG:
         print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
         print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
         if title == "":
-            title = "Data Origins with Weight-Based Pipelining"
+            title = "Data Origins with Weighted Based Pipelining"
         has_proc = len([k for k in self.dic_vertex_id if k[0:5]  == "proc_"]) > 0
         title += " (" + str(last_pos-1) + " steps)"
         
@@ -1264,7 +1267,7 @@ class DataJourneyDAG:
         print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
         print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
         if title == "":
-            title = "Data Offsprings with Weight-Based Pipelining"
+            title = "Data Offsprings with Weighted Pipelining"
         title += " (" + str(last_pos-1) + " steps)"
         has_proc = len([k for k in self.dic_vertex_id if k[0:5]  == "proc_"]) > 0
 
@@ -1434,7 +1437,7 @@ class DataJourneyDAG:
         print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.str_dic_vertex_names[k][0:5] != "proc_"])))
         print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.str_dic_vertex_names[k][0:5] == "proc_"])))
         if title == "":
-            title = "Data Offsprings with Weight-Based Pipelining Including Dummy Nodes"
+            title = "Data Offsprings with Weighted Pipelining Including Dummy Nodes"
         has_proc = len([k for k in self.str_dic_vertex_id if k[0:5]  == "proc_"]) > 0
 #         title += " (" + str(len(set([v[0] for k, v in position.items() if (has_proc and self.str_dic_vertex_names[k][0:5] == "proc_") or (not has_proc and self.str_dic_vertex_names[k][0:5] != "proc_")]))-1) + " steps)"
         title += " (" + str(last_pos-1) + " steps)"
@@ -1810,6 +1813,13 @@ class DataJourneyDAG:
             critical_edges = [(longest_path[i], longest_path[i + 1]) for i in range(len(longest_path) - 1)]
             nx.draw_networkx_edges(subgraph1, pos, edgelist=critical_edges, edge_color='brown', width=1.25)
             
+        
+        if forStretch:
+            # Draw a vertical line at x=0.5 using matplotlib
+            max_horizontal_pos = max([v[0] for k, v in pos.items()])
+            for i in range(max_horizontal_pos, 0, -5):
+                plt.axvline(x=i, color="orange", linestyle="--", linewidth=0.3)
+                
         plt.title(title)
         plt.show()
             
@@ -1967,6 +1977,7 @@ class DataJourneyDAG:
                     self.vertex_names.pop(i)
                     
                     
+
 
 
 
