@@ -207,10 +207,13 @@ class DataJourneyDAG:
         if forStretch:
             # Draw a vertical line at x=0.5 using matplotlib
             max_horizontal_pos = max([v[0] for k, v in pos.items()])
+
             for i in range(max_horizontal_pos, 0, -5):
-                plt.axvline(x=i, color="orange", linestyle="--", linewidth=0.3)
-            
-            
+    #             width = 0.5 if (max_horizontal_pos - i) % 10 == 0 else 0.25
+                width = 0.25
+                linestyle = "dashed" if (max_horizontal_pos - i) % 10 == 0 else "dotted"
+                plt.axvline(x=i, color="orange", linestyle=linestyle, linewidth=width)
+
         plt.title(title)
         plt.show()
 
@@ -1817,8 +1820,12 @@ class DataJourneyDAG:
         if forStretch:
             # Draw a vertical line at x=0.5 using matplotlib
             max_horizontal_pos = max([v[0] for k, v in pos.items()])
+
             for i in range(max_horizontal_pos, 0, -5):
-                plt.axvline(x=i, color="orange", linestyle="--", linewidth=0.3)
+    #             width = 0.5 if (max_horizontal_pos - i) % 10 == 0 else 0.25
+                width = 0.25
+                linestyle = "dashed" if (max_horizontal_pos - i) % 10 == 0 else "dotted"
+                plt.axvline(x=i, color="orange", linestyle=linestyle, linewidth=width)
                 
         plt.title(title)
         plt.show()
@@ -1977,6 +1984,7 @@ class DataJourneyDAG:
                     self.vertex_names.pop(i)
                     
                     
+
 
 
 
