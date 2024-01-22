@@ -1,6 +1,6 @@
 ### Name: Deterministic_Regressor
 # Author: tomio kobayashi
-# Version: 3.0.5
+# Version: 3.0.6
 # Date: 2024/01/22
 
 import itertools
@@ -548,6 +548,7 @@ class Deterministic_Regressor:
         opt_precision_sofar = 0
         opt_recall_sofar = 0
         opt_f1_sofar = 0
+        opt_match_rate_sofar = 0
         
         doexit = False
         for i in range(100):
@@ -560,13 +561,15 @@ class Deterministic_Regressor:
             opt_precision = 0
             opt_recall = 0
             opt_f1 = 0
+            opt_match_rate = 0
             res = self.solve(inp, power_level=ct_now, useUnion=useUnion)
 
             if len(res) > 0:
 
                 win_expr = self.last_solve_expression
                 num_match = sum([1 if answer[i] == res[i] else 0 for i in range(len(answer))])
-                print(str(num_match) + "/" + str(len(res)), " records matched")
+#                 print(str(num_match) + "/" + str(len(res)), " records matched")
+                print(str(num_match) + "/" + str(len(res)), " records matched " + f" ({num_match/len(res)*100:.2f}%)")        
 #                 precision = precision_score(answer, res)
 #                 recall = recall_score(answer, res)
                 precision = precision_score(answer, res, average='weighted', labels=np.unique(res))
@@ -584,6 +587,7 @@ class Deterministic_Regressor:
                 opt_precision = precision
                 opt_recall = recall
                 opt_f1 = f1
+                opt_match_rate = num_match/len(res)
                 if best_ee_sofar < best_ee:
                     ct_opt = ct_now
                     best_ee_sofar = best_ee
@@ -592,6 +596,7 @@ class Deterministic_Regressor:
                     opt_precision_sofar = opt_precision
                     opt_recall_sofar = opt_recall
                     opt_f1_sofar = opt_f1
+                    opt_match_rate_sofar = opt_match_rate
                     if ct_now > MAX_POWER_LEVEL or f1 == 1:
                         doexit = True
                 elif jump == 1 or expr_opt == win_expr:
@@ -616,6 +621,7 @@ class Deterministic_Regressor:
                 print("")
                 print("OPTIMUM POWER LEVEL is", ct_opt)
                 print("")
+                print(f"Matching Rate: {opt_match_rate_sofar*100:.2f}%")     
                 print(f"Precision: {opt_precision_sofar * 100:.2f}%")
                 print(f"Recall: {opt_recall_sofar * 100:.2f}%")
                 print(f"F1 Score: {opt_f1_sofar * 100:.2f}%")
@@ -713,7 +719,8 @@ class Deterministic_Regressor:
 #                 f1 = f1_score(answer, res)
 #                 f1 = f1_score(answer, res, average='weighted', labels=np.unique(res))
                 f1 = f1_score(answer, res, average='weighted', labels=np.unique(res))
-                print(str(sum([1 if answer[i] == res[i] else 0 for i in range(len(answer))])) + "/" + str(len(res)), " records matched")
+#                 print(str(sum([1 if answer[i] == res[i] else 0 for i in range(len(answer))])) + "/" + str(len(res)), " records matched")
+                print(str(sum([1 if answer[i] == res[i] else 0 for i in range(len(answer))])) + "/" + str(len(res)), " records matched " + f" ({sum([1 if answer[i] == res[i] else 0 for i in range(len(answer))])/len(res)*100:.2f}%)")
                 print(f"Precision: {precision * 100:.2f}%")
                 print(f"Recall: {recall * 100:.2f}%")
                 print(f"F1 Score: {f1 * 100:.2f}%")
@@ -876,7 +883,7 @@ class Deterministic_Regressor:
         print("")
         print("####### PREDICTION STATS #######")
         print("")
-        print(str(sum([1 if answer[i] == res[i] else 0 for i in range(len(answer))])) + "/" + str(len(res)), " records matched")
+        print(str(sum([1 if answer[i] == res[i] else 0 for i in range(len(answer))])) + "/" + str(len(res)), " records matched" + f" ({sum([1 if answer[i] == res[i] else 0 for i in range(len(answer))])/len(res)*100:.2f}%)")
         print(f"Precision: {precision * 100:.2f}%")
         print(f"Recall: {recall * 100:.2f}%")
         print(f"F1 Score: {f1 * 100:.2f}%")
