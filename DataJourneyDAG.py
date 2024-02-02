@@ -1,6 +1,6 @@
 # Data Journey DAG
-# Version: 1.6.1
-# Last Update: 2024/02/02
+# Version: 1.6.2
+# Last Update: 2024/02/03
 # Author: Tomio Kobayashi
 
 # - generateProcesses  genProcesses() DONE
@@ -191,9 +191,9 @@ class DataJourneyDAG:
                         tot = 0
                         weight_params = {k: avg_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()}
                         if self.dic_vertex_names[t] in self.dic_conds:
-                            tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts)
+                            tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts, use_lognormal=True)
                         else:
-                            tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=self.dic_opts)
+                            tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=self.dic_opts, use_lognormal=True)
                         avg_duration[t] = tot
         if showWeight and reverse==False:
             node_labels1 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
@@ -286,7 +286,7 @@ class DataJourneyDAG:
     
             if reverse==False:
                 print("AVERAGE COMPLETION USING CONDITIONS AND OPTIONAL PCT")
-                print(", ".join([self.dic_vertex_names[t] + ": " + str(round(avg_duration[t], 3)) for t in topological_order]))
+                print(", ".join([self.dic_vertex_names[t] + ": " + str(round(avg_duration[t], 1)) for t in topological_order]))
                 print("")
     
             self.suggest_coupling(subgraph1)
@@ -2047,6 +2047,5 @@ class DataJourneyDAG:
                     self.vertex_names.pop(i)
                     
                     
-
 
 
