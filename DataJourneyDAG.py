@@ -1,149 +1,3 @@
-# logical_weight
-#
-# Version: 1.0.0
-# Last Update: 2024/02/02
-# Author: Tomio Kobayashi
-#
-# Average of max and min of multiple random variables.  In case of error, securely. max and min are returned
-#
-
-import scipy.stats as stats
-import numpy as np
-import re
-
-class logical_weight:
-    def get_avg_max(rands, std_ratio=0.25):
-        try:
-            sds = [np.abs(r * std_ratio) for r in rands]
-
-            max_prb = [0.0]*len(rands)
-            max_value = max(rands)
-            max_indices = [index for index, value in enumerate(rands) if value == max_value]
-            i = max_indices[0]
-            for j in range(len(rands)):
-                if j in max_indices:
-                    continue
-                max_prb[j] = stats.norm.cdf(0, loc=(rands[i] - rands[j]), scale=(sds[i]+sds[j])) 
-
-            maxmax = (1 - sum(max_prb))/len(max_indices)
-            for m in max_indices:
-                max_prb[m] = maxmax
-
-            return sum([(stats.norm(loc=(rands[i]), scale=(sds[i])).ppf(1-max_prb[i]/2)) * max_prb[i] for i in range(len(rands))])
-
-        except Exception as e:
-            return max(rands)
-
-    # Good for non-zero values.  Long tailed
-    def get_avg_max_nonzero(rands, std_ratio=0.25, sigma=0.5):
-        try:
-            sds = [np.abs(r * std_ratio) for r in rands]
-
-            max_prb = [0.0]*len(rands)
-            max_value = max(rands)
-            max_indices = [index for index, value in enumerate(rands) if value == max_value]
-            i = max_indices[0]
-            for j in range(len(rands)):
-                if j in max_indices:
-                    continue
-                max_prb[j] = stats.norm.cdf(0, loc=(rands[i] - rands[j]), scale=(sds[i]+sds[j])) 
-
-            maxmax = (1 - sum(max_prb))/len(max_indices)
-            for m in max_indices:
-                max_prb[m] = maxmax
-
-            return sum([(stats.lognorm(sigma, scale=rands[i]).ppf(1-max_prb[i]/2)) * max_prb[i] for i in range(len(rands))])
-
-        except Exception as e:
-            return min(rands)
-
-    def get_avg_min(rands, std_ratio=0.25):
-        try:
-            sds = [np.abs(r * std_ratio) for r in rands]
-
-            min_prb = [0.0]*len(rands)
-            min_value = min(rands)
-            min_indices = [index for index, value in enumerate(rands) if value == min_value]
-
-            i = min_indices[0]
-            for j in range(len(rands)):
-                if j in min_indices:
-                    continue
-                min_prb[j] = stats.norm.cdf(0, loc=(rands[j] - rands[i]), scale=(sds[i]+sds[j])) 
-            minmin = (1 - sum(min_prb))/len(min_indices)
-            for m in min_indices:
-                min_prb[m] = minmin
-
-            return sum([(stats.norm(loc=(rands[i]), scale=(sds[i])).ppf(min_prb[i]/2)) * min_prb[i] for i in range(len(rands))])
-
-        except Exception as e:
-            return max(rands)
-
-    # Good for non-zero values.  Long tailed
-    def get_avg_min_nonzero(rands, std_ratio=0.25, sigma=0.5):
-        try:
-            sds = [np.abs(r * std_ratio) for r in rands]
-
-            min_prb = [0.0]*len(rands)
-            min_value = min(rands)
-            min_indices = [index for index, value in enumerate(rands) if value == min_value]
-
-            i = min_indices[0]
-            for j in range(len(rands)):
-                if j in min_indices:
-                    continue
-                min_prb[j] = stats.norm.cdf(0, loc=(rands[j] - rands[i]), scale=(sds[i]+sds[j])) 
-            minmin = (1 - sum(min_prb))/len(min_indices)
-            for m in min_indices:
-                min_prb[m] = minmin
-
-            return sum([(stats.lognorm(sigma, scale=rands[i]).ppf(min_prb[i]/2)) * min_prb[i] for i in range(len(rands))])
-        except Exception as e:
-            return max(rands)
-
-    def calc_avg_result_weight(inp_exp, weights, use_lognormal=True, loop_limit=2000, opt_steps={}):
-
-        exp = inp_exp
-
-        for k, v in weights.items():
-            multi_factor = opt_steps[k] if k in opt_steps else 1.0
-            exp = exp.replace(k, str(v*multi_factor))
-
-#         print("exp", exp)
-        pattern_and = "\((\s*[^\|\(\)]*\s*&\s[^\|\(\)]*\s*)+\)"
-        pattern_or = "\((\s*[^\|\(\)]*\s*\|\s[^\|\(\)]*\s*)+\)"
-
-        cnt = 1
-        while True:
-            cnt += 1
-            if cnt > loop_limit:
-                print("too many loops")
-                break
-            if re.search("^\d*(\.\d*)$", exp.strip()):
-                break
-            exp = "(" + exp.strip() + ")" if exp.strip()[0] != "(" else exp.strip()
-            pattern = pattern_and
-            match = re.search(pattern, exp)
-            if match:
-                val_list = [float(s) for s in match.group().replace("(", "").replace(")", "").replace(" ", "").replace("&", ",").replace("|", ",").split(",")]
-                out_len = logical_weight.get_avg_max_nonzero(val_list) if use_lognormal else logical_weight.get_avg_max(val_list)
-                exp = re.sub(pattern, str(out_len), exp, count=1)
-            else:
-                pattern = pattern_or
-                match = re.search(pattern, exp)
-                if match:
-                    val_list = [float(s) for s in match.group().replace("(", "").replace(")", "").replace(" ", "").replace("&", ",").replace("|", ",").split(",")]
-                    out_len = logical_weight.get_avg_min_nonzero(val_list) if use_lognormal else logical_weight.get_avg_min(val_list)
-                    exp = re.sub(pattern, str(out_len), exp, count=1)
-                else:
-                    break
-
-        return float(exp) 
-
-
-
-
-
 # Data Journey DAG
 # Version: 1.6.1
 # Last Update: 2024/02/02
@@ -308,10 +162,47 @@ class DataJourneyDAG:
             defFontSize=10
             defNodeSize=1000
             defFontColor='black'
-            
-        node_labels1 = {k: v for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
-        node_labels2 = {k: v for k, v in node_labels.items() if k in subgraph2}
-        node_labels3 = {k: v for k, v in node_labels.items() if k in subgraph3}
+
+        avg_duration = {}
+        topological_order = None
+        the_graph = None
+        if showWeight:
+#             self.showStats(subgraph1)
+            # Find the topological order
+            if not excludeComp:
+                topological_order = list(nx.topological_sort(subgraph1))
+                the_graph = subgraph1
+            else:
+                topological_order = list(nx.topological_sort(subgraph_noncomp))
+                the_graph = subgraph_noncomp
+                
+    
+            if reverse==False:
+                weights = {}
+                for i, j in the_graph.edges():
+                    if j not in weights:
+                        weights[j] = {}
+                    weights[j][self.dic_vertex_names[i]] = the_graph[i][j]['weight']
+                
+                for t in topological_order:
+                    if t not in weights:
+                        avg_duration[t] = 0
+                    else:
+                        tot = 0
+                        weight_params = {k: avg_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()}
+                        if self.dic_vertex_names[t] in self.dic_conds:
+                            tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts)
+                        else:
+                            tot = max([v for k, v in weight_params.items()])
+                        avg_duration[t] = tot
+        if showWeight and reverse==False:
+            node_labels1 = {k: v + "\n(" + str(round(avg_duration[k], 3)) + ")" for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
+            node_labels2 = {k: v + "\n(" + str(round(avg_duration[k], 3)) + ")" for k, v in node_labels.items() if k in subgraph2}
+            node_labels3 = {k: v + "\n(" + str(round(avg_duration[k], 3)) + ")" for k, v in node_labels.items() if k in subgraph3}
+        else:
+            node_labels1 = {k: v for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
+            node_labels2 = {k: v for k, v in node_labels.items() if k in subgraph2}
+            node_labels3 = {k: v for k, v in node_labels.items() if k in subgraph3}
         
         nx.draw(subgraph1, pos, linewidths=0, with_labels=True, labels=node_labels1, node_size=defNodeSize, node_color='skyblue', font_size=defFontSize, font_color=defFontColor, arrowsize=10, edgecolors='black')
         if has_proc and showWeight and len(node_parameter) > 0:
@@ -363,23 +254,18 @@ class DataJourneyDAG:
                 linestyle = "dashed" if (max_horizontal_pos - i) % 10 == 0 else "dotted"
                 plt.axvline(x=i, color="orange", linestyle=linestyle, linewidth=width)
 
-        plt.title(title)
-        plt.show()
-
         if showWeight:
 
             self.showStats(subgraph1)
             # Find the topological order
-            topological_order = None
-            the_graph = None
-            if not excludeComp:
-                topological_order = list(nx.topological_sort(subgraph1))
-                the_graph = subgraph1
-            else:
-                topological_order = list(nx.topological_sort(subgraph_noncomp))
-                the_graph = subgraph_noncomp
-
-            
+#             topological_order = None
+#             the_graph = None
+#             if not excludeComp:
+#                 topological_order = list(nx.topological_sort(subgraph1))
+#                 the_graph = subgraph1
+#             else:
+#                 topological_order = list(nx.topological_sort(subgraph_noncomp))
+#                 the_graph = subgraph_noncomp
             
             # Print the topological order
             print("TOPOLOGICAL ORDER:")
@@ -396,33 +282,19 @@ class DataJourneyDAG:
 #                 print(self.dic_vertex_names[n[1]], round(n[0], 3))
 #             print("")
             # Print the longest path and its length
+
     
             if reverse==False:
                 print("AVERAGE COMPLETION USING CONDITIONS AND OPTIONAL PCT")
-                weights = {}
-                for i, j in the_graph.edges():
-                    if j not in weights:
-                        weights[j] = {}
-                    weights[j][self.dic_vertex_names[i]] = the_graph[i][j]['weight']
-                
-                avg_duration = {}
-                for t in topological_order:
-                    if t not in weights:
-                        avg_duration[t] = 0
-                    else:
-                        tot = 0
-                        weight_params = {k: avg_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()}
-                        if self.dic_vertex_names[t] in self.dic_conds:
-                            tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts)
-                        else:
-                            tot = max([v for k, v in weight_params.items()])
-                        avg_duration[t] = tot
-                
                 print(", ".join([self.dic_vertex_names[t] + ": " + str(round(avg_duration[t], 3)) for t in topological_order]))
                 print("")
-
+    
             self.suggest_coupling(subgraph1)
             self.suggest_opportunities(subgraph1)
+
+            
+        plt.title(title)
+        plt.show()
 
     def edge_list_to_csr_matrix(self, edges):
         rows = [edge[0] for edge in edges]
@@ -2175,3 +2047,4 @@ class DataJourneyDAG:
                     self.vertex_names.pop(i)
                     
                     
+
