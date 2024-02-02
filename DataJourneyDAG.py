@@ -1,6 +1,152 @@
+# logical_weight
+#
+# Version: 1.0.0
+# Last Update: 2024/02/02
+# Author: Tomio Kobayashi
+#
+# Average of max and min of multiple random variables.  In case of error, securely. max and min are returned
+#
+
+import scipy.stats as stats
+import numpy as np
+import re
+
+class logical_weight:
+    def get_avg_max(rands, std_ratio=0.25):
+        try:
+            sds = [np.abs(r * std_ratio) for r in rands]
+
+            max_prb = [0.0]*len(rands)
+            max_value = max(rands)
+            max_indices = [index for index, value in enumerate(rands) if value == max_value]
+            i = max_indices[0]
+            for j in range(len(rands)):
+                if j in max_indices:
+                    continue
+                max_prb[j] = stats.norm.cdf(0, loc=(rands[i] - rands[j]), scale=(sds[i]+sds[j])) 
+
+            maxmax = (1 - sum(max_prb))/len(max_indices)
+            for m in max_indices:
+                max_prb[m] = maxmax
+
+            return sum([(stats.norm(loc=(rands[i]), scale=(sds[i])).ppf(1-max_prb[i]/2)) * max_prb[i] for i in range(len(rands))])
+
+        except Exception as e:
+            return max(rands)
+
+    # Good for non-zero values.  Long tailed
+    def get_avg_max_nonzero(rands, std_ratio=0.25, sigma=0.5):
+        try:
+            sds = [np.abs(r * std_ratio) for r in rands]
+
+            max_prb = [0.0]*len(rands)
+            max_value = max(rands)
+            max_indices = [index for index, value in enumerate(rands) if value == max_value]
+            i = max_indices[0]
+            for j in range(len(rands)):
+                if j in max_indices:
+                    continue
+                max_prb[j] = stats.norm.cdf(0, loc=(rands[i] - rands[j]), scale=(sds[i]+sds[j])) 
+
+            maxmax = (1 - sum(max_prb))/len(max_indices)
+            for m in max_indices:
+                max_prb[m] = maxmax
+
+            return sum([(stats.lognorm(sigma, scale=rands[i]).ppf(1-max_prb[i]/2)) * max_prb[i] for i in range(len(rands))])
+
+        except Exception as e:
+            return min(rands)
+
+    def get_avg_min(rands, std_ratio=0.25):
+        try:
+            sds = [np.abs(r * std_ratio) for r in rands]
+
+            min_prb = [0.0]*len(rands)
+            min_value = min(rands)
+            min_indices = [index for index, value in enumerate(rands) if value == min_value]
+
+            i = min_indices[0]
+            for j in range(len(rands)):
+                if j in min_indices:
+                    continue
+                min_prb[j] = stats.norm.cdf(0, loc=(rands[j] - rands[i]), scale=(sds[i]+sds[j])) 
+            minmin = (1 - sum(min_prb))/len(min_indices)
+            for m in min_indices:
+                min_prb[m] = minmin
+
+            return sum([(stats.norm(loc=(rands[i]), scale=(sds[i])).ppf(min_prb[i]/2)) * min_prb[i] for i in range(len(rands))])
+
+        except Exception as e:
+            return max(rands)
+
+    # Good for non-zero values.  Long tailed
+    def get_avg_min_nonzero(rands, std_ratio=0.25, sigma=0.5):
+        try:
+            sds = [np.abs(r * std_ratio) for r in rands]
+
+            min_prb = [0.0]*len(rands)
+            min_value = min(rands)
+            min_indices = [index for index, value in enumerate(rands) if value == min_value]
+
+            i = min_indices[0]
+            for j in range(len(rands)):
+                if j in min_indices:
+                    continue
+                min_prb[j] = stats.norm.cdf(0, loc=(rands[j] - rands[i]), scale=(sds[i]+sds[j])) 
+            minmin = (1 - sum(min_prb))/len(min_indices)
+            for m in min_indices:
+                min_prb[m] = minmin
+
+            return sum([(stats.lognorm(sigma, scale=rands[i]).ppf(min_prb[i]/2)) * min_prb[i] for i in range(len(rands))])
+        except Exception as e:
+            return max(rands)
+
+    def calc_avg_result_weight(inp_exp, weights, use_lognormal=True, loop_limit=2000, opt_steps={}):
+
+        exp = inp_exp
+
+        for k, v in weights.items():
+            multi_factor = opt_steps[k] if k in opt_steps else 1.0
+            exp = exp.replace(k, str(v*multi_factor))
+
+#         print("exp", exp)
+        pattern_and = "\((\s*[^\|\(\)]*\s*&\s[^\|\(\)]*\s*)+\)"
+        pattern_or = "\((\s*[^\|\(\)]*\s*\|\s[^\|\(\)]*\s*)+\)"
+
+        cnt = 1
+        while True:
+            cnt += 1
+            if cnt > loop_limit:
+                print("too many loops")
+                break
+            if re.search("^\d*(\.\d*)$", exp.strip()):
+                break
+            exp = "(" + exp.strip() + ")" if exp.strip()[0] != "(" else exp.strip()
+            pattern = pattern_and
+            match = re.search(pattern, exp)
+            if match:
+                val_list = [float(s) for s in match.group().replace("(", "").replace(")", "").replace(" ", "").replace("&", ",").replace("|", ",").split(",")]
+                out_len = logical_weight.get_avg_max_nonzero(val_list) if use_lognormal else logical_weight.get_avg_max(val_list)
+                exp = re.sub(pattern, str(out_len), exp, count=1)
+            else:
+                pattern = pattern_or
+                match = re.search(pattern, exp)
+                if match:
+                    val_list = [float(s) for s in match.group().replace("(", "").replace(")", "").replace(" ", "").replace("&", ",").replace("|", ",").split(",")]
+                    out_len = logical_weight.get_avg_min_nonzero(val_list) if use_lognormal else logical_weight.get_avg_min(val_list)
+                    exp = re.sub(pattern, str(out_len), exp, count=1)
+                else:
+                    break
+
+        return float(exp) 
+
+
+
+
+
 # Data Journey DAG
-# Version: 1.6.0
-# Last Update: 2024/01/08
+# Version: 1.6.1
+# Last Update: 2024/02/02
 # Author: Tomio Kobayashi
 
 # - generateProcesses  genProcesses() DONE
@@ -47,6 +193,9 @@ class DataJourneyDAG:
         self.dic_old2new = {}
 
         self.set_complete = set()
+        
+        self.dic_conds = {}
+        self.dic_opts = {}
         
     def csr_matrix_to_edge_list(self, csr_matrix):
         rows, cols = csr_matrix.nonzero()
@@ -222,11 +371,16 @@ class DataJourneyDAG:
             self.showStats(subgraph1)
             # Find the topological order
             topological_order = None
+            the_graph = None
             if not excludeComp:
                 topological_order = list(nx.topological_sort(subgraph1))
+                the_graph = subgraph1
             else:
                 topological_order = list(nx.topological_sort(subgraph_noncomp))
-                
+                the_graph = subgraph_noncomp
+
+            
+            
             # Print the topological order
             print("TOPOLOGICAL ORDER:")
             print(" > ".join([self.dic_vertex_names[t] for t in topological_order if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
@@ -241,6 +395,32 @@ class DataJourneyDAG:
 #             for n in sorted(node_criticality, reverse=True):
 #                 print(self.dic_vertex_names[n[1]], round(n[0], 3))
 #             print("")
+            # Print the longest path and its length
+    
+            if reverse==False:
+                print("AVERAGE COMPLETION USING CONDITIONS AND OPTIONAL PCT")
+                weights = {}
+                for i, j in the_graph.edges():
+                    if j not in weights:
+                        weights[j] = {}
+                    weights[j][self.dic_vertex_names[i]] = the_graph[i][j]['weight']
+                
+                avg_duration = {}
+                for t in topological_order:
+                    if t not in weights:
+                        avg_duration[t] = 0
+                    else:
+                        tot = 0
+                        weight_params = {k: avg_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()}
+                        if self.dic_vertex_names[t] in self.dic_conds:
+                            tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts)
+                        else:
+                            tot = max([v for k, v in weight_params.items()])
+                        avg_duration[t] = tot
+                
+                print(", ".join([self.dic_vertex_names[t] + ": " + str(round(avg_duration[t], 3)) for t in topological_order]))
+                print("")
+
             self.suggest_coupling(subgraph1)
             self.suggest_opportunities(subgraph1)
 
@@ -390,6 +570,17 @@ class DataJourneyDAG:
                 if s[0:5] != "proc_":
                     self.set_complete.add("proc_" + s)
                     
+    def read_cond_list_from_file(self, filename):
+        with open(filename, "r") as file:
+            for line in file:
+                conds = line.strip().split("\t")
+                self.dic_conds[conds[0]] = conds[1]
+
+    def read_opt_list_from_file(self, filename):
+        with open(filename, "r") as file:
+            for line in file:
+                conds = line.strip().split("\t")
+                self.dic_opts[conds[0]] = float(conds[1])
 #         print("self.set_complete", self.set_complete)
 
     def read_edge_list_from_file(self, filename):
@@ -1984,70 +2175,3 @@ class DataJourneyDAG:
                     self.vertex_names.pop(i)
                     
                     
-
-
-
-
-
-
-
-
-
-
-
-
-##### EXECUTION SAMPLE
-
-import time
-
-def measure(start_time):
-    end_time = time.time()
-
-    elapsed_time = end_time - start_time
-    minutes, seconds = divmod(elapsed_time, 60)
-    milliseconds = int(elapsed_time * 1000 % 1000)
-    return f"{int(minutes)}:{str(int(seconds)).zfill(2)}:{str(int(milliseconds)).zfill(3)}"
-           
-start_time = time.time()
-
-mydag = DataJourneyDAG()
-
-showWeight = True
-
-print("DataJourneyDAG() finished", measure(start_time))
-start_time = time.time()
-
-
-mydag.data_import('/kaggle/input/matrix12/weighted_matrix12.txt') #100
-print("data_import() finished", measure(start_time))
-start_time = time.time()
-
-
-# mydag.drawFromLargestComponent(figsize=(50, 50), showWeight=True, showCriticality=True)
-
-# print("drawFromLargestComponent() finished", measure(start_time))
-# start_time = time.time()
-
-mydag.genProcesses()
-
-print("genProcesses() finished", measure(start_time))
-start_time = time.time()
-
-mydag.keepOnlyProcesses()
-
-print("keepOnlyProcesses() finished", measure(start_time))
-start_time = time.time()
-
-mydag.populateStretch()
-print("populateStretch() finished", measure(start_time))
-start_time = time.time()
-
-target_vertex = "proc_COL39"
-
-mydag.drawOffspringsStretchDummy(target_vertex, figsize=(12,8), showWeight=showWeight)
-print("drawOffspringsStretchDummy() finished", measure(start_time))
-start_time = time.time()
-
-mydag.drawOffspringsStretch(target_vertex, figsize=(12,8), showWeight=showWeight)
-print("drawOffspringsStretch() finished", measure(start_time))
-start_time = time.time()
