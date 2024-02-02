@@ -193,12 +193,12 @@ class DataJourneyDAG:
                         if self.dic_vertex_names[t] in self.dic_conds:
                             tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts)
                         else:
-                            tot = max([v for k, v in weight_params.items()])
+                            tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=self.dic_opts)
                         avg_duration[t] = tot
         if showWeight and reverse==False:
-            node_labels1 = {k: v + "\n(" + str(round(avg_duration[k], 3)) + ")" for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
-            node_labels2 = {k: v + "\n(" + str(round(avg_duration[k], 3)) + ")" for k, v in node_labels.items() if k in subgraph2}
-            node_labels3 = {k: v + "\n(" + str(round(avg_duration[k], 3)) + ")" for k, v in node_labels.items() if k in subgraph3}
+            node_labels1 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
+            node_labels2 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph2}
+            node_labels3 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph3}
         else:
             node_labels1 = {k: v for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
             node_labels2 = {k: v for k, v in node_labels.items() if k in subgraph2}
@@ -2047,4 +2047,6 @@ class DataJourneyDAG:
                     self.vertex_names.pop(i)
                     
                     
+
+
 
