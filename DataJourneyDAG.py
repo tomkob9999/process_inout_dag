@@ -164,6 +164,7 @@ class DataJourneyDAG:
             defFontColor='black'
 
         avg_duration = {}
+        avg_duration_r = {}
         topological_order = None
         the_graph = None
         if showWeight:
@@ -178,12 +179,14 @@ class DataJourneyDAG:
                 
     
             if reverse==False:
+            
                 weights = {}
                 for i, j in the_graph.edges():
                     if j not in weights:
                         weights[j] = {}
                     weights[j][self.dic_vertex_names[i]] = the_graph[i][j]['weight']
                 
+                print("self.dic_conds", self.dic_conds)
                 for t in topological_order:
                     if t not in weights:
                         avg_duration[t] = 0
@@ -191,10 +194,13 @@ class DataJourneyDAG:
                         tot = 0
                         weight_params = {k: avg_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()}
                         if self.dic_vertex_names[t] in self.dic_conds:
-                            tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts, use_lognormal=True)
+                            tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts, use_lognormal=False)
                         else:
-                            tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=self.dic_opts, use_lognormal=True)
+                            tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=self.dic_opts, use_lognormal=False)
                         avg_duration[t] = tot
+                max_duration = max([v for k, v in avg_duration.items()])
+                avg_duration_r = {k: max_duration - v for k, v in avg_duration.items()}
+                
         if showWeight and reverse==False:
             node_labels1 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
             node_labels2 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph2}
@@ -2047,5 +2053,3 @@ class DataJourneyDAG:
                     self.vertex_names.pop(i)
                     
                     
-
-
