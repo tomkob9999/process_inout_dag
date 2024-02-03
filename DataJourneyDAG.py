@@ -1,5 +1,5 @@
 # Data Journey DAG
-# Version: 1.6.2
+# Version: 1.6.3
 # Last Update: 2024/02/03
 # Author: Tomio Kobayashi
 
@@ -163,12 +163,12 @@ class DataJourneyDAG:
             defNodeSize=1000
             defFontColor='black'
 
+        cum_duration = {}
         avg_duration = {}
         avg_duration_r = {}
         topological_order = None
         the_graph = None
         if showWeight:
-#             self.showStats(subgraph1)
             # Find the topological order
             if not excludeComp:
                 topological_order = list(nx.topological_sort(subgraph1))
@@ -186,10 +186,10 @@ class DataJourneyDAG:
                         weights[j] = {}
                     weights[j][self.dic_vertex_names[i]] = the_graph[i][j]['weight']
                 
-                print("self.dic_conds", self.dic_conds)
                 for t in topological_order:
                     if t not in weights:
                         avg_duration[t] = 0
+                        cum_duration[t] = 0
                     else:
                         tot = 0
                         weight_params = {k: avg_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()}
@@ -198,13 +198,15 @@ class DataJourneyDAG:
                         else:
                             tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=self.dic_opts, use_lognormal=False)
                         avg_duration[t] = tot
+                        weight_params_cum = {k: cum_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()}
+                        cum_duration[t] = max([v for k, v in weight_params_cum.items()])
                 max_duration = max([v for k, v in avg_duration.items()])
                 avg_duration_r = {k: max_duration - v for k, v in avg_duration.items()}
                 
         if showWeight and reverse==False:
-            node_labels1 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
-            node_labels2 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph2}
-            node_labels3 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph3}
+            node_labels1 = {k: v + "\n(" + str(round(cum_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
+            node_labels2 = {k: v + "\n(" + str(round(cum_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph2}
+            node_labels3 = {k: v + "\n(" + str(round(cum_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph3}
         else:
             node_labels1 = {k: v for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
             node_labels2 = {k: v for k, v in node_labels.items() if k in subgraph2}
@@ -291,7 +293,7 @@ class DataJourneyDAG:
 
     
             if reverse==False:
-                print("AVERAGE COMPLETION USING CONDITIONS AND OPTIONAL PCT")
+                print("REALISTIC AVERAGE COMPLETION TIME")
                 print(", ".join([self.dic_vertex_names[t] + ": " + str(round(avg_duration[t], 1)) for t in topological_order]))
                 print("")
     
