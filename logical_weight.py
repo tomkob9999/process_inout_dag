@@ -1,6 +1,6 @@
 # logical_weight
 #
-# Version: 1.0.2
+# Version: 1.0.3
 # Last Update: 2024/02/03
 # Author: Tomio Kobayashi
 #
@@ -28,7 +28,9 @@ class logical_weight:
             maxmax = (1 - sum(max_prb))/len(max_indices)
             for m in max_indices:
                 max_prb[m] = maxmax
-            return max(sum([(stats.norm(loc=(rands[i]), scale=(sds[i])).ppf(1-max_prb[i]/2)) * max_prb[i] for i in range(len(rands))]), max(rands))
+#             return max(sum([(stats.norm(loc=(rands[i]), scale=(sds[i])).ppf(1-max_prb[i]/2)) * max_prb[i] for i in range(len(rands))]), max(rands))
+            val = max(sum([(stats.norm(loc=(rands[i]), scale=(sds[i])).ppf(1-max_prb[i]/2)) * max_prb[i] for i in range(len(rands))]), max(rands))
+            return val if not np.isnan(val) else max(rands) 
 
         except Exception as e:
             return max(rands)
@@ -51,7 +53,8 @@ class logical_weight:
             for m in max_indices:
                 max_prb[m] = maxmax
 
-            return max(sum([(stats.lognorm(sigma, scale=rands[i]).ppf(1-max_prb[i]/2)) * max_prb[i] for i in range(len(rands))]), max(rands))
+            val = max(sum([(stats.lognorm(sigma, scale=rands[i]).ppf(1-max_prb[i]/2)) * max_prb[i] for i in range(len(rands))]), max(rands))
+            return val if not np.isnan(val) else max(rands) 
 
         except Exception as e:
             return max(rands)
@@ -73,7 +76,8 @@ class logical_weight:
             for m in min_indices:
                 min_prb[m] = minmin
             
-            return min(sum([(stats.norm(loc=(rands[i]), scale=(sds[i])).ppf(min_prb[i]/2)) * min_prb[i] for i in range(len(rands))]), min(rands))
+            val = min(sum([(stats.norm(loc=(rands[i]), scale=(sds[i])).ppf(min_prb[i]/2)) * min_prb[i] for i in range(len(rands))]), min(rands))
+            return val if not np.isnan(val) else min(rands) 
 
         except Exception as e:
             return min(rands)
@@ -96,7 +100,9 @@ class logical_weight:
             for m in min_indices:
                 min_prb[m] = minmin
                 
-            return min(sum([(stats.lognorm(sigma, scale=rands[i]).ppf(min_prb[i]/2)) * min_prb[i] for i in range(len(rands))]), min(rands))
+            val = min(sum([(stats.lognorm(sigma, scale=rands[i]).ppf(min_prb[i]/2)) * min_prb[i] for i in range(len(rands))]), min(rands))
+            
+            return val if not np.isnan(val) else min(rands) 
         except Exception as e:
             return min(rands)
 
