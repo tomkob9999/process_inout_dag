@@ -19,7 +19,7 @@ class logical_weight:
             return val if not np.isnan(val) else max(rands) 
 
         except Exception as e:
-            print(e)
+#             print(e)
             return max(rands)
 
     # Good for non-zero values.  Long tailed
@@ -32,7 +32,7 @@ class logical_weight:
             return val if not np.isnan(val) else max(rands) 
 
         except Exception as e:
-            print(e)
+#             print(e)
             return max(rands)
 
     def get_avg_min(rands, normal_sigma=1):
@@ -43,7 +43,7 @@ class logical_weight:
             return val if not np.isnan(val) else min(rands) 
 
         except Exception as e:
-            print(e)
+#             print(e)
             return min(rands)
 
     # Good for non-zero values.  Long tailed
@@ -54,7 +54,7 @@ class logical_weight:
             
             return val if not np.isnan(val) else min(rands) 
         except Exception as e:
-            print(e)
+#             print(e)
             return min(rands)
 
     def calc_avg_result_weight(inp_exp, weights, use_lognormal=False, loop_limit=2000, opt_steps={}, normal_sigma=1, log_normal_sigma=0.5):
