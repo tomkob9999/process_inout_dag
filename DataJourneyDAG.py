@@ -1,6 +1,6 @@
 # Data Journey DAG
-# Version: 1.6.4
-# Last Update: 2024/02/03
+# Version: 1.6.5
+# Last Update: 2024/02/04
 # Author: Tomio Kobayashi
 
 # - generateProcesses  genProcesses() DONE
@@ -77,6 +77,9 @@ class DataJourneyDAG:
     def draw_selected_vertices_reverse_proc(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, 
                                             pos, wait_edges=None, reverse=False, figsize=(12, 8), showWeight=False, forStretch=False, excludeComp=False):
 
+#         if wait_edges is not None and len(wait_edges) > 0:
+#             print("wait_edges", [(self.dic_vertex_names[w[0]], self.dic_vertex_names[w[1]], w[2])  for w in wait_edges])
+        
         comp_vertices = None
         subgraph_comp = None
         noncomp_vertices = None
@@ -193,9 +196,7 @@ class DataJourneyDAG:
                     else:
                         tot = 0
                         weight_params = {k: avg_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()}
-                        normal_sigma = max([v for k, v in weight_params.items()])
-                        if normal_sigma > 3:
-                            normal_sigma = 3
+                        normal_sigma = min(max([v for k, v in weight_params.items()]), 4)
                         if self.dic_vertex_names[t] in self.dic_conds:
                             tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts, use_lognormal=False, normal_sigma=normal_sigma)
                         else:
@@ -208,7 +209,7 @@ class DataJourneyDAG:
                 
 #                 if forStretch:
 #                     max_pos = max([v[0] for k, v in pos.items()])
-#                     pos = {k: (int(np.round(avg_duration[k]*2, 0)), v[1])  for k, v in pos.items()}
+#                     pos = {k: (int(np.round(avg_duration[k], 0)), v[1])  for k, v in pos.items()}
                     
         if showWeight and reverse==False:
             node_labels1 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
@@ -927,13 +928,14 @@ class DataJourneyDAG:
         wait_edges = []
         for v in sorted([[v, k] for k, v in succLastReached.items()], reverse=True):
             start_step = last_pos-v[0]-1
-
             for e in self.G.out_edges(self.dic_new2old[v[1]]):
                 if self.dic_old2new[e[1]] not in succLastReached:
                     continue
-                if (last_pos - succLastReached[self.dic_old2new[e[1]]] - 1) - (start_step + self.G[e[0]][e[1]]["weight"]) - 1 > 0:
-                    wait_edges.append((e[0], e[1], (last_pos - succLastReached[self.dic_old2new[e[1]]] - 1) - (start_step + self.G[e[0]][e[1]]["weight"] - 1)))
-            
+#                 if (last_pos - succLastReached[self.dic_old2new[e[1]]] - 1) - (start_step + self.G[e[0]][e[1]]["weight"]) - 1 > 0:
+#                     wait_edges.append((e[0], e[1], (last_pos - succLastReached[self.dic_old2new[e[1]]] - 1) - (start_step + self.G[e[0]][e[1]]["weight"] - 1)))
+                dis_diff =  (last_pos - succLastReached[self.dic_old2new[e[1]]] - 1) - (start_step + self.G[e[0]][e[1]]["weight"])
+                if dis_diff > 0:
+                    wait_edges.append((e[0], e[1], dis_diff))
             
         for i in range(len(res_vector)):
             if sum(res_vector[i]) == 0:
@@ -2062,3 +2064,4 @@ class DataJourneyDAG:
                     self.vertex_names.pop(i)
                     
                     
+
