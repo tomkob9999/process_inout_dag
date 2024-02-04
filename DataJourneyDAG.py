@@ -1,6 +1,6 @@
 # Data Journey DAG
-# Version: 1.6.6
-# Last Update: 2024/02/04
+# Version: 1.6.7
+# Last Update: 2024/02/05
 # Author: Tomio Kobayashi
 
 # - generateProcesses  genProcesses() DONE
@@ -75,7 +75,7 @@ class DataJourneyDAG:
         return brightness
 
     def draw_selected_vertices_reverse_proc(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, 
-                                            pos, wait_edges=None, reverse=False, figsize=(12, 8), showWeight=False, forStretch=False, excludeComp=False):
+                                            pos, wait_edges=None, reverse=False, figsize=(12, 8), showWeight=False, forStretch=False, excludeComp=False, showExpectationBased=False):
 
 #         if wait_edges is not None and len(wait_edges) > 0:
 #             print("wait_edges", [(self.dic_vertex_names[w[0]], self.dic_vertex_names[w[1]], w[2])  for w in wait_edges])
@@ -207,25 +207,90 @@ class DataJourneyDAG:
                 max_duration = max([v for k, v in avg_duration.items()])
                 avg_duration_r = {k: max_duration - v for k, v in avg_duration.items()}
                 
-#                 if forStretch:
-#                     max_pos = max([v[0] for k, v in pos.items()])
-#                     pos = {k: (int(np.round(avg_duration[k], 0)), v[1])  for k, v in pos.items()}
+                
+                if forStretch and showExpectationBased:
+
+                    max_pos = max([v[0] for k, v in pos.items()])
+                    pos = {k: (int(np.round(avg_duration[k], 0)), v[1])  for k, v in pos.items()}
         
+                    last_pos = max([v[0] for k, v in pos.items()])
+                    colpos = {l:0 for l in range(last_pos+1)}
+                    for k, v in pos.items():
+                        colpos[v[0]] += 1
+                    dicPos = {i: 0 for i in range(len(colpos))}
+                    for k, v in sorted(pos.items(), reverse=True):
+                        pos[k] = (v[0], dicPos[v[0]])
+                        dicPos[v[0]] += 1
+
+
+            #         re-align the vertical position
+                    maxheight = max([v for k, v in colpos.items() if v != 0])
+                    newpos = {}
+                    for k, v in pos.items():
+                        gap = (maxheight) / colpos[v[0]]
+                        newheight = (gap/2) + v[1]*gap
+                        newpos[k] = (v[0], newheight)
+
+            #         change orders to minimize line crossings
+                    for posx in sorted(list(set([v[0] for k, v in newpos.items()]))):
+            #             for iii in range(1):
+                        for iii in range(int(colpos[posx]/2+1)):
+                            for node in [k for k, v in newpos.items() if v[0] == posx]:
+#                                 incoming_edges = self.str_G.in_edges(node)
+                                incoming_edges = subgraph1.in_edges(node)
+                                
+                                predecessors = [edge[0] for edge in incoming_edges]
+                                pred_in_pos = list(set([p for p in predecessors if p in newpos]))
+                                if len(pred_in_pos) > 0:
+                                    pred_heights = [newpos[p][1] for p in pred_in_pos]
+                                    avg_pred_heights = average = sum(pred_heights) / len(pred_heights)
+                                    closest_node = 0
+                                    closest_height = 9999
+                                    closest_dist = 9999
+                                    [my_pos, my_height] = newpos[node]
+                                    my_dist = np.abs(my_height - avg_pred_heights)
+                                    for k, v in newpos.items():
+                                        if k == node:
+                                            continue
+                                        if v[0] == my_pos:
+                                            dist = np.abs(v[1] - avg_pred_heights)
+                                            if dist < closest_dist:
+                                                closest_node = k
+                                                closest_dist = dist
+                                                closest_height = v[1]
+                                    if closest_dist < my_dist:
+                                        newpos[closest_node] = (my_pos, my_height)
+                                        newpos[node] = (my_pos, closest_height)
+
+                    pos = newpos
+                    if forStretch and len(selected_vertices1) > 10:
+                        max_height = max([v[1] for k, v in pos.items()])
+                        for k, v in pos.items():
+                            if v[0] % 3 == 1:
+                                pos[k] = (v[0], v[1] + max_height * 0.025)
+                            if v[0] % 3 == 2:
+                                pos[k] = (v[0], v[1] + max_height * 0.05)
+                        
+                        
+                        
+                    
         node_labels1 = {k: v for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
-        print("node_labels1", node_labels1)
+#         print("node_labels1", node_labels1)
         node_colors = ['skyblue' for n in selected_vertices1]
         for i, s in enumerate(selected_vertices1):
             if s in node_labels1 and node_labels1[s][-3:-1] == "#C":
                 node_colors[i] = node_labels1[s][-2:]
                 node_labels1[s] = node_labels1[s][:-3]
                 
-        if showWeight and reverse==False:
+#         if showWeight and reverse==False:
+        if showWeight and reverse==False and showExpectationBased:
 #             node_labels1 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
             node_labels1 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels1.items()}
             node_labels2 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph2}
             node_labels3 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph3}
         else:
-            node_labels1 = {k: v for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
+#             node_labels1 = {k: v for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
+            node_labels1 = {k: v for k, v in node_labels1.items()}
             node_labels2 = {k: v for k, v in node_labels.items() if k in subgraph2}
             node_labels3 = {k: v for k, v in node_labels.items() if k in subgraph3}
 
@@ -243,7 +308,7 @@ class DataJourneyDAG:
             nx.draw(subgraph_comp, pos, linewidths=0, with_labels=True, labels=node_labels1, node_size=defNodeSize, node_color='#DDDDDD', font_size=defFontSize, font_color=defFontColor, arrowsize=10, edgecolors='black')
     
         if showWeight:
-            if wait_edges is None:
+            if wait_edges is None or showExpectationBased:
                 edge_labels = {(i, j): subgraph1[i][j]['weight'] for i, j in subgraph1.edges()}
             else:
                 dicWait = {(w[0], w[1]): w[2] for w in wait_edges}
@@ -264,7 +329,8 @@ class DataJourneyDAG:
                 critical_edges = [(longest_path[i], longest_path[i + 1]) for i in range(len(longest_path) - 1)]
                 nx.draw_networkx_edges(subgraph_noncomp, pos, edgelist=critical_edges, edge_color='brown', width=1.25)
 
-        if wait_edges is not None:
+#         if wait_edges is not None:
+        if wait_edges is not None and not showExpectationBased:
             wait_edge_list = [(w[0], w[1]) for w in wait_edges if w[2] < 5]
             nx.draw_networkx_edges(subgraph1, pos, edgelist=wait_edge_list, edge_color='aqua', width=1.00)
             wait_edge_list = [(w[0], w[1]) for w in wait_edges if w[2] >= 5]
@@ -312,7 +378,7 @@ class DataJourneyDAG:
 
     
             if reverse==False:
-                print("REALISTIC AVERAGE COMPLETION TIME")
+                print("REALISTIC EXPECTED COMPLETION TIME")
                 print(", ".join([self.dic_vertex_names[t] + ": " + str(round(avg_duration[t], 1)) for t in topological_order]))
                 print("")
     
@@ -320,7 +386,7 @@ class DataJourneyDAG:
             self.suggest_opportunities(subgraph1)
 
             
-        plt.title(title)
+        plt.title("Expecation Based - " + title if showExpectationBased else title)
         plt.show()
 
     def edge_list_to_csr_matrix(self, edges):
@@ -869,7 +935,7 @@ class DataJourneyDAG:
         self.draw_dummy(self.str_G, selected_vertices1,selected_vertices2, selected_vertices3, 
                         title=title, node_labels=node_labels, pos=position, reverse=False, figsize=figsize, showWeight=showWeight, forStretch=True)
     
-    def drawOriginsStretch(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False):
+    def drawOriginsStretch(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False, showExpectationBased=False):
         
         if isinstance(target_vertex, str):
             if target_vertex not in self.str_dic_vertex_id:
@@ -1051,7 +1117,8 @@ class DataJourneyDAG:
             figsize = (12, 8)
         
         self.draw_selected_vertices_reverse_proc(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
-                                title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, excludeComp=excludeComp)
+                                title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, 
+                                                 excludeComp=excludeComp, showExpectationBased=showExpectationBased)
 
         
     def drawOrigins(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False):
@@ -2075,3 +2142,5 @@ class DataJourneyDAG:
                     self.vertex_names.pop(i)
                     
                     
+
+
