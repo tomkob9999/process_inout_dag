@@ -1,5 +1,5 @@
 # Data Journey DAG
-# Version: 1.6.5
+# Version: 1.6.6
 # Last Update: 2024/02/04
 # Author: Tomio Kobayashi
 
@@ -210,17 +210,28 @@ class DataJourneyDAG:
 #                 if forStretch:
 #                     max_pos = max([v[0] for k, v in pos.items()])
 #                     pos = {k: (int(np.round(avg_duration[k], 0)), v[1])  for k, v in pos.items()}
-                    
+        
+        node_labels1 = {k: v for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
+        print("node_labels1", node_labels1)
+        node_colors = ['skyblue' for n in selected_vertices1]
+        for i, s in enumerate(selected_vertices1):
+            if s in node_labels1 and node_labels1[s][-3:-1] == "#C":
+                node_colors[i] = node_labels1[s][-2:]
+                node_labels1[s] = node_labels1[s][:-3]
+                
         if showWeight and reverse==False:
-            node_labels1 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
+#             node_labels1 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
+            node_labels1 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels1.items()}
             node_labels2 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph2}
             node_labels3 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph3}
         else:
             node_labels1 = {k: v for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
             node_labels2 = {k: v for k, v in node_labels.items() if k in subgraph2}
             node_labels3 = {k: v for k, v in node_labels.items() if k in subgraph3}
-        
-        nx.draw(subgraph1, pos, linewidths=0, with_labels=True, labels=node_labels1, node_size=defNodeSize, node_color='skyblue', font_size=defFontSize, font_color=defFontColor, arrowsize=10, edgecolors='black')
+
+#         nx.draw(subgraph1, pos, linewidths=0, with_labels=True, labels=node_labels1, node_size=defNodeSize, node_color='skyblue', font_size=defFontSize, font_color=defFontColor, arrowsize=10, edgecolors='black')
+        nx.draw(subgraph1, pos, linewidths=0, with_labels=True, labels=node_labels1, node_size=defNodeSize, nodelist=selected_vertices1, node_color=node_colors, font_size=defFontSize, font_color=defFontColor, arrowsize=10, edgecolors='black')
+
         if has_proc and showWeight and len(node_parameter) > 0:
             nx.draw(subgraph2, pos, linewidths=0, with_labels=True, labels=node_labels2, node_size=defNodeSize, node_color=color_map, font_size=10, font_color='black', arrowsize=10, edgecolors='black')
         else:
@@ -2064,4 +2075,3 @@ class DataJourneyDAG:
                     self.vertex_names.pop(i)
                     
                     
-
