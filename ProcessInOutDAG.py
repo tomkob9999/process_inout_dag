@@ -1,13 +1,7 @@
-# Data Journey DAG
-# Version: 1.6.7
+# Process In-Out DAG
+# Version: 1.7.0
 # Last Update: 2024/02/05
 # Author: Tomio Kobayashi
-
-# - generateProcesses  genProcesses() DONE
-# - DAG check  checkDAG(from, to) DONE
-# - Process coupling  (process1, process2) DONE
-# - Link Node  linkFields(from, to) DONE
-  
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -18,7 +12,7 @@ import textwrap
 import re
 from scipy.sparse import csr_matrix
 
-class DataJourneyDAG:
+class ProcessInOutDAG:
 
     def __init__(self):
         self.vertex_names = []
@@ -51,6 +45,8 @@ class DataJourneyDAG:
         self.dic_conds = {}
         self.dic_opts = {}
         
+        self.avg_duration = {}
+        
     def csr_matrix_to_edge_list(self, csr_matrix):
         rows, cols = csr_matrix.nonzero()
         weights = csr_matrix.data
@@ -73,12 +69,104 @@ class DataJourneyDAG:
         cmap = plt.cm.get_cmap('viridis')  # Choose a colormap
         brightness = cmap(parameter_value)[0]  # Extract first value (red channel)
         return brightness
+    
+    def find_pos(self, subgraph, use_expected=True, sigma=4, use_weight_one=False):
+        
+        cum_duration = {}
+        avg_duration = {}
+        avg_duration_r = {}
+        topological_order = None
+        the_graph = None
+        
+        topological_order = list(nx.topological_sort(subgraph))
+        the_graph = subgraph
 
-    def draw_selected_vertices_reverse_proc(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, 
+        weights = {}
+        for i, j in the_graph.edges():
+            if j not in weights:
+                weights[j] = {}
+            weights[j][self.dic_vertex_names[i]] = the_graph[i][j]['weight']
+
+        for t in topological_order:
+            if t not in weights:
+                avg_duration[t] = 0
+                cum_duration[t] = 0
+            else:
+                tot = 0
+                weight_params = {k: avg_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()} if not use_weight_one else {k: avg_duration[self.dic_vertex_id[k]] + 1 for k, v in weights[t].items()} 
+                normal_sigma = min(max([v for k, v in weight_params.items()]), sigma)
+                if use_expected:
+                    if self.dic_vertex_names[t] in self.dic_conds:
+                        tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts, use_lognormal=False, normal_sigma=normal_sigma)
+                    else:
+                        tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=self.dic_opts, use_lognormal=False, normal_sigma=normal_sigma)
+                else:
+                    tot = max([v for k, v in weight_params.items()])
+                avg_duration[t] = tot
+                weight_params_cum = {k: cum_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()}
+                cum_duration[t] = max([v for k, v in weight_params_cum.items()])
+        max_duration = max([v for k, v in avg_duration.items()])
+        avg_duration_r = {k: max_duration - v for k, v in avg_duration.items()}
+        self.avg_duration = avg_duration
+        weight_list = [(self.dic_vertex_id[kk], k, round(avg_duration[k] - avg_duration[self.dic_vertex_id[kk]] - vv, 1)) for k, v in weights.items() for kk, vv in v.items() if int(avg_duration[k] - avg_duration[self.dic_vertex_id[kk]]) - vv > 0]
+
+        max_pos = max_duration
+        pos = {k: (int(np.round(avg_duration[k], 0)), 0) for k in the_graph.nodes}
+
+        last_pos = max([v[0] for k, v in pos.items()])
+        colpos = {l:0 for l in range(last_pos+1)}
+        for k, v in pos.items():
+            colpos[v[0]] += 1
+        dicPos = {i: 0 for i in range(len(colpos))}
+        for k, v in sorted(pos.items(), reverse=True):
+            pos[k] = (v[0], dicPos[v[0]])
+            dicPos[v[0]] += 1
+
+
+#         re-align the vertical position
+        maxheight = max([v for k, v in colpos.items() if v != 0])
+        newpos = {}
+        for k, v in pos.items():
+            gap = (maxheight) / colpos[v[0]]
+            newheight = (gap/2) + v[1]*gap
+            newpos[k] = (v[0], newheight)
+
+#         change orders to minimize line crossings
+        for posx in sorted(list(set([v[0] for k, v in newpos.items()]))):
+#             for iii in range(1):
+            for iii in range(int(colpos[posx]/2+1)):
+                for node in [k for k, v in newpos.items() if v[0] == posx]:
+                    incoming_edges = the_graph.in_edges(node)
+
+                    predecessors = [edge[0] for edge in incoming_edges]
+                    pred_in_pos = list(set([p for p in predecessors if p in newpos]))
+                    if len(pred_in_pos) > 0:
+                        pred_heights = [newpos[p][1] for p in pred_in_pos]
+                        avg_pred_heights = average = sum(pred_heights) / len(pred_heights)
+                        closest_node = 0
+                        closest_height = 9999
+                        closest_dist = 9999
+                        [my_pos, my_height] = newpos[node]
+                        my_dist = np.abs(my_height - avg_pred_heights)
+                        for k, v in newpos.items():
+                            if k == node:
+                                continue
+                            if v[0] == my_pos:
+                                dist = np.abs(v[1] - avg_pred_heights)
+                                if dist < closest_dist:
+                                    closest_node = k
+                                    closest_dist = dist
+                                    closest_height = v[1]
+                        if closest_dist < my_dist:
+                            newpos[closest_node] = (my_pos, my_height)
+                            newpos[node] = (my_pos, closest_height)
+
+        pos = newpos
+        
+        return newpos, weight_list
+
+    def draw_selected_vertices_reverse_proc2(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, 
                                             pos, wait_edges=None, reverse=False, figsize=(12, 8), showWeight=False, forStretch=False, excludeComp=False, showExpectationBased=False):
-
-#         if wait_edges is not None and len(wait_edges) > 0:
-#             print("wait_edges", [(self.dic_vertex_names[w[0]], self.dic_vertex_names[w[1]], w[2])  for w in wait_edges])
         
         comp_vertices = None
         subgraph_comp = None
@@ -142,20 +230,16 @@ class DataJourneyDAG:
                 
             node_parameter = {n[1]: round(n[0]*0.7+0.3, 3) for n in node_criticality} # make it between 0.2 and 1.0 to prevent too dark color
             if len(node_parameter) > 0:
-#                 min_param = min(node_parameter.values())
-#                 max_param = max(node_parameter.values())
-#                 normalized_param = {node: (param - min_param) / (max_param - min_param) for node, param in node_parameter.items()}
-                
                 color_map = [plt.cm.viridis(node_parameter[node]) for node in subgraph2]
 
         if forStretch and len(selected_vertices1) > 10:
             max_height = max([v[1] for k, v in pos.items()])
             for k, v in pos.items():
                 if v[0] % 3 == 1:
-                    pos[k] = (v[0], v[1] + max_height * 0.025)
-                if v[0] % 3 == 2:
                     pos[k] = (v[0], v[1] + max_height * 0.05)
-                
+                if v[0] % 3 == 2:
+                    pos[k] = (v[0], v[1] - max_height * 0.05)
+                    
         # Draw the graph
         if has_proc and forStretch:
             defFontSize=8
@@ -179,122 +263,26 @@ class DataJourneyDAG:
             else:
                 topological_order = list(nx.topological_sort(subgraph_noncomp))
                 the_graph = subgraph_noncomp
-                
-    
-            if reverse==False:
-            
-                weights = {}
-                for i, j in the_graph.edges():
-                    if j not in weights:
-                        weights[j] = {}
-                    weights[j][self.dic_vertex_names[i]] = the_graph[i][j]['weight']
-                
-                for t in topological_order:
-                    if t not in weights:
-                        avg_duration[t] = 0
-                        cum_duration[t] = 0
-                    else:
-                        tot = 0
-                        weight_params = {k: avg_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()}
-                        normal_sigma = min(max([v for k, v in weight_params.items()]), 4)
-                        if self.dic_vertex_names[t] in self.dic_conds:
-                            tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts, use_lognormal=False, normal_sigma=normal_sigma)
-                        else:
-                            tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=self.dic_opts, use_lognormal=False, normal_sigma=normal_sigma)
-                        avg_duration[t] = tot
-                        weight_params_cum = {k: cum_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()}
-                        cum_duration[t] = max([v for k, v in weight_params_cum.items()])
-                max_duration = max([v for k, v in avg_duration.items()])
-                avg_duration_r = {k: max_duration - v for k, v in avg_duration.items()}
-                
-                
-                if forStretch and showExpectationBased:
-
-                    max_pos = max([v[0] for k, v in pos.items()])
-                    pos = {k: (int(np.round(avg_duration[k], 0)), v[1])  for k, v in pos.items()}
-        
-                    last_pos = max([v[0] for k, v in pos.items()])
-                    colpos = {l:0 for l in range(last_pos+1)}
-                    for k, v in pos.items():
-                        colpos[v[0]] += 1
-                    dicPos = {i: 0 for i in range(len(colpos))}
-                    for k, v in sorted(pos.items(), reverse=True):
-                        pos[k] = (v[0], dicPos[v[0]])
-                        dicPos[v[0]] += 1
-
-
-            #         re-align the vertical position
-                    maxheight = max([v for k, v in colpos.items() if v != 0])
-                    newpos = {}
-                    for k, v in pos.items():
-                        gap = (maxheight) / colpos[v[0]]
-                        newheight = (gap/2) + v[1]*gap
-                        newpos[k] = (v[0], newheight)
-
-            #         change orders to minimize line crossings
-                    for posx in sorted(list(set([v[0] for k, v in newpos.items()]))):
-            #             for iii in range(1):
-                        for iii in range(int(colpos[posx]/2+1)):
-                            for node in [k for k, v in newpos.items() if v[0] == posx]:
-#                                 incoming_edges = self.str_G.in_edges(node)
-                                incoming_edges = subgraph1.in_edges(node)
-                                
-                                predecessors = [edge[0] for edge in incoming_edges]
-                                pred_in_pos = list(set([p for p in predecessors if p in newpos]))
-                                if len(pred_in_pos) > 0:
-                                    pred_heights = [newpos[p][1] for p in pred_in_pos]
-                                    avg_pred_heights = average = sum(pred_heights) / len(pred_heights)
-                                    closest_node = 0
-                                    closest_height = 9999
-                                    closest_dist = 9999
-                                    [my_pos, my_height] = newpos[node]
-                                    my_dist = np.abs(my_height - avg_pred_heights)
-                                    for k, v in newpos.items():
-                                        if k == node:
-                                            continue
-                                        if v[0] == my_pos:
-                                            dist = np.abs(v[1] - avg_pred_heights)
-                                            if dist < closest_dist:
-                                                closest_node = k
-                                                closest_dist = dist
-                                                closest_height = v[1]
-                                    if closest_dist < my_dist:
-                                        newpos[closest_node] = (my_pos, my_height)
-                                        newpos[node] = (my_pos, closest_height)
-
-                    pos = newpos
-                    if forStretch and len(selected_vertices1) > 10:
-                        max_height = max([v[1] for k, v in pos.items()])
-                        for k, v in pos.items():
-                            if v[0] % 3 == 1:
-                                pos[k] = (v[0], v[1] + max_height * 0.025)
-                            if v[0] % 3 == 2:
-                                pos[k] = (v[0], v[1] + max_height * 0.05)
-                        
-                        
-                        
                     
         node_labels1 = {k: v for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
-#         print("node_labels1", node_labels1)
         node_colors = ['skyblue' for n in selected_vertices1]
         for i, s in enumerate(selected_vertices1):
             if s in node_labels1 and node_labels1[s][-3:-1] == "#C":
                 node_colors[i] = node_labels1[s][-2:]
                 node_labels1[s] = node_labels1[s][:-3]
                 
-#         if showWeight and reverse==False:
-        if showWeight and reverse==False and showExpectationBased:
-#             node_labels1 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
-            node_labels1 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels1.items()}
-            node_labels2 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph2}
-            node_labels3 = {k: v + "\n(" + str(round(avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph3}
+        if showWeight and forStretch:
+            node_labels1 = {k: v + "\n(" + str(round(self.avg_duration[k], 1)) + ")" for k, v in node_labels1.items()}
+            node_labels2 = {k: v + "\n(" + str(round(self.avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph2}
+            node_labels3 = {k: v + "\n(" + str(round(self.avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph3}
         else:
-#             node_labels1 = {k: v for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
             node_labels1 = {k: v for k, v in node_labels1.items()}
             node_labels2 = {k: v for k, v in node_labels.items() if k in subgraph2}
             node_labels3 = {k: v for k, v in node_labels.items() if k in subgraph3}
 
-#         nx.draw(subgraph1, pos, linewidths=0, with_labels=True, labels=node_labels1, node_size=defNodeSize, node_color='skyblue', font_size=defFontSize, font_color=defFontColor, arrowsize=10, edgecolors='black')
+        if forStretch and showExpectationBased:
+            pos = {k: (self.avg_duration[k], v[1])for k, v in pos.items()}
+            
         nx.draw(subgraph1, pos, linewidths=0, with_labels=True, labels=node_labels1, node_size=defNodeSize, nodelist=selected_vertices1, node_color=node_colors, font_size=defFontSize, font_color=defFontColor, arrowsize=10, edgecolors='black')
 
         if has_proc and showWeight and len(node_parameter) > 0:
@@ -308,15 +296,23 @@ class DataJourneyDAG:
             nx.draw(subgraph_comp, pos, linewidths=0, with_labels=True, labels=node_labels1, node_size=defNodeSize, node_color='#DDDDDD', font_size=defFontSize, font_color=defFontColor, arrowsize=10, edgecolors='black')
     
         if showWeight:
-            if wait_edges is None or showExpectationBased:
+            if wait_edges is None:
                 edge_labels = {(i, j): subgraph1[i][j]['weight'] for i, j in subgraph1.edges()}
             else:
                 dicWait = {(w[0], w[1]): w[2] for w in wait_edges}
                 edge_labels = {(i, j): subgraph1[i][j]['weight'] if (i, j) not in dicWait else str(subgraph1[i][j]['weight']) + " (& " + str(dicWait[(i, j)]) + ")"  for i, j in subgraph1.edges()}
+
             nx.draw_networkx_edge_labels(subgraph1, pos, edge_labels=edge_labels)
         
-            # Draw critical path edges with a different color
+        if wait_edges is not None:
+        
+            wait_edge_list = [(w[0], w[1]) for w in wait_edges if w[2] < 5]
+            nx.draw_networkx_edges(subgraph1, pos, edgelist=wait_edge_list, edge_color='aqua', width=1.00)
+            wait_edge_list = [(w[0], w[1]) for w in wait_edges if w[2] >= 5]
+            nx.draw_networkx_edges(subgraph1, pos, edgelist=wait_edge_list, edge_color='aqua', width=1.00)
             
+        # Draw critical path edges with a different color
+        if showWeight:
             longest_path = None
             if not excludeComp:
                 longest_path_length = nx.dag_longest_path_length(subgraph1)
@@ -329,20 +325,11 @@ class DataJourneyDAG:
                 critical_edges = [(longest_path[i], longest_path[i + 1]) for i in range(len(longest_path) - 1)]
                 nx.draw_networkx_edges(subgraph_noncomp, pos, edgelist=critical_edges, edge_color='brown', width=1.25)
 
-#         if wait_edges is not None:
-        if wait_edges is not None and not showExpectationBased:
-            wait_edge_list = [(w[0], w[1]) for w in wait_edges if w[2] < 5]
-            nx.draw_networkx_edges(subgraph1, pos, edgelist=wait_edge_list, edge_color='aqua', width=1.00)
-            wait_edge_list = [(w[0], w[1]) for w in wait_edges if w[2] >= 5]
-            nx.draw_networkx_edges(subgraph1, pos, edgelist=wait_edge_list, edge_color='aqua', width=1.00)
-            
-
         if forStretch:
             # Draw a vertical line at x=0.5 using matplotlib
-            max_horizontal_pos = max([v[0] for k, v in pos.items()])
+            max_horizontal_pos = int(max([v[0] for k, v in pos.items()]))
 
-            for i in range(max_horizontal_pos, 0, -5):
-    #             width = 0.5 if (max_horizontal_pos - i) % 10 == 0 else 0.25
+            for i in range(0, max_horizontal_pos, 5):
                 width = 0.25
                 linestyle = "dashed" if (max_horizontal_pos - i) % 10 == 0 else "dotted"
                 plt.axvline(x=i, color="orange", linestyle=linestyle, linewidth=width)
@@ -350,16 +337,6 @@ class DataJourneyDAG:
         if showWeight:
 
             self.showStats(subgraph1)
-            # Find the topological order
-#             topological_order = None
-#             the_graph = None
-#             if not excludeComp:
-#                 topological_order = list(nx.topological_sort(subgraph1))
-#                 the_graph = subgraph1
-#             else:
-#                 topological_order = list(nx.topological_sort(subgraph_noncomp))
-#                 the_graph = subgraph_noncomp
-            
             # Print the topological order
             print("TOPOLOGICAL ORDER:")
             print(" > ".join([self.dic_vertex_names[t] for t in topological_order if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
@@ -377,9 +354,9 @@ class DataJourneyDAG:
             # Print the longest path and its length
 
     
-            if reverse==False:
+            if reverse==False and forStretch:
                 print("REALISTIC EXPECTED COMPLETION TIME")
-                print(", ".join([self.dic_vertex_names[t] + ": " + str(round(avg_duration[t], 1)) for t in topological_order]))
+                print(", ".join([self.dic_vertex_names[t] + ": " + str(round(self.avg_duration[t], 1)) for t in topological_order]))
                 print("")
     
             self.suggest_coupling(subgraph1)
@@ -388,6 +365,8 @@ class DataJourneyDAG:
             
         plt.title("Expecation Based - " + title if showExpectationBased else title)
         plt.show()
+    
+    
 
     def edge_list_to_csr_matrix(self, edges):
         rows = [edge[0] for edge in edges]
@@ -401,7 +380,6 @@ class DataJourneyDAG:
     def edge_list_to_adjacency_matrix(self, edges):
 
         num_nodes = max(max(edge) for edge in edges) + 1  # Determine the number of nodes
-#         adjacency_matrix = np.array([np.array([0] * num_nodes) for _ in range(num_nodes)])
         adjacency_matrix = np.zeros((num_nodes, num_nodes))
         for edge in edges:
             if len(edge) >= 3:
@@ -414,7 +392,6 @@ class DataJourneyDAG:
     def data_import(self, file_path, is_edge_list=False, is_oup_list=False):
 #         Define rows as TO and columns as FROM
         adjacency_matrix = None
-#         adjacency_matrix_T = None
         if is_oup_list:
             edges = self.read_oup_list_from_file(file_path)
             adjacency_matrix = self.edge_list_to_adjacency_matrix(edges)
@@ -443,14 +420,6 @@ class DataJourneyDAG:
             for cycle in cycles:
                 print(cycle)
             return
-
-#         # Generate random weights between 1 and 5 for testing
-#         for i in range(len(adjacency_matrix)):
-#             random_integer = random.randint(1, 5)
-#             for j in range(len(adjacency_matrix)):
-#                 if adjacency_matrix[i][j] == 1:
-#                     adjacency_matrix[i][j] = random_integer
-
         
         self.csr_matrix = csr_matrix(adjacency_matrix)
         self.csr_matrix_T = self.csr_matrix.transpose()
@@ -493,7 +462,6 @@ class DataJourneyDAG:
             # Write headers
             file.write("\t".join(self.vertex_names) + "\n")
             for edge in edges:
-#                 file.write(f"{edge[0]}\t{edge[1]}\n")
                 file.write(f"{edge[0]}\t{edge[1]}\t{edge[2]}\n")
     
     def read_oup_list_from_file(self, filename):
@@ -506,7 +474,6 @@ class DataJourneyDAG:
         with open(filename, "r") as file:
             ini = True
             for line in file:
-    #             print("line", line)
                 ff = line.strip().split("\t")
                 for i in [0] + [j for j in range(2, len(ff), 1)]:
                     if ff[i] not in dicfields:
@@ -518,8 +485,6 @@ class DataJourneyDAG:
                     dictf[oup_ind] = (int(ff[1]), inp)
                 else:
                     dictf[oup_ind][1].extend([dicfields[ff[i]] for i in range(2, len(ff), 1)]) 
-
-    #     print("dictf", dictf)
 
         headers = [k[1] for k in sorted([(v, k) for k, v in dicfields.items()])]
         edges = [(vv, k, v[0]) for k, v in dictf.items() for vv in v[1]]
@@ -546,7 +511,6 @@ class DataJourneyDAG:
             for line in file:
                 conds = line.strip().split("\t")
                 self.dic_opts[conds[0]] = float(conds[1])
-#         print("self.set_complete", self.set_complete)
 
     def read_edge_list_from_file(self, filename):
         edges = []
@@ -588,7 +552,6 @@ class DataJourneyDAG:
             if k[0] not in dicEdgeWeight or (k[0] in dicEdgeWeight and dicEdgeWeight[k[0]] < k[2]):
                 dicEdgeWeight[k[0]] = k[2]
         for i in range(len(edges)):
-#             new_vertex_name = "proc_" + self.dic_vertex_names[edges[i][0]] + self.dic_vertex_names[edges[i][1]]
             new_vertex_name = "proc_" + self.dic_vertex_names[edges[i][1]]
             new_id = 0
             if new_vertex_name not in setVertex:
@@ -751,375 +714,53 @@ class DataJourneyDAG:
                 self.dic_vertex_names[newID] = procName
                 self.dic_vertex_id[procName] = newID
             
-            
-    
-    def drawOriginsStretchDummy(self, target_vertex, title="", figsize=None, showWeight=False):
+
         
+    def drawOriginsStretch(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False, showExpectationBased=False):
+
         if isinstance(target_vertex, str):
-            if target_vertex not in self.str_dic_vertex_id:
+            if target_vertex not in self.dic_vertex_id:
                 print(target_vertex + " is not an element")
                 return
-            target_vertex = self.str_dic_vertex_id[target_vertex]
-        
-#         Draw the path FROM the target
-        position = {}
-        colpos = {}
-        posfill = set()
-        selected_vertices1 = set()
-        selected_vertices2 = set()
-
+            target_vertex = self.dic_vertex_id[target_vertex]
+    
             
-        succs = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex], orientation="reverse"))])
-        succs = [self.dic_vertex_names[s] for s in succs]
-        pattern = re.compile(r'^dumm_(\d+)_')
-
-                    
-        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_csr_matrix)):
+        # Draw the path TO the target
+        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.csr_matrix)):
             print("The graph is not a Directed Acyclic Graph (DAG).")
 
             # Find cycles in the graph
-            cycles = list(nx.simple_cycles(nx.DiGraph(self.str_csr_matrix)))
+            cycles = list(nx.simple_cycles(nx.DiGraph(self.csr_matrix)))
 
             print("Cycles in the graph:")
             for cycle in cycles:
                 print(cycle)
             return
         
-        res_vector = np.zeros((1, self.str_size_matrix))
-        res_vector[0][target_vertex] = 1
-        for i in range(50000):
-            if sum(res_vector[i]) == 0:
-                break
-            res_vector.resize((res_vector.shape[0] + 1, res_vector.shape[1]))
-            new_row = np.zeros(self.str_size_matrix)
-            res_vector[-1, :] = new_row
-            res_vector[i+1] = self.str_csr_matrix.dot(res_vector[i])
-    
-            for k in range(len(res_vector[i+1])):
-                chkstr = re.sub(pattern, '', self.str_dic_vertex_names[k])
-                if res_vector[i+1][k] > 0 and (chkstr not in succs and "proc_" + chkstr not in succs):
-                    res_vector[i+1][k] = 0
-                    continue
+        subgraph = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=target_vertex, orientation="reverse"))])
+        succs = [self.dic_vertex_names[s] for s in subgraph]
 
-        for i in range(len(res_vector)):
-            colpos[i] = 0
-                    
-#         This part is to find the starting steps.  Currently not used.
-        succs2 = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
-        succs2 = set([self.dic_old2new[s] for s in succs2.nodes()])
-        succLastReached = {}
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            for j in range(len(res_vector[i])):
-                if res_vector[i][j] != 0:
-                    if self.str_dic_vertex_names[j] in succs:
-                        succLastReached[j] = i
-        last_pos = 0
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            last_pos += 1
-        print("WAITING STEPS:")
-        for v in sorted([[v, k] for k, v in succLastReached.items()], reverse=True):
-            start_step = last_pos-v[0]-1
+        position, wait_edges = self.find_pos(subgraph, use_expected=showExpectationBased)
+       
+        selected_vertices1 = set([n for n in subgraph.nodes])
+        selected_vertices2 = set([n for n in subgraph.nodes if self.dic_vertex_names[n][0:5] == "proc_"])
 
-            for e in self.G.out_edges(self.dic_new2old[v[1]]):
-                if self.dic_old2new[e[1]] not in succLastReached:
-                    continue
-                if (last_pos - succLastReached[self.dic_old2new[e[1]]] - 1) - (start_step + self.G[e[0]][e[1]]["weight"]) - 1 > 0:
-                    print(self.str_dic_vertex_names[v[1]] + " (" + str(start_step) + ") -> " + self.dic_vertex_names[e[1]] + " (" + str(start_step + self.G[e[0]][e[1]]["weight"]) + 
-                          ") with wait " + str((last_pos - succLastReached[self.dic_old2new[e[1]]] - 1) - (start_step + self.G[e[0]][e[1]]["weight"] - 1)))
-
-                    
-                    
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            for j in range(len(res_vector[i])):
-                if res_vector[i][j] != 0 and j != self.str_size_matrix: 
-                    if self.str_dic_vertex_names[j][0:5] == "proc_":
-                        selected_vertices2.add(j)
-                        selected_vertices1.add(j)
-                    else:
-                        selected_vertices1.add(j)
-
-#         initialize the positions
-        last_pos = 0
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            last_pos += 1
-        done = False
-        largest_j = 0
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            nonzero = 0
-            for j in range(len(res_vector[i])):
-                if j not in selected_vertices1 and j not in selected_vertices2:
-                    continue
-                if res_vector[i][j]:
-                    posfill.add(j)
-                    position[j] = ((last_pos-i), colpos[(last_pos-i)]) 
-                    colpos[(last_pos-i)] += 1
-                    if largest_j < j:
-                        largest_j = j
-                        
-                        
-        dicPos = {i: 0 for i in range(len(colpos))}
-        for i in range(len(res_vector)):
-            colpos[i] = 0
-        for k, v in position.items():
-            colpos[v[0]] += 1
-        for k, v in sorted(position.items(), reverse=True):
-            position[k] = (v[0], dicPos[v[0]])
-            dicPos[v[0]] += 1
-            
-#         re-align the vertical position
-        maxheight = max([v for k, v in colpos.items() if v != 0])
-        newpos = {}
-        for k, v in position.items():
-            gap = (maxheight) / colpos[v[0]]
-            newheight = (gap/2) + v[1]*gap
-            newpos[k] = (v[0], newheight)
-    
-    
-#         change orders to minimize line crossings
-        for posx in sorted(list(set([v[0] for k, v in newpos.items()]))):
-#             for iii in range(1):
-            for iii in range(int(colpos[posx]/2+1)):
-                for node in [k for k, v in newpos.items() if v[0] == posx]:
-                    incoming_edges = self.str_G.in_edges(node)
-                    predecessors = [edge[0] for edge in incoming_edges]
-                    pred_in_pos = list(set([p for p in predecessors if p in newpos]))
-                    if len(pred_in_pos) > 0:
-                        pred_heights = [newpos[p][1] for p in pred_in_pos]
-                        avg_pred_heights = average = sum(pred_heights) / len(pred_heights)
-                        closest_node = 0
-                        closest_height = 9999
-                        closest_dist = 9999
-                        [my_pos, my_height] = newpos[node]
-                        my_dist = np.abs(my_height - avg_pred_heights)
-                        for k, v in newpos.items():
-                            if k == node:
-                                continue
-                            if v[0] == my_pos:
-                                dist = np.abs(v[1] - avg_pred_heights)
-                                if dist < closest_dist:
-                                    closest_node = k
-                                    closest_dist = dist
-                                    closest_height = v[1]
-                        if closest_dist < my_dist:
-                            newpos[closest_node] = (my_pos, my_height)
-                            newpos[node] = (my_pos, closest_height)
-
-        position = newpos
+        node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
+        print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
+        print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
+        if title == "":
+            title = "Data Origins with Weighted Pipelining"
+            title += " (" + str(max([v[0] for k, v in position.items()])) + " steps)"
 
         selected_vertices1 = list(selected_vertices1)
         selected_vertices2 = list(selected_vertices2)
         selected_vertices3 = [target_vertex]
-
-        node_labels = {i: name for i, name in enumerate(self.str_vertex_names) if i in selected_vertices1 or i in selected_vertices2}
-        
-        print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.str_dic_vertex_names[k][0:5] != "proc_"])))
-        print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.str_dic_vertex_names[k][0:5] == "proc_"])))
-        if title == "":
-            title = "Data Origins with Weighted Pipelining Including Dummy Nodes"
-        has_proc = len([k for k in self.str_dic_vertex_id if k[0:5]  == "proc_"]) > 0
-        title += " (" + str(last_pos-1) + " steps)"
         
         if figsize is None:
             figsize = (12, 8)
-
-        self.draw_dummy(self.str_G, selected_vertices1,selected_vertices2, selected_vertices3, 
-                        title=title, node_labels=node_labels, pos=position, reverse=False, figsize=figsize, showWeight=showWeight, forStretch=True)
-    
-    def drawOriginsStretch(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False, showExpectationBased=False):
-        
-        if isinstance(target_vertex, str):
-            if target_vertex not in self.str_dic_vertex_id:
-                print(target_vertex + " is not an element")
-                return
-            target_vertex = self.str_dic_vertex_id[target_vertex]
-        
-#         Draw the path FROM the target
-        position = {}
-        colpos = {}
-        posfill = set()
-        selected_vertices1 = set()
-        selected_vertices2 = set()
-
-        succs = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex], orientation="reverse"))])
-        succs = [self.dic_vertex_names[s] for s in succs]
-        pattern = re.compile(r'^dumm_(\d+)_')
-        
-        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_csr_matrix)):
-            print("The graph is not a Directed Acyclic Graph (DAG).")
-
-            # Find cycles in the graph
-            cycles = list(nx.simple_cycles(nx.DiGraph(self.str_csr_matrix)))
-
-            print("Cycles in the graph:")
-            for cycle in cycles:
-                print(cycle)
-            return
-        
-        res_vector = np.zeros((1, self.str_size_matrix))
-        res_vector[0][target_vertex] = 1
-        for i in range(50000):
-            if sum(res_vector[i]) == 0:
-                break
-            res_vector.resize((res_vector.shape[0] + 1, res_vector.shape[1]))
-            new_row = np.zeros(self.str_size_matrix)
-            res_vector[-1, :] = new_row
-            res_vector[i+1] = self.str_csr_matrix.dot(res_vector[i])
             
-            for k in range(len(res_vector[i+1])):
-                chkstr = re.sub(pattern, '', self.str_dic_vertex_names[k])
-                if res_vector[i+1][k] > 0 and (chkstr not in succs and "proc_" + chkstr not in succs):
-                    res_vector[i+1][k] = 0
-                    continue
-
-        for i in range(len(res_vector)):
-            colpos[i] = 0
-
-#         This part is to find the starting steps.  Currently not used.
-        succs2 = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
-        succs2 = set([self.dic_old2new[s] for s in succs2.nodes()])
-        succLastReached = {}
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            for j in range(len(res_vector[i])):
-                if res_vector[i][j] != 0:
-                    if self.str_dic_vertex_names[j] in succs:
-                        succLastReached[j] = i
-        last_pos = 0
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            last_pos += 1
-            
-            
-        wait_edges = []
-        for v in sorted([[v, k] for k, v in succLastReached.items()], reverse=True):
-            start_step = last_pos-v[0]-1
-            for e in self.G.out_edges(self.dic_new2old[v[1]]):
-                if self.dic_old2new[e[1]] not in succLastReached:
-                    continue
-#                 if (last_pos - succLastReached[self.dic_old2new[e[1]]] - 1) - (start_step + self.G[e[0]][e[1]]["weight"]) - 1 > 0:
-#                     wait_edges.append((e[0], e[1], (last_pos - succLastReached[self.dic_old2new[e[1]]] - 1) - (start_step + self.G[e[0]][e[1]]["weight"] - 1)))
-                dis_diff =  (last_pos - succLastReached[self.dic_old2new[e[1]]] - 1) - (start_step + self.G[e[0]][e[1]]["weight"])
-                if dis_diff > 0:
-                    wait_edges.append((e[0], e[1], dis_diff))
-            
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            for j in range(len(res_vector[i])):
-                if res_vector[i][j] != 0 and j != self.str_size_matrix: 
-                    if self.str_dic_vertex_names[j][0:5] == "proc_":
-                        selected_vertices2.add(j)
-                        selected_vertices1.add(j)
-                    else:
-                        selected_vertices1.add(j)
-
-#         initialize the positions
-        last_pos = 0
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            last_pos += 1
-        done = False
-        largest_j = 0
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            nonzero = 0
-            for j in range(len(res_vector[i])):
-                if j not in selected_vertices1 and j not in selected_vertices2:
-                    continue
-                if res_vector[i][j]:
-                    posfill.add(j)
-                    position[j] = ((last_pos-i), colpos[(last_pos-i)]) 
-                    colpos[(last_pos-i)] += 1
-                    if largest_j < j:
-                        largest_j = j
-                        
-                        
-        dicPos = {i: 0 for i in range(len(colpos))}
-        for i in range(len(res_vector)):
-            colpos[i] = 0
-        for k, v in position.items():
-            colpos[v[0]] += 1
-        for k, v in sorted(position.items(), reverse=True):
-            position[k] = (v[0], dicPos[v[0]])
-            dicPos[v[0]] += 1
-            
-#         re-align the vertical position
-        maxheight = max([v for k, v in colpos.items() if v != 0])
-        newpos = {}
-        for k, v in position.items():
-            gap = (maxheight) / colpos[v[0]]
-            newheight = (gap/2) + v[1]*gap
-            newpos[k] = (v[0], newheight)
-    
-    
-#         change orders to minimize line crossings
-        for posx in sorted(list(set([v[0] for k, v in newpos.items()]))):
-#             for iii in range(1):
-            for iii in range(int(colpos[posx]/2+1)):
-                for node in [k for k, v in newpos.items() if v[0] == posx]:
-                    incoming_edges = self.str_G.in_edges(node)
-                    predecessors = [edge[0] for edge in incoming_edges]
-                    pred_in_pos = list(set([p for p in predecessors if p in newpos]))
-                    if len(pred_in_pos) > 0:
-                        pred_heights = [newpos[p][1] for p in pred_in_pos]
-                        avg_pred_heights = average = sum(pred_heights) / len(pred_heights)
-                        closest_node = 0
-                        closest_height = 9999
-                        closest_dist = 9999
-                        [my_pos, my_height] = newpos[node]
-                        my_dist = np.abs(my_height - avg_pred_heights)
-                        for k, v in newpos.items():
-                            if k == node:
-                                continue
-                            if v[0] == my_pos:
-                                dist = np.abs(v[1] - avg_pred_heights)
-                                if dist < closest_dist:
-                                    closest_node = k
-                                    closest_dist = dist
-                                    closest_height = v[1]
-                        if closest_dist < my_dist:
-                            newpos[closest_node] = (my_pos, my_height)
-                            newpos[node] = (my_pos, closest_height)
-
-        newpos = {self.dic_new2old[k]: v for k, v in newpos.items() if k in self.dic_new2old}
-    
-        position = newpos
-
-        
-        selected_vertices1 = [self.dic_new2old[k] for k in selected_vertices1 if k in self.dic_new2old]
-        selected_vertices2 = [self.dic_new2old[k] for k in selected_vertices2 if k in self.dic_new2old]
-        selected_vertices3 = [self.dic_new2old[target_vertex]]
-
-        node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
-        
-        print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
-        print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
-        if title == "":
-            title = "Data Origins with Weighted Based Pipelining"
-        has_proc = len([k for k in self.dic_vertex_id if k[0:5]  == "proc_"]) > 0
-        title += " (" + str(last_pos-1) + " steps)"
-        
-        if figsize is None:
-            figsize = (12, 8)
-        
-        self.draw_selected_vertices_reverse_proc(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
-                                title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, 
-                                                 excludeComp=excludeComp, showExpectationBased=showExpectationBased)
-
+        self.draw_selected_vertices_reverse_proc2(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
+                        title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, excludeComp=excludeComp, showExpectationBased=showExpectationBased)
         
     def drawOrigins(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False):
 
@@ -1142,477 +783,34 @@ class DataJourneyDAG:
                 print(cycle)
             return
         
-        res_vector = np.zeros((1, self.size_matrix))
-        res_vector[0][target_vertex] = 1
-        for i in range(50000):
-            if sum(res_vector[i]) == 0:
-                break
-            res_vector.resize((res_vector.shape[0] + 1, res_vector.shape[1]))
-            new_row = np.zeros(self.size_matrix)
-            res_vector[-1, :] = new_row
-            
-            res_vector[i+1] = self.csr_matrix.dot(res_vector[i])
-            
-        selected_vertices1 = set()
-        selected_vertices2 = set()
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            for j in range(len(res_vector[i])):
-                if res_vector[i][j] != 0: 
-                    if self.dic_vertex_names[j][0:5] == "proc_":
-                        selected_vertices2.add(j)
-                        selected_vertices1.add(j)
-                    else:
-                        selected_vertices1.add(j)
+        subgraph = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=target_vertex, orientation="reverse"))])
+        succs = [self.dic_vertex_names[s] for s in subgraph]
 
-        position = {}
-        colpos = {}
-        posfill = set()
-
-        for i in range(len(res_vector)):
-            colpos[i] = 0
-
-        last_pos = 0
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            last_pos += 1
-
-        done = False
-        largest_j = 0
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            nonzero = 0
-            for j in range(len(res_vector[i])):
-                if j not in selected_vertices1 and j not in selected_vertices2:
-                    continue
-                if res_vector[i][j]:
-                    posfill.add(j)
-                    position[j] = ((last_pos-i), colpos[(last_pos-i)]) 
-                    colpos[(last_pos-i)] += 1
-                    if largest_j < j:
-                        largest_j = j
-
-        dicPos = {i: 0 for i in range(len(colpos))}
-        for i in range(len(res_vector)):
-            colpos[i] = 0
-        for k, v in position.items():
-            colpos[v[0]] += 1
-        for k, v in sorted(position.items(), reverse=True):
-            position[k] = (v[0], dicPos[v[0]])
-            dicPos[v[0]] += 1
-        
-        maxheight = max([v for k, v in colpos.items() if v != 0])
-        newpos = {}
-        for k, v in position.items():
-            
-            gap = (maxheight) / colpos[v[0]]
-            newheight = (gap/2) + v[1]*gap
-            
-            newpos[k] = (v[0], newheight)
-
-#         change orders to minimize line crossings
-        for posx in sorted(list(set([v[0] for k, v in newpos.items()]))):
-#             for iii in range(1):
-            for iii in range(int(colpos[posx]/2+1)):
-                for node in [k for k, v in newpos.items() if v[0] == posx]:
-                    incoming_edges = self.G.in_edges(node)
-                    predecessors = [edge[0] for edge in incoming_edges]
-                    pred_in_pos = list(set([p for p in predecessors if p in newpos]))
-                    if len(pred_in_pos) > 0:
-                        pred_heights = [newpos[p][1] for p in pred_in_pos]
-                        avg_pred_heights = average = sum(pred_heights) / len(pred_heights)
-                        closest_node = 0
-                        closest_height = 9999
-                        closest_dist = 9999
-                        [my_pos, my_height] = newpos[node]
-                        my_dist = np.abs(my_height - avg_pred_heights)
-                        for k, v in newpos.items():
-                            if k == node:
-                                continue
-                            if v[0] == my_pos:
-                                dist = np.abs(v[1] - avg_pred_heights)
-                                if dist < closest_dist:
-                                    closest_node = k
-                                    closest_dist = dist
-                                    closest_height = v[1]
-                        if closest_dist < my_dist:
-                            newpos[closest_node] = (my_pos, my_height)
-                            newpos[node] = (my_pos, closest_height)
-
-        position = newpos
+        position, wait_edges = self.find_pos(subgraph, use_expected=False, use_weight_one=True)
+       
+        selected_vertices1 = set([n for n in subgraph.nodes])
+        selected_vertices2 = set([n for n in subgraph.nodes if self.dic_vertex_names[n][0:5] == "proc_"])
 
         node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
         print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
         print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
         if title == "":
             title = "Data Origins"
-        has_proc = len([k for k in self.dic_vertex_id if k[0:5]  == "proc_"]) > 0
-        title += " (" + str(len(set([v[0] for k, v in position.items() if (has_proc and self.dic_vertex_names[k][0:5] == "proc_") or (not has_proc and self.dic_vertex_names[k][0:5] != "proc_")]))-1) + " steps)"
-    
+            title += " (" + str(max([v[0] for k, v in position.items()])) + " steps)"
+ 
         selected_vertices1 = list(selected_vertices1)
         selected_vertices2 = list(selected_vertices2)
         selected_vertices3 = [target_vertex]
         
         if figsize is None:
             figsize = (12, 8)
-        self.draw_selected_vertices_reverse_proc(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
+
+        self.draw_selected_vertices_reverse_proc2(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
                                 title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, excludeComp=excludeComp)
-
-        
-
-
-    def drawOffspringsStretch(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False):
-
-        
-        if isinstance(target_vertex, str):
-            if target_vertex not in self.str_dic_vertex_id:
-                print(target_vertex + " is not an element")
-                return
-            target_vertex = self.str_dic_vertex_id[target_vertex]
-
-        
-#         Draw the path FROM the target
-        position = {}
-        colpos = {}
-        posfill = set()
-        selected_vertices1 = set()
-        selected_vertices2 = set()
-
     
-        succs = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
-        succs = [self.dic_vertex_names[s] for s in succs]
-        pattern = re.compile(r'^dumm_(\d+)_')
 
-        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_csr_matrix)):
-            print("The graph is not a Directed Acyclic Graph (DAG).")
+    def drawOffspringsStretch(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False, showExpectationBased=False):
 
-            # Find cycles in the graph
-            cycles = list(nx.simple_cycles(nx.DiGraph(self.str_csr_matrix)))
-
-            print("Cycles in the graph:")
-            for cycle in cycles:
-                print(cycle)
-            return
-        
-        res_vector = np.zeros((1, self.str_size_matrix))
-        res_vector[0][target_vertex] = 1
-        for i in range(50000):
-            if sum(res_vector[i]) == 0:
-                break
-            res_vector.resize((res_vector.shape[0] + 1, res_vector.shape[1]))
-            new_row = np.zeros(self.str_size_matrix)
-            res_vector[-1, :] = new_row
-            res_vector[i+1] = self.str_csr_matrix_T.dot(res_vector[i])
-    
-            for k in range(len(res_vector[i+1])):
-                chkstr = re.sub(pattern, '', self.str_dic_vertex_names[k])
-                if res_vector[i+1][k] > 0 and (chkstr not in succs and "proc_" + chkstr not in succs):
-                    res_vector[i+1][k] = 0
-                    continue
-        
-        for i in range(len(res_vector)):
-            colpos[i] = 0
-            
-#         This part is to find the starting steps.  Currently not used.
-        succs2 = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
-        succs2 = set([self.dic_old2new[s] for s in succs2.nodes()])
-        succLastReached = {}
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            for j in range(len(res_vector[i])):
-                if res_vector[i][j] != 0:
-                    if self.str_dic_vertex_names[j] in succs:
-                        succLastReached[j] = i
-#         print("WAITING STEPS:")             
-        wait_edges = []
-        for v in sorted([[v, k] for k, v in succLastReached.items()]):
-            for e in self.G.out_edges(self.dic_new2old[v[1]]):
-                if succLastReached[self.dic_old2new[e[1]]] - (v[0] + self.G[e[0]][e[1]]["weight"]) > 0: 
-                    wait_edges.append((e[0], e[1], succLastReached[self.dic_old2new[e[1]]] - (v[0] + self.G[e[0]][e[1]]["weight"])))        
-                    
-                    
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            for j in range(len(res_vector[i])):
-                if res_vector[i][j] != 0 and j != self.str_size_matrix: 
-                    if self.str_dic_vertex_names[j][0:5] == "proc_":
-                        selected_vertices2.add(j)
-                        selected_vertices1.add(j)
-                    else:
-                        selected_vertices1.add(j)
-
-#         initialize the positions
-        last_pos = 0
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            last_pos += 1
-        done = False
-        largest_j = 0
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            nonzero = 0
-            for j in range(len(res_vector[i])):
-                if j not in selected_vertices1 and j not in selected_vertices2:
-                    continue
-                if res_vector[i][j]:
-                    posfill.add(j)
-                    position[j] = (i, colpos[i]) 
-                    colpos[i] += 1
-                    if largest_j < j:
-                        largest_j = j
-        
-        dicPos = {i: 0 for i in range(len(colpos))}
-        for i in range(len(res_vector)):
-            colpos[i] = 0
-        for k, v in position.items():
-            colpos[v[0]] += 1
-        for k, v in sorted(position.items(), reverse=True):
-            position[k] = (v[0], dicPos[v[0]])
-            dicPos[v[0]] += 1
-
-            
-#         re-align the vertical position
-        maxheight = max([v for k, v in colpos.items() if v != 0])
-        newpos = {}
-        for k, v in position.items():
-            gap = (maxheight) / colpos[v[0]]
-            newheight = (gap/2) + v[1]*gap
-            newpos[k] = (v[0], newheight)
-
-#         change orders to minimize line crossings
-        for posx in sorted(list(set([v[0] for k, v in newpos.items()]))):
-#             for iii in range(1):
-            for iii in range(int(colpos[posx]/2+1)):
-                for node in [k for k, v in newpos.items() if v[0] == posx]:
-                    incoming_edges = self.str_G.in_edges(node)
-                    predecessors = [edge[0] for edge in incoming_edges]
-                    pred_in_pos = list(set([p for p in predecessors if p in newpos]))
-                    if len(pred_in_pos) > 0:
-                        pred_heights = [newpos[p][1] for p in pred_in_pos]
-                        avg_pred_heights = average = sum(pred_heights) / len(pred_heights)
-                        closest_node = 0
-                        closest_height = 9999
-                        closest_dist = 9999
-                        [my_pos, my_height] = newpos[node]
-                        my_dist = np.abs(my_height - avg_pred_heights)
-                        for k, v in newpos.items():
-                            if k == node:
-                                continue
-                            if v[0] == my_pos:
-                                dist = np.abs(v[1] - avg_pred_heights)
-                                if dist < closest_dist:
-                                    closest_node = k
-                                    closest_dist = dist
-                                    closest_height = v[1]
-                        if closest_dist < my_dist:
-                            newpos[closest_node] = (my_pos, my_height)
-                            newpos[node] = (my_pos, closest_height)
-
-        
-        newpos = {self.dic_new2old[k]: v for k, v in newpos.items() if k in self.dic_new2old}
-        position = newpos
-
-        selected_vertices1 = [self.dic_new2old[k] for k in selected_vertices1 if k in self.dic_new2old]
-        selected_vertices2 = [self.dic_new2old[k] for k in selected_vertices2 if k in self.dic_new2old]
-        selected_vertices3 = [self.dic_new2old[target_vertex]]
-
-        node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
-        
-        print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
-        print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
-        if title == "":
-            title = "Data Offsprings with Weighted Pipelining"
-        title += " (" + str(last_pos-1) + " steps)"
-        has_proc = len([k for k in self.dic_vertex_id if k[0:5]  == "proc_"]) > 0
-
-        if figsize is None:
-            figsize = (12, 8)
-        
-        self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
-                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, excludeComp=excludeComp)
-
-
-    def drawOffspringsStretchDummy(self, target_vertex, title="", figsize=None, showWeight=False):
-
-        
-        if isinstance(target_vertex, str):
-            if target_vertex not in self.str_dic_vertex_id:
-                print(target_vertex + " is not an element")
-                return
-            target_vertex = self.str_dic_vertex_id[target_vertex]
-                    
-#         Draw the path FROM the target
-        position = {}
-        colpos = {}
-        posfill = set()
-        selected_vertices1 = set()
-        selected_vertices2 = set()
-
-        succs = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
-        succs = [self.dic_vertex_names[s] for s in succs]
-        pattern = re.compile(r'^dumm_(\d+)_')
-
-        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.str_csr_matrix)):
-            print("The graph is not a Directed Acyclic Graph (DAG).")
-
-            # Find cycles in the graph
-            cycles = list(nx.simple_cycles(nx.DiGraph(self.str_csr_matrix)))
-
-            print("Cycles in the graph:")
-            for cycle in cycles:
-                print(cycle)
-            return
-        
-        res_vector = np.zeros((1, self.str_size_matrix))
-        res_vector[0][target_vertex] = 1
-        for i in range(50000):
-            if sum(res_vector[i]) == 0:
-                break
-            res_vector.resize((res_vector.shape[0] + 1, res_vector.shape[1]))
-            new_row = np.zeros(self.str_size_matrix)
-            res_vector[-1, :] = new_row
-            res_vector[i+1] = self.str_csr_matrix_T.dot(res_vector[i])
-            
-            for k in range(len(res_vector[i+1])):
-                chkstr = re.sub(pattern, '', self.str_dic_vertex_names[k])
-                if res_vector[i+1][k] > 0 and (chkstr not in succs and "proc_" + chkstr not in succs):
-                    res_vector[i+1][k] = 0
-                    continue
-
-        for i in range(len(res_vector)):
-            colpos[i] = 0
-                    
-#         This part is to find the starting steps.  Currently not used.
-        succs2 = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=self.dic_new2old[target_vertex]))])
-        succs2 = set([self.dic_old2new[s] for s in succs2.nodes()])
-        succLastReached = {}
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            for j in range(len(res_vector[i])):
-                if res_vector[i][j] != 0:
-                    if self.str_dic_vertex_names[j] in succs:
-                        succLastReached[j] = i
-        print("WAITING STEPS:")
-        for v in sorted([[v, k] for k, v in succLastReached.items()]):
-            for e in self.G.out_edges(self.dic_new2old[v[1]]):
-                if succLastReached[self.dic_old2new[e[1]]] - (v[0] + self.G[e[0]][e[1]]["weight"]) > 0:
-                    print(self.str_dic_vertex_names[v[1]] + " (" + str(v[0]) + ") -> " + self.dic_vertex_names[e[1]] + " (" + str(v[0] + self.G[e[0]][e[1]]["weight"]) + 
-                          ") with wait " + str(succLastReached[self.dic_old2new[e[1]]] - (v[0] + self.G[e[0]][e[1]]["weight"])))
-                                        
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            for j in range(len(res_vector[i])):
-                if res_vector[i][j] != 0 and j != self.str_size_matrix: 
-                    if self.str_dic_vertex_names[j][0:5] == "proc_":
-                        selected_vertices2.add(j)
-                        selected_vertices1.add(j)
-                    else:
-                        selected_vertices1.add(j)
-
-#         initialize the positions
-        last_pos = 0
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            last_pos += 1
-        done = False
-        largest_j = 0
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            nonzero = 0
-            for j in range(len(res_vector[i])):
-                if j not in selected_vertices1 and j not in selected_vertices2:
-                    continue
-                if res_vector[i][j]:
-                    posfill.add(j)
-                    position[j] = (i, colpos[i]) 
-                    colpos[i] += 1
-                    if largest_j < j:
-                        largest_j = j
-        
-        dicPos = {i: 0 for i in range(len(colpos))}
-        for i in range(len(res_vector)):
-            colpos[i] = 0
-        for k, v in position.items():
-            colpos[v[0]] += 1
-        for k, v in sorted(position.items(), reverse=True):
-            position[k] = (v[0], dicPos[v[0]])
-            dicPos[v[0]] += 1
-
-            
-#         re-align the vertical position
-        maxheight = max([v for k, v in colpos.items() if v != 0])
-        newpos = {}
-        for k, v in position.items():
-            gap = (maxheight) / colpos[v[0]]
-            newheight = (gap/2) + v[1]*gap
-            newpos[k] = (v[0], newheight)
-
-#         change orders to minimize line crossings
-        for posx in sorted(list(set([v[0] for k, v in newpos.items()]))):
-#             for iii in range(1):
-            for iii in range(int(colpos[posx]/2+1)):
-                for node in [k for k, v in newpos.items() if v[0] == posx]:
-                    incoming_edges = self.str_G.in_edges(node)
-                    predecessors = [edge[0] for edge in incoming_edges]
-                    pred_in_pos = list(set([p for p in predecessors if p in newpos]))
-                    if len(pred_in_pos) > 0:
-                        pred_heights = [newpos[p][1] for p in pred_in_pos]
-                        avg_pred_heights = average = sum(pred_heights) / len(pred_heights)
-                        closest_node = 0
-                        closest_height = 9999
-                        closest_dist = 9999
-                        [my_pos, my_height] = newpos[node]
-                        my_dist = np.abs(my_height - avg_pred_heights)
-                        for k, v in newpos.items():
-                            if k == node:
-                                continue
-                            if v[0] == my_pos:
-                                dist = np.abs(v[1] - avg_pred_heights)
-                                if dist < closest_dist:
-                                    closest_node = k
-                                    closest_dist = dist
-                                    closest_height = v[1]
-                        if closest_dist < my_dist:
-                            newpos[closest_node] = (my_pos, my_height)
-                            newpos[node] = (my_pos, closest_height)
-
-        position = newpos
-
-        selected_vertices1 = list(selected_vertices1)
-        selected_vertices2 = list(selected_vertices2)
-        selected_vertices3 = [target_vertex]
-
-        node_labels = {i: name for i, name in enumerate(self.str_vertex_names) if i in selected_vertices1 or i in selected_vertices2}
-        
-        print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.str_dic_vertex_names[k][0:5] != "proc_"])))
-        print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.str_dic_vertex_names[k][0:5] == "proc_"])))
-        if title == "":
-            title = "Data Offsprings with Weighted Pipelining Including Dummy Nodes"
-        has_proc = len([k for k in self.str_dic_vertex_id if k[0:5]  == "proc_"]) > 0
-#         title += " (" + str(len(set([v[0] for k, v in position.items() if (has_proc and self.str_dic_vertex_names[k][0:5] == "proc_") or (not has_proc and self.str_dic_vertex_names[k][0:5] != "proc_")]))-1) + " steps)"
-        title += " (" + str(last_pos-1) + " steps)"
-        
-        if figsize is None:
-            figsize = (12, 8)
-        
-        self.draw_dummy(self.str_G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
-                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, forStretch=True)
-
-
-        
-    def drawOffsprings(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False):
-        
         if isinstance(target_vertex, str):
             if target_vertex not in self.dic_vertex_id:
                 print(target_vertex + " is not an element")
@@ -1638,118 +836,92 @@ class DataJourneyDAG:
                 print(cycle)
             return
         
-        res_vector = np.zeros((1, self.size_matrix))
-        res_vector[0][target_vertex] = 1
-        for i in range(50000):
-            if sum(res_vector[i]) == 0:
-                break
-            res_vector.resize((res_vector.shape[0] + 1, res_vector.shape[1]))
-            new_row = np.zeros(self.size_matrix)
-            res_vector[-1, :] = new_row
-            res_vector[i+1] = self.csr_matrix_T.dot(res_vector[i])
 
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            for j in range(len(res_vector[i])):
-                if res_vector[i][j] != 0 and j != self.size_matrix: 
-                    if self.dic_vertex_names[j][0:5] == "proc_":
-                        selected_vertices2.add(j)
-                        selected_vertices1.add(j)
-                    else:
-                        selected_vertices1.add(j)
-
-        for i in range(len(res_vector)):
-            colpos[i] = 0
-            
-            
-#         initialize the positions
-        last_pos = 0
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            last_pos += 1
-        done = False
-        largest_j = 0
-        for i in range(len(res_vector)):
-            if sum(res_vector[i]) == 0:
-                break
-            nonzero = 0
-            for j in range(len(res_vector[i])):
-                if j not in selected_vertices1 and j not in selected_vertices2:
-                    continue
-                if res_vector[i][j]:
-                    posfill.add(j)
-                    position[j] = (i, colpos[i]) 
-                    colpos[i] += 1
-                    if largest_j < j:
-                        largest_j = j
         
-        dicPos = {i: 0 for i in range(len(colpos))}
-        for i in range(len(res_vector)):
-            colpos[i] = 0
-        for k, v in position.items():
-            colpos[v[0]] += 1
-        for k, v in sorted(position.items(), reverse=True):
-            position[k] = (v[0], dicPos[v[0]])
-            dicPos[v[0]] += 1
-           
-        maxheight = max([v for k, v in colpos.items() if v != 0])
-        newpos = {}
-        for k, v in position.items():
-            gap = (maxheight) / colpos[v[0]]
-            newheight = (gap/2) + v[1]*gap
-            newpos[k] = (v[0], newheight)
+        subgraph = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=target_vertex))])
+        succs = [self.dic_vertex_names[s] for s in subgraph]
 
-#         change orders to minimize line crossings
-        for posx in sorted(list(set([v[0] for k, v in newpos.items()]))):
-#             for iii in range(1):
-            for iii in range(int(colpos[posx]/2+1)):
-                for node in [k for k, v in newpos.items() if v[0] == posx]:
-                    incoming_edges = self.G.in_edges(node)
-                    predecessors = [edge[0] for edge in incoming_edges]
-                    pred_in_pos = list(set([p for p in predecessors if p in newpos]))
-                    if len(pred_in_pos) > 0:
-                        pred_heights = [newpos[p][1] for p in pred_in_pos]
-                        avg_pred_heights = average = sum(pred_heights) / len(pred_heights)
-                        closest_node = 0
-                        closest_height = 9999
-                        closest_dist = 9999
-                        [my_pos, my_height] = newpos[node]
-                        my_dist = np.abs(my_height - avg_pred_heights)
-                        for k, v in newpos.items():
-                            if k == node:
-                                continue
-                            if v[0] == my_pos:
-                                dist = np.abs(v[1] - avg_pred_heights)
-                                if dist < closest_dist:
-                                    closest_node = k
-                                    closest_dist = dist
-                                    closest_height = v[1]
-                        if closest_dist < my_dist:
-                            newpos[closest_node] = (my_pos, my_height)
-                            newpos[node] = (my_pos, closest_height)
+        position, wait_edges = self.find_pos(subgraph, use_expected=showExpectationBased)
+       
+        selected_vertices1 = set([n for n in subgraph.nodes])
+        selected_vertices2 = set([n for n in subgraph.nodes if self.dic_vertex_names[n][0:5] == "proc_"])
 
-        position = newpos
+        node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
         
+        print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
+        print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
+        if title == "":
+            title = "Data Offsprings with Weighted Pipelining"
+        title += " (" + str(max([v[0] for k, v in position.items()])) + " steps)"
+
+        selected_vertices1 = list(selected_vertices1)
+        selected_vertices2 = list(selected_vertices2)
+        selected_vertices3 = [target_vertex]
+        
+        if figsize is None:
+            figsize = (12, 8)
+        
+        self.draw_selected_vertices_reverse_proc2(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
+                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, 
+                                                 excludeComp=excludeComp, showExpectationBased=showExpectationBased)
+
+        
+    def drawOffsprings(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False):
+
+        if isinstance(target_vertex, str):
+            if target_vertex not in self.dic_vertex_id:
+                print(target_vertex + " is not an element")
+                return
+            target_vertex = self.dic_vertex_id[target_vertex]
+
+#         Draw the path FROM the target
+        position = {}
+        colpos = {}
+        posfill = set()
+        selected_vertices1 = set()
+        selected_vertices2 = set()
+            
+#         # Draw the path TO the target
+        if not nx.is_directed_acyclic_graph(nx.DiGraph(self.csr_matrix)):
+            print("The graph is not a Directed Acyclic Graph (DAG).")
+
+            # Find cycles in the graph
+            cycles = list(nx.simple_cycles(nx.DiGraph(self.csr_matrix)))
+
+            print("Cycles in the graph:")
+            for cycle in cycles:
+                print(cycle)
+            return
+        
+
+        subgraph = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=target_vertex))])
+        succs = [self.dic_vertex_names[s] for s in subgraph]
+        position, wait_edges = self.find_pos(subgraph, use_expected=False, use_weight_one=True)
+       
+        selected_vertices1 = set([n for n in subgraph.nodes])
+        selected_vertices2 = set([n for n in subgraph.nodes if self.dic_vertex_names[n][0:5] == "proc_"])
+        selected_vertices3 = [target_vertex]
+
         node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
         
         print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
         print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
         if title == "":
             title = "Data Offsprings"
-        has_proc = len([k for k in self.dic_vertex_id if k[0:5]  == "proc_"]) > 0
-        title += " (" + str(len(set([v[0] for k, v in position.items() if (has_proc and self.dic_vertex_names[k][0:5] == "proc_") or (not has_proc and self.dic_vertex_names[k][0:5] != "proc_")]))-1) + " steps)"
-        if figsize is None:
-            figsize = (12, 8)
-            
+        title += " (" + str(max([v[0] for k, v in position.items()])) + " steps)"
+
         selected_vertices1 = list(selected_vertices1)
         selected_vertices2 = list(selected_vertices2)
         selected_vertices3 = [target_vertex]
         
-        self.draw_selected_vertices_reverse_proc(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
+        if figsize is None:
+            figsize = (12, 8)
+
+        self.draw_selected_vertices_reverse_proc2(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
                         title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, excludeComp=excludeComp)
         
+
+    
         
     def showSourceNodes(self):
         sources = [node for node in self.G.nodes() if len(list(self.G.predecessors(node))) == 0]
@@ -1935,143 +1107,6 @@ class DataJourneyDAG:
     def getDicVertexNames(self):
         return self.dic_vertex_names
   
-    def draw_dummy(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, 
-                                            pos, reverse=False, figsize=(12, 8), showWeight=False, forStretch=False):
-            
-        # Create a subgraph with only the selected vertices
-        subgraph1 = G.subgraph(selected_vertices1)
-        subgraph2 = G.subgraph(selected_vertices2)
-        subgraph3 = G.subgraph(selected_vertices3)
-        
-        if reverse:
-            subgraph1 = subgraph1.reverse()
-            subgraph2 = subgraph2.reverse()
-            subgraph3 = subgraph3.reverse()
-
-        # Set figure size to be larger
-        plt.figure(figsize=figsize)
-
-        # Set figure size to be larger
-        node_labels = {node: "\n".join(["\n".join(textwrap.wrap(s, width=5)) for s in label.replace("_", "_\n").replace(" ", "\n").split("\n")]) for node, label in node_labels.items()}
-
-        defFontSize=6
-        defNodeSize=300
-        defFontColor='black'
-            
-        node_labels1 = {k: v for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
-        node_labels2 = {k: v for k, v in node_labels.items() if k in subgraph2}
-        node_labels3 = {k: v for k, v in node_labels.items() if k in subgraph3}
-        
-        nx.draw(subgraph1, pos, linewidths=0, with_labels=True, labels=node_labels1, node_size=defNodeSize, node_color='skyblue', font_size=defFontSize, font_color=defFontColor, arrowsize=10, edgecolors='black')
-        nx.draw(subgraph2, pos, linewidths=0, with_labels=True, labels=node_labels2, node_size=defNodeSize, node_color='orange', font_size=defFontSize, font_color='black', arrowsize=10, edgecolors='black')
-        nx.draw(subgraph3, pos, linewidths=0, with_labels=True, labels=node_labels3, node_size=defNodeSize, node_color='pink', font_size=defFontSize, font_color='black', arrowsize=10, edgecolors='black')
-        
-        if showWeight:
-            edge_labels = {(i, j): subgraph1[i][j]['weight'] for i, j in subgraph1.edges()}
-            nx.draw_networkx_edge_labels(subgraph1, pos, edge_labels=edge_labels)
-
-            longest_path = nx.dag_longest_path(subgraph1)  # Use NetworkX's built-in function
-            critical_edges = [(longest_path[i], longest_path[i + 1]) for i in range(len(longest_path) - 1)]
-            nx.draw_networkx_edges(subgraph1, pos, edgelist=critical_edges, edge_color='brown', width=1.25)
-            
-        
-        if forStretch:
-            # Draw a vertical line at x=0.5 using matplotlib
-            max_horizontal_pos = max([v[0] for k, v in pos.items()])
-
-            for i in range(max_horizontal_pos, 0, -5):
-    #             width = 0.5 if (max_horizontal_pos - i) % 10 == 0 else 0.25
-                width = 0.25
-                linestyle = "dashed" if (max_horizontal_pos - i) % 10 == 0 else "dotted"
-                plt.axvline(x=i, color="orange", linestyle=linestyle, linewidth=width)
-                
-        plt.title(title)
-        plt.show()
-            
-            
-            
-    def populateStretch(self):
-
-
-        matrix = self.csr_matrix.toarray()
-        vv = copy.deepcopy(self.vertex_names)
-
-        list_weights = []
-        for i in range(len(matrix)):
-            lis = []
-            for j in range(len(matrix[i])):
-                if matrix[i][j] != 0:
-                    if len(lis) > 0:
-                        lis[2].append(j)
-                    else:
-                        lis = [i, matrix[i][j], [j]]
-            if len(lis) > 0:
-                    list_weights.append(lis)
-
-        dic_old2new = {}
-        weights_so_far = 0
-        dic_weights = {t[0]: t[1] for t in list_weights}
-
-        for i in range(len(matrix)):
-            dic_old2new[i] = i + weights_so_far
-            if i in dic_weights:
-                weights_so_far += dic_weights[i]-1
-        
-    
-        # insert new blank records
-        for f in sorted(list_weights, reverse=True):
-            row = f[0] # Insert at the second row (index 1)
-            row_name = vv[row]
-            weight = f[1]  # Insert at the second row (index 1)
-            for i in range(weight-1):
-                vv.insert(row+1, "dumm_" + str(i+1) + "_" + row_name)
-
-        # insert new blank records
-        matrix = np.zeros((len(vv), len(vv)))
-        for i in range(len(vv)):
-            if i < len(vv)-1:
-                if vv[i][0:5] == "dumm_" and vv[i+1][0:5] == "dumm_":
-                    matrix[i][i+1] = 1
-        
-        for f in list_weights:
-            old_fr = f[0]
-            new_fr = dic_old2new[f[0]]
-            tt = f[2]
-            weight = f[1]
-            # new jump 
-            # for weight 1 only
-            if weight == 1:
-                for t in tt:
-                    old_to = t
-                    new_to = dic_old2new[t]
-                    matrix[new_fr][new_to] = 1
-            else:
-
-            # new jump 
-            # for 2<weight last new line
-                for t in tt:
-                    old_to = t
-                    new_to = dic_old2new[t]
-                    matrix[new_fr+weight-1][new_to] = 1
-
-            # new jump 
-            # for 2<weight 
-                matrix[new_fr][new_fr+1] = 1
-
-        self.str_vertex_names = vv
-        self.dic_old2new = dic_old2new
-        self.str_csr_matrix = csr_matrix(matrix)
-        self.str_csr_matrix_T = self.str_csr_matrix.transpose()
-        self.str_size_matrix = self.str_csr_matrix.shape[0]
-        self.str_G = nx.DiGraph(self.str_csr_matrix)
-        self.str_G_T = nx.DiGraph(self.str_csr_matrix_T)
-    
-        for i in range(len(self.str_vertex_names)):
-            self.str_dic_vertex_names[i] = self.str_vertex_names[i]
-            self.str_dic_vertex_id[self.str_vertex_names[i]] = i
-
-        self.dic_new2old = {v: k for k,v in self.dic_old2new.items()}
-    
 
     def keepOnlyProcesses(self):
         
@@ -2142,5 +1177,3 @@ class DataJourneyDAG:
                     self.vertex_names.pop(i)
                     
                     
-
-
