@@ -12,7 +12,7 @@ start_time = time.time()
 
 showWeight = True
 
-mydag = DataJourneyDAG()
+mydag = ProcessInOutDAG()
 # mydag.data_import('/kaggle/input/matrix3/dag_data.txt')
 # mydag.drawOrigins(250)
 # mydag.data_import('/kaggle/input/matrix2/adjacency_matrix2.txt')
