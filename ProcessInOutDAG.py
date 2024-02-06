@@ -1,6 +1,6 @@
 # Process In-Out DAG
-# Version: 1.7.0
-# Last Update: 2024/02/05
+# Version: 1.7.1
+# Last Update: 2024/02/06
 # Author: Tomio Kobayashi
 import numpy as np
 import networkx as nx
@@ -236,9 +236,11 @@ class ProcessInOutDAG:
             max_height = max([v[1] for k, v in pos.items()])
             for k, v in pos.items():
                 if v[0] % 3 == 1:
-                    pos[k] = (v[0], v[1] + max_height * 0.05)
+#                     pos[k] = (v[0], v[1] + max_height * 0.05)
+                    pos[k] = (v[0], v[1] + max_height * 0.1)
                 if v[0] % 3 == 2:
-                    pos[k] = (v[0], v[1] - max_height * 0.05)
+#                     pos[k] = (v[0], v[1] - max_height * 0.05)
+                    pos[k] = (v[0], v[1] - max_height * 0.1)
                     
         # Draw the graph
         if has_proc and forStretch:
@@ -270,6 +272,10 @@ class ProcessInOutDAG:
             if s in node_labels1 and node_labels1[s][-3:-1] == "#C":
                 node_colors[i] = node_labels1[s][-2:]
                 node_labels1[s] = node_labels1[s][:-3]
+                
+        for i in node_labels:
+            if node_labels[i][-3:-1] == "#C":
+                node_labels[i] = node_labels[i][:-3]
                 
         if showWeight and forStretch:
             node_labels1 = {k: v + "\n(" + str(round(self.avg_duration[k], 1)) + ")" for k, v in node_labels1.items()}
@@ -389,14 +395,14 @@ class ProcessInOutDAG:
 
         return adjacency_matrix
 
-    def data_import(self, file_path, is_edge_list=False, is_oup_list=False):
+    def data_import(self, file_path=None, is_edge_list=False, is_oup_list=False, intext=""):
 #         Define rows as TO and columns as FROM
         adjacency_matrix = None
         if is_oup_list:
-            edges = self.read_oup_list_from_file(file_path)
+            edges = self.read_oup_list_from_file(file_path, intext=intext)
             adjacency_matrix = self.edge_list_to_adjacency_matrix(edges)
         elif is_edge_list:
-            edges = self.read_edge_list_from_file(file_path)
+            edges = self.read_edge_list_from_file(file_path, intext=intext)
             adjacency_matrix = self.edge_list_to_adjacency_matrix(edges)
         else:
             data = np.genfromtxt(file_path, delimiter='\t', dtype=str, encoding=None)
@@ -454,7 +460,7 @@ class ProcessInOutDAG:
         print("---")
         self.showStats(largest_G)
             
-    def write_edge_list_to_file(self, filename):
+    def write_edge_list_to_file(self, filename, intext=""):
         
         edges = self.csr_matrix_to_edge_list(self.csr_matrix)
 
@@ -464,27 +470,36 @@ class ProcessInOutDAG:
             for edge in edges:
                 file.write(f"{edge[0]}\t{edge[1]}\t{edge[2]}\n")
     
-    def read_oup_list_from_file(self, filename):
+    def read_oup_list_from_file(self, filename, intext=""):
 #         Format is tab-delimited taxt file:
 #             0 - Output Field Name
 #             1 - Weight
 #             2-n - Input Field Names
         dictf = {}
         dicfields = {}
-        with open(filename, "r") as file:
-            ini = True
-            for line in file:
-                ff = line.strip().split("\t")
-                for i in [0] + [j for j in range(2, len(ff), 1)]:
-                    if ff[i] not in dicfields:
-                        dicfields[ff[i]] = len(dicfields)
+        lines = []
+        if intext == "":
+            with open(filename, "r") as file:
+                for line in file:
+                    lines.append(line)
+        else:
+            lines = intext.split("\n")
+        
+        lines = [line for line in lines if len(line) > 0]
+        
+        ini = True
+        for line in lines:
+            ff = line.strip().split("\t")
+            for i in [0] + [j for j in range(2, len(ff), 1)]:
+                if ff[i] not in dicfields:
+                    dicfields[ff[i]] = len(dicfields)
 
-                oup_ind = dicfields[ff[0]]
-                if dicfields[ff[0]] not in dictf:
-                    inp = [dicfields[ff[i]] for i in range(2, len(ff), 1)]
-                    dictf[oup_ind] = (int(ff[1]), inp)
-                else:
-                    dictf[oup_ind][1].extend([dicfields[ff[i]] for i in range(2, len(ff), 1)]) 
+            oup_ind = dicfields[ff[0]]
+            if dicfields[ff[0]] not in dictf:
+                inp = [dicfields[ff[i]] for i in range(2, len(ff), 1)]
+                dictf[oup_ind] = (int(ff[1]), inp)
+            else:
+                dictf[oup_ind][1].extend([dicfields[ff[i]] for i in range(2, len(ff), 1)]) 
 
         headers = [k[1] for k in sorted([(v, k) for k, v in dicfields.items()])]
         edges = [(vv, k, v[0]) for k, v in dictf.items() for vv in v[1]]
@@ -492,37 +507,85 @@ class ProcessInOutDAG:
         self.vertex_names = headers
         return edges
     
-    def read_complete_list_from_file(self, filename):
-        with open(filename, "r") as file:
-            for line in file:
-                s = line.strip()
-                self.set_complete.add(s)
-                if s[0:5] != "proc_":
-                    self.set_complete.add("proc_" + s)
+    def read_complete_list_from_file(self, filename, intext=""):
+#         with open(filename, "r") as file:
+#             for line in file:
+                
+        lines = []
+        if intext == "":
+            with open(filename, "r") as file:
+                for line in file:
+                    lines.append(line)
+        else:
+            lines = intext.split("\n")
+        
+        lines = [line for line in lines if len(line) > 0]
+        
+        for line in lines:
+            s = line.strip()
+            self.set_complete.add(s)
+            if s[0:5] != "proc_":
+                self.set_complete.add("proc_" + s)
                     
-    def read_cond_list_from_file(self, filename):
-        with open(filename, "r") as file:
-            for line in file:
-                conds = line.strip().split("\t")
-                self.dic_conds[conds[0]] = conds[1]
+    def read_cond_list_from_file(self, filename, intext=""):
+#         with open(filename, "r") as file:
+#             for line in file:
+        lines = []
+        if intext == "":
+            with open(filename, "r") as file:
+                for line in file:
+                    lines.append(line)
+        else:
+            lines = intext.split("\n")
+        
+        lines = [line for line in lines if len(line) > 0]
+        
+        for line in lines:
 
-    def read_opt_list_from_file(self, filename):
-        with open(filename, "r") as file:
-            for line in file:
-                conds = line.strip().split("\t")
-                self.dic_opts[conds[0]] = float(conds[1])
+            conds = line.strip().split("\t")
+            self.dic_conds[conds[0]] = conds[1]
 
-    def read_edge_list_from_file(self, filename):
+    def read_opt_list_from_file(self, filename, intext=""):
+#         with open(filename, "r") as file:
+#             for line in file:
+        lines = []
+        if intext == "":
+            with open(filename, "r") as file:
+                for line in file:
+                    lines.append(line)
+        else:
+            lines = intext.split("\n")
+        
+        lines = [line for line in lines if len(line) > 0]
+        
+        for line in lines:
+            conds = line.strip().split("\t")
+            self.dic_opts[conds[0]] = float(conds[1])
+
+    def read_edge_list_from_file(self, filename, intext=""):
+#         edges = []
+#         with open(filename, "r") as file:
+#             ini = True
+#             for line in file:
+
+        lines = []
+        if intext == "":
+            with open(filename, "r") as file:
+                for line in file:
+                    lines.append(line)
+        else:
+            lines = intext.split("\n")
+        
+        lines = [line for line in lines if len(line) > 0]
         edges = []
-        with open(filename, "r") as file:
-            ini = True
-            for line in file:
-                if ini:
-                    self.vertex_names = line.strip().split("\t")
-                    ini = False
-                else:
-                    source, target, weight = map(int, line.strip().split())
-                    edges.append((source, target, weight))
+        ini = True
+        for line in lines:
+            if ini:
+                self.vertex_names = line.strip().split("\t")
+                ini = False
+            else:
+                source, target, weight = map(int, line.strip().split())
+                edges.append((source, target, weight))
         return edges
 
     def write_adjacency_matrix_to_file(self, filename):
