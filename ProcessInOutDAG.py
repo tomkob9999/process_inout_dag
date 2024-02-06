@@ -1,6 +1,6 @@
 # Process In-Out DAG
-# Version: 1.7.1
-# Last Update: 2024/02/06
+# Version: 1.7.3
+# Last Update: 2024/02/07
 # Author: Tomio Kobayashi
 import numpy as np
 import networkx as nx
@@ -168,6 +168,8 @@ class ProcessInOutDAG:
     def draw_selected_vertices_reverse_proc2(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, 
                                             pos, wait_edges=None, reverse=False, figsize=(12, 8), showWeight=False, forStretch=False, excludeComp=False, showExpectationBased=False):
         
+        pattern = "(#C.*)"
+        
         comp_vertices = None
         subgraph_comp = None
         noncomp_vertices = None
@@ -199,9 +201,9 @@ class ProcessInOutDAG:
         # Set figure size to be larger
         plt.figure(figsize=figsize)
 
-        # Set figure size to be larger
-        node_labels = {node: "\n".join(["\n".join(textwrap.wrap(s, width=5)) for s in label.replace("_", "_\n").replace(" ", "\n").split("\n")]) for node, label in node_labels.items()}
-
+#         # Set figure size to be larger
+#         node_labels = {node: "\n".join(["\n".join(textwrap.wrap(s, width=5)) for s in label.replace("_", "_\n").replace(" ", "\n").split("\n")]) for node, label in node_labels.items()}
+    
         # Show stats of procs
         has_proc = len([k for k in self.dic_vertex_id if k[0:5]  == "proc_"]) > 0
         
@@ -269,14 +271,33 @@ class ProcessInOutDAG:
         node_labels1 = {k: v for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
         node_colors = ['skyblue' for n in selected_vertices1]
         for i, s in enumerate(selected_vertices1):
-            if s in node_labels1 and node_labels1[s][-3:-1] == "#C":
-                node_colors[i] = node_labels1[s][-2:]
-                node_labels1[s] = node_labels1[s][:-3]
-                
+#             if s in node_labels1 and node_labels1[s][-3:-1] == "#C":
+#                 node_colors[i] = node_labels1[s][-2:]
+#                 node_labels1[s] = node_labels1[s][:-3]
+            if s in node_labels1:
+                match = re.search(pattern, node_labels1[s])
+                if match:
+                    matched_str = str(match.group()[2:])
+#                     print("node_labels1[s]", node_labels1[s])
+#                     print("matched_str", matched_str)
+#                     print("match.group()", match.group())
+#                     print("match.group()[2:]", match.group()[2:])
+                    node_colors[i] = matched_str if len(matched_str) > 1 else "C" + match.group()[2:]
+                    node_labels1[s] = re.sub(pattern, "", node_labels1[s], count=1)
+    
         for i in node_labels:
-            if node_labels[i][-3:-1] == "#C":
-                node_labels[i] = node_labels[i][:-3]
+#             if node_labels[i][-3:-1] == "#C":
+#                 node_labels[i] = node_labels[i][:-3]
+            match = re.search(pattern, node_labels[i])
+            if match:
+                node_labels[i] = re.sub(pattern, "", node_labels[i], count=1)
                 
+        
+        # Set figure size to be larger
+        node_labels = {node: "\n".join(["\n".join(textwrap.wrap(s, width=5)) for s in label.replace("_", "_\n").replace(" ", "\n").split("\n")]) for node, label in node_labels.items()}
+        node_labels1 = {node: "\n".join(["\n".join(textwrap.wrap(s, width=5)) for s in label.replace("_", "_\n").replace(" ", "\n").split("\n")]) for node, label in node_labels1.items()}
+
+        
         if showWeight and forStretch:
             node_labels1 = {k: v + "\n(" + str(round(self.avg_duration[k], 1)) + ")" for k, v in node_labels1.items()}
             node_labels2 = {k: v + "\n(" + str(round(self.avg_duration[k], 1)) + ")" for k, v in node_labels.items() if k in subgraph2}
@@ -341,17 +362,19 @@ class ProcessInOutDAG:
                 plt.axvline(x=i, color="orange", linestyle=linestyle, linewidth=width)
 
         if showWeight:
+            
+            
 
             self.showStats(subgraph1)
             # Print the topological order
             print("TOPOLOGICAL ORDER:")
-            print(" > ".join([self.dic_vertex_names[t] for t in topological_order if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
+            print(" > ".join([re.sub(pattern, "", self.dic_vertex_names[t], count=1) for t in topological_order if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
 
             print("")
 
             # Print the longest path and its length
             print("LONGEST PATH (" + str(longest_path_length) + "):")
-            print(" > ".join([self.dic_vertex_names[t] for t in longest_path if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
+            print(" > ".join([re.sub(pattern, "", self.dic_vertex_names[t], count=1) for t in longest_path if (has_proc and self.dic_vertex_names[t][0:5] == "proc_") or not has_proc]))
             print("")
 #             print("CRITICALITY:")
 #             for n in sorted(node_criticality, reverse=True):
@@ -362,7 +385,7 @@ class ProcessInOutDAG:
     
             if reverse==False and forStretch:
                 print("REALISTIC EXPECTED COMPLETION TIME")
-                print(", ".join([self.dic_vertex_names[t] + ": " + str(round(self.avg_duration[t], 1)) for t in topological_order]))
+                print(", ".join([re.sub(pattern, "", self.dic_vertex_names[t], count=1) + ": " + str(round(self.avg_duration[t], 1)) for t in topological_order]))
                 print("")
     
             self.suggest_coupling(subgraph1)
@@ -470,7 +493,7 @@ class ProcessInOutDAG:
             for edge in edges:
                 file.write(f"{edge[0]}\t{edge[1]}\t{edge[2]}\n")
     
-    def read_oup_list_from_file(self, filename, intext=""):
+    def read_oup_list_from_file(self, filename=None, intext=""):
 #         Format is tab-delimited taxt file:
 #             0 - Output Field Name
 #             1 - Weight
@@ -507,7 +530,7 @@ class ProcessInOutDAG:
         self.vertex_names = headers
         return edges
     
-    def read_complete_list_from_file(self, filename, intext=""):
+    def read_complete_list_from_file(self, filename=None, intext=""):
 #         with open(filename, "r") as file:
 #             for line in file:
                 
@@ -527,7 +550,7 @@ class ProcessInOutDAG:
             if s[0:5] != "proc_":
                 self.set_complete.add("proc_" + s)
                     
-    def read_cond_list_from_file(self, filename, intext=""):
+    def read_cond_list_from_file(self, filename=None, intext=""):
 #         with open(filename, "r") as file:
 #             for line in file:
         lines = []
@@ -545,7 +568,7 @@ class ProcessInOutDAG:
             conds = line.strip().split("\t")
             self.dic_conds[conds[0]] = conds[1]
 
-    def read_opt_list_from_file(self, filename, intext=""):
+    def read_opt_list_from_file(self, filename=None, intext=""):
 #         with open(filename, "r") as file:
 #             for line in file:
         lines = []
@@ -562,7 +585,7 @@ class ProcessInOutDAG:
             conds = line.strip().split("\t")
             self.dic_opts[conds[0]] = float(conds[1])
 
-    def read_edge_list_from_file(self, filename, intext=""):
+    def read_edge_list_from_file(self, filename=None, intext=""):
 #         edges = []
 #         with open(filename, "r") as file:
 #             ini = True
@@ -987,17 +1010,27 @@ class ProcessInOutDAG:
     
         
     def showSourceNodes(self):
+        
+        re_pattern = "(#C.*)"
+        
         sources = [node for node in self.G.nodes() if len(list(self.G.predecessors(node))) == 0]
 
-        print("Source Nodes:", [self.dic_vertex_names[s] for s in sources])
+#         print("Source Nodes:", [self.dic_vertex_names[s] for s in sources])
+        print("Source Nodes:", [re.sub(re_pattern, "", self.dic_vertex_names[s], count=1) for s in sources])
         
         
     def showSinkNodes(self):
+        
+        re_pattern = "(#C.*)"
+        
         sinks = [node for node in self.G.nodes() if len(list(self.G.successors(node))) == 0]
 
-        print("Sink Nodes:", [self.dic_vertex_names[s] for s in sinks])
+#         print("Sink Nodes:", [self.dic_vertex_names[s] for s in sinks])
+        print("Sink Nodes:", [re.sub(re_pattern, "", self.dic_vertex_names[s], count=1) for s in sinks])
         
     def showStats(self, g):
+        
+        re_pattern = "(#C.*)"
         
         # Show stats of procs
         has_proc = len([k for k in self.dic_vertex_id if k[0:5]  == "proc_"]) > 0
@@ -1013,12 +1046,14 @@ class ProcessInOutDAG:
 #         betweenness_centrality = nx.betweenness_centrality(g)
         
         cnt_max = 5
+        print("")
         print("In Degree Centrality:")
         cnt = 0
         for z in sorted([(v, k) for k, v in in_degree_centrality.items()], reverse=True):
             if cnt == cnt_max:
                 break
-            print(self.dic_vertex_names[z[1]], round(z[0], 3))
+#             print(self.dic_vertex_names[z[1]], round(z[0], 3))
+            print(re.sub(re_pattern, "", self.dic_vertex_names[z[1]], count=1), round(z[0], 3))
             cnt += 1
         print("")
         
@@ -1027,7 +1062,8 @@ class ProcessInOutDAG:
         for z in sorted([(v, k) for k, v in out_degree_centrality.items()], reverse=True):
             if cnt == cnt_max:
                 break
-            print(self.dic_vertex_names[z[1]], round(z[0], 3))
+#             print(self.dic_vertex_names[z[1]], round(z[0], 3))
+            print(re.sub(re_pattern, "", self.dic_vertex_names[z[1]], count=1), round(z[0], 3))
             cnt += 1
         print("")
         
@@ -1097,7 +1133,7 @@ class ProcessInOutDAG:
         
     
     def suggest_coupling(self, g):
-                
+        re_pattern = "(#C.*)"
         longest_path_length = nx.dag_longest_path_length(g)
         
         if longest_path_length == 0:
@@ -1129,17 +1165,21 @@ class ProcessInOutDAG:
                     lowers_j = g.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(g, node_criticality[j][1]))])
                     diff_longest = np.abs(nx.dag_longest_path_length(lowers) - nx.dag_longest_path_length(lowers_j))
                     if diff_longest < 6:
-                        print(self.dic_vertex_names[node_criticality[i][1]], self.dic_vertex_names[node_criticality[j][1]])
+#                         print(self.dic_vertex_names[node_criticality[i][1]], self.dic_vertex_names[node_criticality[j][1]])
+                        print(re.sub(re_pattern, "", self.dic_vertex_names[node_criticality[i][1]], count=1), re.sub(re_pattern, "", self.dic_vertex_names[node_criticality[j][1]], count=1))
                         
                         cnt += 1
                         if cnt > 20:
                             break
                             
+
+        
         
         print("")
         
     def suggest_opportunities(self, g):
-                
+        
+        re_pattern = "(#C.*)"
         longest_path_length = nx.dag_longest_path_length(g)
 
         opportunity_list = []
@@ -1157,7 +1197,8 @@ class ProcessInOutDAG:
 
         print("SUGGESTED THROUGHPUT IMPROVEMENT OPPORTUNITIES")
         for n in sorted(opportunity_list, reverse=True):
-            print(self.dic_vertex_names[n[1]], n[0])
+#             print(self.dic_vertex_names[n[1]], n[0])
+            print(re.sub(re_pattern, "", self.dic_vertex_names[n[1]], count=1), n[0])
             
         print("")
 
@@ -1240,3 +1281,5 @@ class ProcessInOutDAG:
                     self.vertex_names.pop(i)
                     
                     
+
+
