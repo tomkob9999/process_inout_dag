@@ -1,6 +1,6 @@
 # logical_weight
 #
-# Version: 1.0.6
+# Version: 1.0.7
 # Last Update: 2024/02/03
 # Author: Tomio Kobayashi
 #
@@ -12,7 +12,7 @@ import numpy as np
 import re
 
 class logical_weight:
-    def get_avg_max(rands, normal_sigma=1):
+    def get_avg_max(rands, sigma=1):
 #         try:
 #             rands_prb = np.array(rands)/sum(rands)
 #             val = max(sum([(stats.norm(loc=(rands[i]), scale=(normal_sigma)).ppf(1-rands_prb[i]/2)) * rands_prb[i] for i in range(len(rands))]), max(rands))
@@ -22,22 +22,25 @@ class logical_weight:
 #             print(e)
 #             return max(rands)
         nloop = 3000
-        return np.mean([max([np.random.normal(r, normal_sigma) for r in rands]) for i in range(nloop)])
+        return np.mean([max([np.random.normal(r, sigma) for r in rands]) for i in range(nloop)])
 
     # Good for non-zero values.  Long tailed
-    def get_avg_max_nonzero(rands, log_normal_sigma=0.5):
-        try:
+    def get_avg_max_nonzero(rands, sigma=0.5):
+#         try:
 
-            rands_prb = np.array(rands)/sum(rands)
+#             rands_prb = np.array(rands)/sum(rands)
 
-            val = max(sum([(stats.lognorm(log_normal_sigma, scale=rands[i]).ppf(1-rands_prb[i]/2)) * rands_prb[i] for i in range(len(rands))]), max(rands))
-            return val if not np.isnan(val) else max(rands) 
+#             val = max(sum([(stats.lognorm(log_normal_sigma, scale=rands[i]).ppf(1-rands_prb[i]/2)) * rands_prb[i] for i in range(len(rands))]), max(rands))
+#             return val if not np.isnan(val) else max(rands) 
 
-        except Exception as e:
-            print(e)
-            return max(rands)
+#         except Exception as e:
+#             print(e)
+#             return max(rands)
 
-    def get_avg_min(rands, normal_sigma=1):
+        nloop = 1000
+        return np.log(np.mean([max([np.random.lognormal(r, sigma) for r in rands]) for i in range(nloop)]))
+
+    def get_avg_min(rands, sigma=1):
 #         try:
 #             rands_prb = np.array(rands)/sum(rands)
                 
@@ -48,20 +51,24 @@ class logical_weight:
 # #             print(e)
 #             return min(rands)
         nloop = 3000
-        return np.mean([min([np.random.normal(r, normal_sigma) for r in rands]) for i in range(nloop)])
+        return np.mean([min([np.random.normal(r, sigma) for r in rands]) for i in range(nloop)])
 
     # Good for non-zero values.  Long tailed
-    def get_avg_min_nonzero(rands, log_normal_sigma=0.5):
-        try:
-            rands_prb = np.array(rands)/sum(rands)
-            val = min(sum([(stats.lognorm(log_normal_sigma, scale=rands[i]).ppf(rands_prb[i]/2)) * rands_prb[i] for i in range(len(rands))]), min(rands))
+    def get_avg_min_nonzero(rands, sigma=0.5):
+#         try:
+#             rands_prb = np.array(rands)/sum(rands)
+#             val = min(sum([(stats.lognorm(log_normal_sigma, scale=rands[i]).ppf(rands_prb[i]/2)) * rands_prb[i] for i in range(len(rands))]), min(rands))
             
-            return val if not np.isnan(val) else min(rands) 
-        except Exception as e:
-            print(e)
-            return min(rands)
+#             return val if not np.isnan(val) else min(rands) 
+#         except Exception as e:
+#             print(e)
+#             return min(rands)
+        nloop = 1000
+        return np.log(np.mean([min([np.random.lognormal(r, sigma) for r in rands]) for i in range(nloop)]))
 
-    def calc_avg_result_weight(inp_exp, weights, use_lognormal=False, loop_limit=2000, opt_steps={}, normal_sigma=1, log_normal_sigma=0.5):
+
+#     def calc_avg_result_weight(inp_exp, weights, use_lognormal=False, loop_limit=2000, opt_steps={}, normal_sigma=1, log_normal_sigma=0.5):
+    def calc_avg_result_weight(inp_exp, weights, use_lognormal=False, loop_limit=2000, opt_steps={}, sigma=1):
 
         exp = inp_exp
 
@@ -85,14 +92,14 @@ class logical_weight:
             match = re.search(pattern, exp)
             if match:
                 val_list = [float(s) for s in match.group().replace("(", "").replace(")", "").replace(" ", "").replace("&", ",").replace("|", ",").split(",")]
-                out_len = logical_weight.get_avg_max_nonzero(val_list, log_normal_sigma=log_normal_sigma) if use_lognormal else logical_weight.get_avg_max(val_list, normal_sigma=normal_sigma)
+                out_len = logical_weight.get_avg_max_nonzero(val_list, sigma=sigma) if use_lognormal else logical_weight.get_avg_max(val_list, sigma=sigma)
                 exp = re.sub(pattern, str(out_len), exp, count=1)
             else:
                 pattern = pattern_or
                 match = re.search(pattern, exp)
                 if match:
                     val_list = [float(s) for s in match.group().replace("(", "").replace(")", "").replace(" ", "").replace("&", ",").replace("|", ",").split(",")]
-                    out_len = logical_weight.get_avg_min_nonzero(val_list, log_normal_sigma=log_normal_sigma) if use_lognormal else logical_weight.get_avg_min(val_list, normal_sigma=normal_sigma)
+                    out_len = logical_weight.get_avg_min_nonzero(val_list, sigma=sigma) if use_lognormal else logical_weight.get_avg_min(val_list, sigma=sigma)
                     exp = re.sub(pattern, str(out_len), exp, count=1)
                 else:
                     break
