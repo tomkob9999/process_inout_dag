@@ -1,7 +1,7 @@
 # logical_weight
 #
-# Version: 1.0.7
-# Last Update: 2024/02/03
+# Version: 1.0.8
+# Last Update: 2024/02/07
 # Author: Tomio Kobayashi
 #
 # Average of max and min of multiple random variables.  In case of error, securely. max and min are returned
@@ -12,63 +12,35 @@ import numpy as np
 import re
 
 class logical_weight:
-    def get_avg_max(rands, sigma=1):
-#         try:
-#             rands_prb = np.array(rands)/sum(rands)
-#             val = max(sum([(stats.norm(loc=(rands[i]), scale=(normal_sigma)).ppf(1-rands_prb[i]/2)) * rands_prb[i] for i in range(len(rands))]), max(rands))
-#             return val if not np.isnan(val) else max(rands) 
-
-#         except Exception as e:
-#             print(e)
-#             return max(rands)
+    def get_avg_max(rands, sigma=1.):
         nloop = 3000
         return np.mean([max([np.random.normal(r, sigma) for r in rands]) for i in range(nloop)])
 
     # Good for non-zero values.  Long tailed
-    def get_avg_max_nonzero(rands, sigma=0.5):
-#         try:
-
-#             rands_prb = np.array(rands)/sum(rands)
-
-#             val = max(sum([(stats.lognorm(log_normal_sigma, scale=rands[i]).ppf(1-rands_prb[i]/2)) * rands_prb[i] for i in range(len(rands))]), max(rands))
-#             return val if not np.isnan(val) else max(rands) 
-
-#         except Exception as e:
-#             print(e)
-#             return max(rands)
-
-        nloop = 1000
-        return np.log(np.mean([max([np.random.lognormal(r, sigma) for r in rands]) for i in range(nloop)]))
+    def get_avg_max_nonzero(rands, sigma=1.):
+        nloop = 3000
+        ret = np.log(np.mean([max([np.random.lognormal(r, sigma) for r in rands]) for i in range(nloop)]))
+        if ret == float('inf'):
+            return max(rands)
+        else:
+            return ret
 
     def get_avg_min(rands, sigma=1):
-#         try:
-#             rands_prb = np.array(rands)/sum(rands)
-                
-#             val = min(sum([(stats.norm(loc=(rands[i]), scale=(normal_sigma)).ppf(rands_prb[i]/2)) * rands_prb[i] for i in range(len(rands))]), min(rands))
-#             return val if not np.isnan(val) else min(rands) 
-
-#         except Exception as e:
-# #             print(e)
-#             return min(rands)
         nloop = 3000
         return np.mean([min([np.random.normal(r, sigma) for r in rands]) for i in range(nloop)])
 
     # Good for non-zero values.  Long tailed
-    def get_avg_min_nonzero(rands, sigma=0.5):
-#         try:
-#             rands_prb = np.array(rands)/sum(rands)
-#             val = min(sum([(stats.lognorm(log_normal_sigma, scale=rands[i]).ppf(rands_prb[i]/2)) * rands_prb[i] for i in range(len(rands))]), min(rands))
-            
-#             return val if not np.isnan(val) else min(rands) 
-#         except Exception as e:
-#             print(e)
-#             return min(rands)
-        nloop = 1000
-        return np.log(np.mean([min([np.random.lognormal(r, sigma) for r in rands]) for i in range(nloop)]))
+    def get_avg_min_nonzero(rands, sigma=1.):
+        nloop = 3000
+        ret = np.log(np.mean([min([np.random.lognormal(r, sigma) for r in rands]) for i in range(nloop)]))
+        if ret == float('inf'):
+            return min(rands)
+        else:
+            return ret
 
 
 #     def calc_avg_result_weight(inp_exp, weights, use_lognormal=False, loop_limit=2000, opt_steps={}, normal_sigma=1, log_normal_sigma=0.5):
-    def calc_avg_result_weight(inp_exp, weights, use_lognormal=False, loop_limit=2000, opt_steps={}, sigma=1):
+    def calc_avg_result_weight(inp_exp, weights, use_lognormal=False, loop_limit=2000, opt_steps={}, sigma=1.):
 
         exp = inp_exp
 
