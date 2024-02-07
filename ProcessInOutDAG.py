@@ -1,5 +1,5 @@
 # Process In-Out DAG
-# Version: 1.7.3
+# Version: 1.7.4
 # Last Update: 2024/02/07
 # Author: Tomio Kobayashi
 import numpy as np
@@ -94,7 +94,8 @@ class ProcessInOutDAG:
             else:
                 tot = 0
                 weight_params = {k: avg_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()} if not use_weight_one else {k: avg_duration[self.dic_vertex_id[k]] + 1 for k, v in weights[t].items()} 
-                normal_sigma = min(max([v for k, v in weight_params.items()]), sigma)
+#                 normal_sigma = min(max([v for k, v in weight_params.items()]), sigma)
+                normal_sigma = min(max([v for k, v in weights[t].items()]), sigma)
                 if use_expected:
                     if self.dic_vertex_names[t] in self.dic_conds:
                         tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts, use_lognormal=False, normal_sigma=normal_sigma)
@@ -780,7 +781,6 @@ class ProcessInOutDAG:
     
         tmp_matrix = self.edge_list_to_csr_matrix(new_edges)
         
-#         if self.has_cycle(tmp_matrix):
         if not nx.is_directed_acyclic_graph(nx.DiGraph(tmp_matrix)):
             print("The graph is not a Directed Acyclic Graph (DAG).")
 
@@ -846,7 +846,7 @@ class ProcessInOutDAG:
         
         if figsize is None:
             figsize = (12, 8)
-            
+        
         self.draw_selected_vertices_reverse_proc2(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
                         title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, excludeComp=excludeComp, showExpectationBased=showExpectationBased)
         
@@ -952,7 +952,6 @@ class ProcessInOutDAG:
         self.draw_selected_vertices_reverse_proc2(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
                         title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, 
                                                  excludeComp=excludeComp, showExpectationBased=showExpectationBased)
-
         
     def drawOffsprings(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False):
 
@@ -1283,4 +1282,3 @@ class ProcessInOutDAG:
                     self.vertex_names.pop(i)
                     
                     
-
