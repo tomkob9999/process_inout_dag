@@ -118,7 +118,7 @@ class ProcessInOutDAG:
         
         self.max_pos = max_duration
 #         pos = {k: (int(np.round(avg_duration[k], 0)), 0) for k in the_graph.nodes}
-        div = 1 if use_weight_one or len(avg_duration) < 15 else 2
+        div = 1 if use_weight_one or len(avg_duration) < 15 or not use_expected else 2
         pos = {k: (int(np.round(avg_duration[k]/div, 0)), 0) for k in the_graph.nodes}
 
         last_pos = max([v[0] for k, v in pos.items()])
@@ -1334,4 +1334,5 @@ class ProcessInOutDAG:
                     self.vertex_names.pop(i)
                     
                     
+
 
