@@ -70,7 +70,7 @@ class ProcessInOutDAG:
         brightness = cmap(parameter_value)[0]  # Extract first value (red channel)
         return brightness
     
-    def find_pos(self, subgraph, use_expected=True, sigma=4, use_weight_one=False):
+    def find_pos(self, subgraph, use_expected=True, sigma=3, use_weight_one=False):
         
         cum_duration = {}
         avg_duration = {}
@@ -111,7 +111,9 @@ class ProcessInOutDAG:
         weight_list = [(self.dic_vertex_id[kk], k, round(avg_duration[k] - avg_duration[self.dic_vertex_id[kk]] - vv, 1)) for k, v in weights.items() for kk, vv in v.items() if int(avg_duration[k] - avg_duration[self.dic_vertex_id[kk]]) - vv > 0]
 
         max_pos = max_duration
-        pos = {k: (int(np.round(avg_duration[k], 0)), 0) for k in the_graph.nodes}
+#         pos = {k: (int(np.round(avg_duration[k], 0)), 0) for k in the_graph.nodes}
+        div = 1 if use_weight_one or len(avg_duration) < 15 else 2
+        pos = {k: (int(np.round(avg_duration[k]/div, 0)), 0) for k in the_graph.nodes}
 
         last_pos = max([v[0] for k, v in pos.items()])
         colpos = {l:0 for l in range(last_pos+1)}
@@ -904,11 +906,11 @@ class ProcessInOutDAG:
             target_vertex = self.dic_vertex_id[target_vertex]
 
 #         Draw the path FROM the target
-        position = {}
-        colpos = {}
-        posfill = set()
-        selected_vertices1 = set()
-        selected_vertices2 = set()
+#         position = {}
+#         colpos = {}
+#         posfill = set()
+#         selected_vertices1 = set()
+#         selected_vertices2 = set()
             
 #         # Draw the path TO the target
         if not nx.is_directed_acyclic_graph(nx.DiGraph(self.csr_matrix)):
@@ -961,11 +963,11 @@ class ProcessInOutDAG:
             target_vertex = self.dic_vertex_id[target_vertex]
 
 #         Draw the path FROM the target
-        position = {}
-        colpos = {}
-        posfill = set()
-        selected_vertices1 = set()
-        selected_vertices2 = set()
+#         position = {}
+#         colpos = {}
+#         posfill = set()
+#         selected_vertices1 = set()
+#         selected_vertices2 = set()
             
 #         # Draw the path TO the target
         if not nx.is_directed_acyclic_graph(nx.DiGraph(self.csr_matrix)):
@@ -1281,5 +1283,4 @@ class ProcessInOutDAG:
                     self.vertex_names.pop(i)
                     
                     
-
 
