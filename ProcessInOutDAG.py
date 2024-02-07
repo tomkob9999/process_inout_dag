@@ -1,5 +1,5 @@
 # Process In-Out DAG
-# Version: 1.7.4
+# Version: 1.7.6
 # Last Update: 2024/02/07
 # Author: Tomio Kobayashi
 import numpy as np
@@ -46,6 +46,7 @@ class ProcessInOutDAG:
         self.dic_opts = {}
         
         self.avg_duration = {}
+        self.max_pos = 0
         
     def csr_matrix_to_edge_list(self, csr_matrix):
         rows, cols = csr_matrix.nonzero()
@@ -70,7 +71,7 @@ class ProcessInOutDAG:
         brightness = cmap(parameter_value)[0]  # Extract first value (red channel)
         return brightness
     
-    def find_pos(self, subgraph, use_expected=True, sigma=3, use_weight_one=False):
+    def find_pos(self, subgraph, use_expected=True, sigma=3, use_weight_one=False, use_lognormal=True):
         
         cum_duration = {}
         avg_duration = {}
@@ -98,9 +99,11 @@ class ProcessInOutDAG:
                 normal_sigma = min(max([v for k, v in weights[t].items()]), sigma)
                 if use_expected:
                     if self.dic_vertex_names[t] in self.dic_conds:
-                        tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts, use_lognormal=False, normal_sigma=normal_sigma)
+#                         tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts, use_lognormal=False, normal_sigma=normal_sigma)
+                        tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts, use_lognormal=use_lognormal, sigma=normal_sigma)
                     else:
-                        tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=self.dic_opts, use_lognormal=False, normal_sigma=normal_sigma)
+#                         tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=self.dic_opts, use_lognormal=False, normal_sigma=normal_sigma)
+                        tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=self.dic_opts, use_lognormal=use_lognormal, sigma=normal_sigma)
                 else:
                     tot = max([v for k, v in weight_params.items()])
                 avg_duration[t] = tot
@@ -112,6 +115,8 @@ class ProcessInOutDAG:
         weight_list = [(self.dic_vertex_id[kk], k, round(avg_duration[k] - avg_duration[self.dic_vertex_id[kk]] - vv, 1)) for k, v in weights.items() for kk, vv in v.items() if int(avg_duration[k] - avg_duration[self.dic_vertex_id[kk]]) - vv > 0]
 
         max_pos = max_duration
+        
+        self.max_pos = max_duration
 #         pos = {k: (int(np.round(avg_duration[k], 0)), 0) for k in the_graph.nodes}
         div = 1 if use_weight_one or len(avg_duration) < 15 else 2
         pos = {k: (int(np.round(avg_duration[k]/div, 0)), 0) for k in the_graph.nodes}
@@ -804,15 +809,25 @@ class ProcessInOutDAG:
             
 
         
-    def drawOriginsStretch(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False, showExpectationBased=False):
+    def drawOriginsStretch(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False, showExpectationBased=False, use_lognormal=True):
 
+#         if isinstance(target_vertex, str):
+#             if target_vertex not in self.dic_vertex_id:
+#                 print(target_vertex + " is not an element")
+#                 return
+#             target_vertex = self.dic_vertex_id[target_vertex]
+            
         if isinstance(target_vertex, str):
             if target_vertex not in self.dic_vertex_id:
-                print(target_vertex + " is not an element")
-                return
-            target_vertex = self.dic_vertex_id[target_vertex]
-    
-            
+                f = [v for k, v in self.dic_vertex_id.items() if target_vertex == re.sub("(#C.*)", "", k, count=1)]
+                if len(f) > 0:
+                    target_vertex = f[0]
+                else:
+                    print(target_vertex + " is not an element")
+                    return
+            else:
+                target_vertex = self.dic_vertex_id[target_vertex]
+        
         # Draw the path TO the target
         if not nx.is_directed_acyclic_graph(nx.DiGraph(self.csr_matrix)):
             print("The graph is not a Directed Acyclic Graph (DAG).")
@@ -828,7 +843,7 @@ class ProcessInOutDAG:
         subgraph = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=target_vertex, orientation="reverse"))])
         succs = [self.dic_vertex_names[s] for s in subgraph]
 
-        position, wait_edges = self.find_pos(subgraph, use_expected=showExpectationBased)
+        position, wait_edges = self.find_pos(subgraph, use_expected=showExpectationBased, use_lognormal=use_lognormal)
        
         selected_vertices1 = set([n for n in subgraph.nodes])
         selected_vertices2 = set([n for n in subgraph.nodes if self.dic_vertex_names[n][0:5] == "proc_"])
@@ -838,7 +853,8 @@ class ProcessInOutDAG:
         print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
         if title == "":
             title = "Data Origins with Weighted Pipelining"
-            title += " (" + str(max([v[0] for k, v in position.items()])) + " steps)"
+#             title += " (" + str(max([v[0] for k, v in position.items()])) + " steps)"
+            title += " (" + str(int(self.max_pos)) + " steps)"
 
         selected_vertices1 = list(selected_vertices1)
         selected_vertices2 = list(selected_vertices2)
@@ -848,17 +864,28 @@ class ProcessInOutDAG:
             figsize = (12, 8)
         
         self.draw_selected_vertices_reverse_proc2(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
-                        title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, excludeComp=excludeComp, showExpectationBased=showExpectationBased)
+                        title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, excludeComp=excludeComp, 
+                                                  showExpectationBased=showExpectationBased)
         
-    def drawOrigins(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False):
+    def drawOrigins(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False, use_lognormal=True):
 
+#         if isinstance(target_vertex, str):
+#             if target_vertex not in self.dic_vertex_id:
+#                 print(target_vertex + " is not an element")
+#                 return
+#             target_vertex = self.dic_vertex_id[target_vertex]
+    
         if isinstance(target_vertex, str):
             if target_vertex not in self.dic_vertex_id:
-                print(target_vertex + " is not an element")
-                return
-            target_vertex = self.dic_vertex_id[target_vertex]
-    
-            
+                f = [v for k, v in self.dic_vertex_id.items() if target_vertex == re.sub("(#C.*)", "", k, count=1)]
+                if len(f) > 0:
+                    target_vertex = f[0]
+                else:
+                    print(target_vertex + " is not an element")
+                    return
+            else:
+                target_vertex = self.dic_vertex_id[target_vertex]
+                
         # Draw the path TO the target
         if not nx.is_directed_acyclic_graph(nx.DiGraph(self.csr_matrix)):
             print("The graph is not a Directed Acyclic Graph (DAG).")
@@ -874,7 +901,7 @@ class ProcessInOutDAG:
         subgraph = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=target_vertex, orientation="reverse"))])
         succs = [self.dic_vertex_names[s] for s in subgraph]
 
-        position, wait_edges = self.find_pos(subgraph, use_expected=False, use_weight_one=True)
+        position, wait_edges = self.find_pos(subgraph, use_expected=False, use_weight_one=True, use_lognormal=use_lognormal)
        
         selected_vertices1 = set([n for n in subgraph.nodes])
         selected_vertices2 = set([n for n in subgraph.nodes if self.dic_vertex_names[n][0:5] == "proc_"])
@@ -884,7 +911,8 @@ class ProcessInOutDAG:
         print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
         if title == "":
             title = "Data Origins"
-            title += " (" + str(max([v[0] for k, v in position.items()])) + " steps)"
+#             title += " (" + str(max([v[0] for k, v in position.items()])) + " steps)"
+        title += " (" + str(int(self.max_pos)) + " steps)"
  
         selected_vertices1 = list(selected_vertices1)
         selected_vertices2 = list(selected_vertices2)
@@ -897,13 +925,24 @@ class ProcessInOutDAG:
                                 title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, excludeComp=excludeComp)
     
 
-    def drawOffspringsStretch(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False, showExpectationBased=False):
+    def drawOffspringsStretch(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False, showExpectationBased=False, use_lognormal=True):
+
+#         if isinstance(target_vertex, str):
+#             if target_vertex not in self.dic_vertex_id:
+#                 print(target_vertex + " is not an element")
+#                 return
+#             target_vertex = self.dic_vertex_id[target_vertex]
 
         if isinstance(target_vertex, str):
             if target_vertex not in self.dic_vertex_id:
-                print(target_vertex + " is not an element")
-                return
-            target_vertex = self.dic_vertex_id[target_vertex]
+                f = [v for k, v in self.dic_vertex_id.items() if target_vertex == re.sub("(#C.*)", "", k, count=1)]
+                if len(f) > 0:
+                    target_vertex = f[0]
+                else:
+                    print(target_vertex + " is not an element")
+                    return
+            else:
+                target_vertex = self.dic_vertex_id[target_vertex]
 
 #         Draw the path FROM the target
 #         position = {}
@@ -929,7 +968,7 @@ class ProcessInOutDAG:
         subgraph = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=target_vertex))])
         succs = [self.dic_vertex_names[s] for s in subgraph]
 
-        position, wait_edges = self.find_pos(subgraph, use_expected=showExpectationBased)
+        position, wait_edges = self.find_pos(subgraph, use_expected=showExpectationBased, use_lognormal=use_lognormal)
        
         selected_vertices1 = set([n for n in subgraph.nodes])
         selected_vertices2 = set([n for n in subgraph.nodes if self.dic_vertex_names[n][0:5] == "proc_"])
@@ -940,7 +979,8 @@ class ProcessInOutDAG:
         print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
         if title == "":
             title = "Data Offsprings with Weighted Pipelining"
-        title += " (" + str(max([v[0] for k, v in position.items()])) + " steps)"
+#         title += " (" + str(max([v[0] for k, v in position.items()])) + " steps)"
+        title += " (" + str(int(self.max_pos)) + " steps)"
 
         selected_vertices1 = list(selected_vertices1)
         selected_vertices2 = list(selected_vertices2)
@@ -953,14 +993,25 @@ class ProcessInOutDAG:
                         title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, 
                                                  excludeComp=excludeComp, showExpectationBased=showExpectationBased)
         
-    def drawOffsprings(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False):
+    def drawOffsprings(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False, use_lognormal=True):
+
+#         if isinstance(target_vertex, str):
+#             if target_vertex not in self.dic_vertex_id:
+#                 print(target_vertex + " is not an element")
+#                 return
+#             target_vertex = self.dic_vertex_id[target_vertex]
 
         if isinstance(target_vertex, str):
             if target_vertex not in self.dic_vertex_id:
-                print(target_vertex + " is not an element")
-                return
-            target_vertex = self.dic_vertex_id[target_vertex]
-
+                f = [v for k, v in self.dic_vertex_id.items() if target_vertex == re.sub("(#C.*)", "", k, count=1)]
+                if len(f) > 0:
+                    target_vertex = f[0]
+                else:
+                    print(target_vertex + " is not an element")
+                    return
+            else:
+                target_vertex = self.dic_vertex_id[target_vertex]
+                
 #         Draw the path FROM the target
 #         position = {}
 #         colpos = {}
@@ -983,7 +1034,7 @@ class ProcessInOutDAG:
 
         subgraph = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=target_vertex))])
         succs = [self.dic_vertex_names[s] for s in subgraph]
-        position, wait_edges = self.find_pos(subgraph, use_expected=False, use_weight_one=True)
+        position, wait_edges = self.find_pos(subgraph, use_expected=False, use_weight_one=True, use_lognormal=use_lognormal)
        
         selected_vertices1 = set([n for n in subgraph.nodes])
         selected_vertices2 = set([n for n in subgraph.nodes if self.dic_vertex_names[n][0:5] == "proc_"])
@@ -995,7 +1046,8 @@ class ProcessInOutDAG:
         print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
         if title == "":
             title = "Data Offsprings"
-        title += " (" + str(max([v[0] for k, v in position.items()])) + " steps)"
+#         title += " (" + str(max([v[0] for k, v in position.items()])) + " steps)"
+        title += " (" + str(int(self.max_pos)) + " steps)"
 
         selected_vertices1 = list(selected_vertices1)
         selected_vertices2 = list(selected_vertices2)
@@ -1282,3 +1334,4 @@ class ProcessInOutDAG:
                     self.vertex_names.pop(i)
                     
                     
+
