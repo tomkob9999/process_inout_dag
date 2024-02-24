@@ -1,5 +1,5 @@
 # Process In-Out DAG
-# Version: 2.0.0
+# Version: 2.0.1
 # Last Update: 2024/02/24
 # Author: Tomio Kobayashi
 import numpy as np
@@ -56,6 +56,7 @@ class ProcessInOutDAG:
         self.task_triggered = {}
         self.start_times = {}
         self.finish_times = {}
+        self.sim_nodesets = set()
         
     # SIMULATOR 
     
@@ -75,14 +76,11 @@ class ProcessInOutDAG:
         if target_vertex in self.task_triggered[flow_seq]:
             return
         
-#         print(self.dic_vertex_names[target_vertex], "for", flow_seq, "triggered and waiting")
-#         print("silent", silent)
         
-        preds_set = set(self.G.predecessors(target_vertex))
-#         print("self.dic_vertex_names[target_vertex]", self.dic_vertex_names[target_vertex])
-#         print("self.dic_conds", self.dic_conds)
+#         preds_set = set(self.G.predecessors(target_vertex))
+        preds_set = set([p for p in self.G.predecessors(target_vertex) if p in self.sim_nodesets])
+        
         if self.dic_vertex_names[target_vertex] in self.dic_conds:
-#             print("YES!")
             s = [(p, True if p in self.task_finished[flow_seq] else False) for p in preds_set]
             ss = self.dic_conds[self.dic_vertex_names[target_vertex]].replace("&", " and ").replace("|", " or ")
             res = self.myeval([(self.dic_vertex_names[p], True if p in self.task_finished[flow_seq] else False) for p in preds_set], self.dic_conds[self.dic_vertex_names[target_vertex]].replace("&", " and ").replace("|", " or "))
@@ -156,6 +154,11 @@ class ProcessInOutDAG:
         self.task_triggered = {}
         self.start_times = {}
         self.finish_times = {}
+        
+        self.sim_nodesets = set()
+        
+        for target_vertex in target_vertices:
+            self.sim_nodesets |= set(self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=dic_target_vertices[target_vertex]))]).nodes)
         
         for i in range(sim_repeats):
 #             print("i", i)
@@ -1458,5 +1461,4 @@ class ProcessInOutDAG:
             for i in range(len(copy.deepcopy(self.vertex_names))):
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
-                    
                     
