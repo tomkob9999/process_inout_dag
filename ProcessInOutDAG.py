@@ -102,8 +102,8 @@ class ProcessInOutDAG:
 #             print("self.task_finished", self.task_finished)
             return
         weight = max([self.G[target_vertex][s]["weight"] for s in list(succs_set)])
-        time_takes = max(np.random.normal(weight, min(weight, 3)), 0.5)
-#         time_takes = np.log(np.random.lognormal(weight+1, min(weight+1, 4)))-1
+#         time_takes = max(np.random.normal(weight, min(weight, 3)), 0.5)
+        time_takes = np.log(np.random.lognormal(weight, min(weight, 3))+1)
             
         start_time = self.simpy_env.now
         if target_vertex not in self.start_times:
@@ -146,6 +146,7 @@ class ProcessInOutDAG:
                 
         
         # Set up and start the simulation
+        print("")
         print('Flow Simulation Started')
 #         random.seed(42)  # For reproducible results
         
@@ -170,7 +171,6 @@ class ProcessInOutDAG:
             self.flow_counter += 1
             self.simpy_env.run()
         
-        print("")
         print("----------------")
         for k, v in self.start_times.items():
 #             print(self.dic_vertex_names[k], f"starts at {np.mean(v):.2f}, and finishes at {np.mean(self.finish_times[k]):.2f} in average")
@@ -1461,4 +1461,5 @@ class ProcessInOutDAG:
             for i in range(len(copy.deepcopy(self.vertex_names))):
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
+                    
                     
