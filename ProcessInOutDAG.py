@@ -1,5 +1,5 @@
 # Process In-Out DAG
-# Version: 2.0.3
+# Version: 2.0.4
 # Last Update: 2024/02/25
 # Author: Tomio Kobayashi
 #
@@ -147,6 +147,8 @@ class ProcessInOutDAG:
                 else:
                     dic_target_vertices[target_vertex] = self.dic_vertex_id[target_vertex]
                 
+        org_target_vertices = copy.deepcopy(target_vertices)
+        org_dic_target_vertices = copy.deepcopy(dic_target_vertices)
         
         # Set up and start the simulation
         print("")
@@ -189,6 +191,44 @@ class ProcessInOutDAG:
             self.flow_counter += 1
             self.simpy_env.run()
         
+#         print("self.G.predecessors(self.sim_nodesets[0])", self.G.predecessors(self.sim_nodesets.pop())[0])
+#         dd = {s:max([np.mean(self.finish_times[p]) for p in self.G.predecessors(s)]) if len(list(self.G.predecessors(s))) > 0 else 0 for s in self.sim_nodesets}
+#         print("dd", dd)
+        
+        if fromSink:
+    #         subgraph = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=target_vertex, orientation="reverse"))])
+            subgraph = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=org_dic_target_vertices[org_target_vertices[0]], orientation="reverse"))])
+            
+            succs = [self.dic_vertex_names[s] for s in subgraph]
+            
+            avg_duration_p = {s:max([np.mean(self.finish_times[p]) for p in self.G.predecessors(s)]) if len(list(self.G.predecessors(s))) > 0 else 0 for s in self.sim_nodesets}
+#             print("avg_duration_p", avg_duration_p)
+        
+            position, wait_edges = self.find_pos(subgraph, use_expected=False, use_lognormal=True, avg_duration_p=avg_duration_p)
+
+            selected_vertices1 = set([n for n in subgraph.nodes])
+            selected_vertices2 = set([n for n in subgraph.nodes if self.dic_vertex_names[n][0:5] == "proc_"])
+
+            node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
+            print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
+            print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
+#             if title == "":
+            title = "Data Origins with Simulator-Based Weighted Pipelining"
+#             title += " (" + str(max([v[0] for k, v in position.items()])) + " steps)"
+            title += " (" + str(int(self.max_pos)) + " steps)"
+
+            selected_vertices1 = list(selected_vertices1)
+            selected_vertices2 = list(selected_vertices2)
+            selected_vertices3 = [target_vertex]
+
+#             if figsize is None:
+            figsize = (12, 8)
+
+            self.draw_selected_vertices_reverse_proc2(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
+                            title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, excludeComp=False, 
+                                                      showExpectationBased=False)
+
+        
         outputs = []
         for k, v in self.start_times.items():
 #             print(self.dic_vertex_names[k], f"starts at {np.mean(v):.2f}, and finishes at {np.mean(self.finish_times[k]):.2f} in average")
@@ -220,7 +260,7 @@ class ProcessInOutDAG:
         brightness = cmap(parameter_value)[0]  # Extract first value (red channel)
         return brightness
     
-    def find_pos(self, subgraph, use_expected=True, sigma=3, use_weight_one=False, use_lognormal=True):
+    def find_pos(self, subgraph, use_expected=True, sigma=3, use_weight_one=False, use_lognormal=True, avg_duration_p=None):
         
         cum_duration = {}
         avg_duration = {}
@@ -236,28 +276,33 @@ class ProcessInOutDAG:
             if j not in weights:
                 weights[j] = {}
             weights[j][self.dic_vertex_names[i]] = the_graph[i][j]['weight']
+                
+        if avg_duration_p is not None:
+            avg_duration = avg_duration_p
+        else:
 
-        for t in topological_order:
-            if t not in weights:
-                avg_duration[t] = 0
-                cum_duration[t] = 0
-            else:
-                tot = 0
-                weight_params = {k: avg_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()} if not use_weight_one else {k: avg_duration[self.dic_vertex_id[k]] + 1 for k, v in weights[t].items()} 
-#                 normal_sigma = min(max([v for k, v in weight_params.items()]), sigma)
-                normal_sigma = min(max([v for k, v in weights[t].items()]), sigma)
-                if use_expected:
-                    if self.dic_vertex_names[t] in self.dic_conds:
-#                         tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts, use_lognormal=False, normal_sigma=normal_sigma)
-                        tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts, use_lognormal=use_lognormal, sigma=normal_sigma)
-                    else:
-#                         tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=self.dic_opts, use_lognormal=False, normal_sigma=normal_sigma)
-                        tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=self.dic_opts, use_lognormal=use_lognormal, sigma=normal_sigma)
+            for t in topological_order:
+                if t not in weights:
+                    avg_duration[t] = 0
+                    cum_duration[t] = 0
                 else:
-                    tot = max([v for k, v in weight_params.items()])
-                avg_duration[t] = tot
-                weight_params_cum = {k: cum_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()}
-                cum_duration[t] = max([v for k, v in weight_params_cum.items()])
+                    tot = 0
+                    weight_params = {k: avg_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()} if not use_weight_one else {k: avg_duration[self.dic_vertex_id[k]] + 1 for k, v in weights[t].items()} 
+    #                 normal_sigma = min(max([v for k, v in weight_params.items()]), sigma)
+                    normal_sigma = min(max([v for k, v in weights[t].items()]), sigma)
+                    if use_expected:
+                        if self.dic_vertex_names[t] in self.dic_conds:
+    #                         tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts, use_lognormal=False, normal_sigma=normal_sigma)
+                            tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts, use_lognormal=use_lognormal, sigma=normal_sigma)
+                        else:
+    #                         tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=self.dic_opts, use_lognormal=False, normal_sigma=normal_sigma)
+                            tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=self.dic_opts, use_lognormal=use_lognormal, sigma=normal_sigma)
+                    else:
+                        tot = max([v for k, v in weight_params.items()])
+                    avg_duration[t] = tot
+                    weight_params_cum = {k: cum_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()}
+                    cum_duration[t] = max([v for k, v in weight_params_cum.items()])
+                    
         max_duration = max([v for k, v in avg_duration.items()])
         avg_duration_r = {k: max_duration - v for k, v in avg_duration.items()}
         self.avg_duration = avg_duration
@@ -1481,4 +1526,5 @@ class ProcessInOutDAG:
             for i in range(len(copy.deepcopy(self.vertex_names))):
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
+                    
                     
