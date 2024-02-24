@@ -1,11 +1,10 @@
 # logical_weight
 #
-# Version: 1.1.0
+# Version: 1.1.1
 # Last Update: 2024/02/24
 # Author: Tomio Kobayashi
 #
 # Average of max and min of multiple random variables.  In case of error, securely. max and min are returned
-#
 
 import scipy.stats as stats
 import numpy as np
@@ -20,8 +19,17 @@ class logical_weight:
     # Good for non-zero values.  Long tailed
     def get_avg_max_nonzero(rands, sigma=1.):
         nloop = 3000
-#         ret = np.log(np.mean([max([np.random.lognormal(r, sigma) for r in rands]) for i in range(nloop)]))
-        ret = np.mean([max([np.log(np.random.lognormal(r, sigma)+1) for r in rands]) for i in range(nloop)])
+#         ret = np.mean([max([np.log(np.random.lognormal(r, sigma)+1) for r in rands]) for i in range(nloop)])
+        if max(rands) > 300000:
+            rands2 = [r/300000 for r in rands]
+            ret = np.mean([max([np.log(np.random.lognormal(r, sigma)+1) for r in rands2]) for i in range(nloop)])
+            ret *= 300000
+        elif max(rands) > 500:
+            rands2 = [r/500 for r in rands]
+            ret = np.mean([max([np.log(np.random.lognormal(r, sigma)+1) for r in rands2]) for i in range(nloop)])
+            ret *= 500
+        else:
+            ret = np.mean([max([np.log(np.random.lognormal(r, sigma)+1) for r in rands]) for i in range(nloop)])
         if ret == float('inf'):
             return max(rands)
         else:
@@ -34,9 +42,17 @@ class logical_weight:
     # Good for non-zero values.  Long tailed
     def get_avg_min_nonzero(rands, sigma=1.):
         nloop = 3000
-#         ret = np.log(np.mean([min([np.random.lognormal(r, sigma) for r in rands]) for i in range(nloop)]))
-#         ret = np.mean(np.log([min([np.random.lognormal(r, sigma) for r in rands]) for i in range(nloop)]))
-        ret = np.mean([min([np.log(np.random.lognormal(r, sigma)+1) for r in rands]) for i in range(nloop)])
+#         ret = np.mean([min([np.log(np.random.lognormal(r, sigma)+1) for r in rands]) for i in range(nloop)])
+        if min(rands) > 300000:
+            rands2 = [r/300000 for r in rands]
+            ret = np.mean([min([np.log(np.random.lognormal(r, sigma)+1) for r in rands2]) for i in range(nloop)])
+            ret *= 300000
+        elif min(rands) > 500:
+            rands2 = [r/500 for r in rands]
+            ret = np.mean([min([np.log(np.random.lognormal(r, sigma)+1) for r in rands2]) for i in range(nloop)])
+            ret *= 500
+        else:
+            ret = np.mean([min([np.log(np.random.lognormal(r, sigma)+1) for r in rands]) for i in range(nloop)])
         if ret == float('inf'):
             return min(rands)
         else:
