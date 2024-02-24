@@ -1,6 +1,6 @@
 # Process In-Out DAG
-# Version: 1.7.6
-# Last Update: 2024/02/07
+# Version: 2.0.0
+# Last Update: 2024/02/24
 # Author: Tomio Kobayashi
 import numpy as np
 import networkx as nx
@@ -11,6 +11,7 @@ from datetime import date
 import textwrap
 import re
 from scipy.sparse import csr_matrix
+import simpy
 
 class ProcessInOutDAG:
 
@@ -23,8 +24,8 @@ class ProcessInOutDAG:
         self.dic_vertex_names = {}
         self.dic_vertex_id = {}
         
-        G = 0
-        G_T = 0
+        self.G = 0
+        self.G_T = 0
         
         self.str_vertex_names = []
         self.str_csr_matrix = []
@@ -34,8 +35,8 @@ class ProcessInOutDAG:
         self.str_dic_vertex_names = {}
         self.str_dic_vertex_id = {}
         
-        str_G = 0
-        str_G_T = 0
+        self.str_G = 0
+        self.str_G_T = 0
         
         self.dic_new2old = {}
         self.dic_old2new = {}
@@ -48,6 +49,131 @@ class ProcessInOutDAG:
         self.avg_duration = {}
         self.max_pos = 0
         
+        
+        self.simpy_env = simpy.Environment()
+        self.flow_counter = 0
+        self.task_finished = {}
+        self.task_triggered = {}
+        self.start_times = {}
+        self.finish_times = {}
+        
+    # SIMULATOR 
+    
+    def myeval(self, __ccc___, __inp___):
+        for __jjjj___ in __ccc___:
+#             print("__jjjj___", __jjjj___)
+            exec(__jjjj___[0] + " = " + str(__jjjj___[1]))
+        return eval(__inp___)
+
+    def task(self, target_vertex, flow_seq, workers, silent=False):
+        
+        if flow_seq not in self.task_triggered:
+            self.task_triggered[flow_seq] = set()
+        if flow_seq not in self.task_finished:
+            self.task_finished[flow_seq] = set()
+            
+        if target_vertex in self.task_triggered[flow_seq]:
+            return
+        
+#         print(self.dic_vertex_names[target_vertex], "for", flow_seq, "triggered and waiting")
+#         print("silent", silent)
+        
+        preds_set = set(self.G.predecessors(target_vertex))
+#         print("self.dic_vertex_names[target_vertex]", self.dic_vertex_names[target_vertex])
+#         print("self.dic_conds", self.dic_conds)
+        if self.dic_vertex_names[target_vertex] in self.dic_conds:
+#             print("YES!")
+            s = [(p, True if p in self.task_finished[flow_seq] else False) for p in preds_set]
+            ss = self.dic_conds[self.dic_vertex_names[target_vertex]].replace("&", " and ").replace("|", " or ")
+            res = self.myeval([(self.dic_vertex_names[p], True if p in self.task_finished[flow_seq] else False) for p in preds_set], self.dic_conds[self.dic_vertex_names[target_vertex]].replace("&", " and ").replace("|", " or "))
+#             print("res", res)
+            if not res:
+                return
+        else:
+            for p in preds_set:
+                if p != target_vertex and p not in self.task_finished[flow_seq]:
+                    return
+
+        self.task_triggered[flow_seq].add(target_vertex)
+            
+        succs_set = set(self.G.successors(target_vertex))
+        if len(succs_set) == 0:
+            if not silent:
+#                 print(self.dic_vertex_names[target_vertex])
+                print("FLOW", flow_seq, f"COMPLETED AT {self.simpy_env.now:.2f}")
+#             print("self.task_finished", self.task_finished)
+            return
+        weight = max([self.G[target_vertex][s]["weight"] for s in list(succs_set)])
+        time_takes = max(np.random.normal(weight, min(weight, 3)), 0.5)
+#         time_takes = np.log(np.random.lognormal(weight+1, min(weight+1, 4)))-1
+            
+        start_time = self.simpy_env.now
+        if target_vertex not in self.start_times:
+            self.start_times[target_vertex] = []
+        self.start_times[target_vertex].append(start_time)
+
+        yield self.simpy_env.timeout(time_takes)
+        
+        finish_time = self.simpy_env.now
+        if target_vertex not in self.finish_times:
+            self.finish_times[target_vertex] = []
+        self.finish_times[target_vertex].append(finish_time)
+        if not silent:
+            print(self.dic_vertex_names[target_vertex], "for", flow_seq, f"fiinished at {finish_time:.2f}")
+        
+        self.task_finished[flow_seq].add(target_vertex)
+        
+        
+        # Start process and run
+        for s in list(succs_set):
+            workers = simpy.Resource(self.simpy_env, capacity=9999999)
+            self.simpy_env.process(self.task(s, flow_seq, workers, silent=silent))
+            
+    def start_flow(self, target_vertices, silent=False, sim_repeats=1):
+        
+        dic_target_vertices = {}
+        for target_vertex in target_vertices:
+            if isinstance(target_vertex, str):
+                if target_vertex not in self.dic_vertex_id:
+                    f = [v for k, v in self.dic_vertex_id.items() if target_vertex == re.sub("(#C.*)", "", k, count=1)]
+#                     f = [re.sub("(#C.*)", "", k, count=1) for k, v in self.dic_vertex_id.items() if target_vertex == re.sub("(#C.*)", "", k, count=1)]
+                    if len(f) > 0:
+#                         dic_target_vertices[target_vertex] = f[0]
+                        dic_target_vertices[re.sub("(#C.*)", "", target_vertex, count=1)] = f[0]
+                    else:
+                        print(target_vertex + " is not an element")
+                        return
+                else:
+                    dic_target_vertices[target_vertex] = self.dic_vertex_id[target_vertex]
+                
+        
+        # Set up and start the simulation
+        print('Flow Simulation Started')
+#         random.seed(42)  # For reproducible results
+        
+        self.flow_counter = 0
+        self.task_finished = {}
+        self.task_triggered = {}
+        self.start_times = {}
+        self.finish_times = {}
+        
+        for i in range(sim_repeats):
+#             print("i", i)
+            self.simpy_env = simpy.Environment()
+            for target_vertex in target_vertices:
+                # Start process and run
+                workers = simpy.Resource(self.simpy_env, capacity=9999999)
+                self.simpy_env.process(self.task(dic_target_vertices[target_vertex], self.flow_counter, workers, silent=silent))
+            self.flow_counter += 1
+            self.simpy_env.run()
+        
+        print("")
+        print("----------------")
+        for k, v in self.start_times.items():
+#             print(self.dic_vertex_names[k], f"starts at {np.mean(v):.2f}, and finishes at {np.mean(self.finish_times[k]):.2f} in average")
+            print(re.sub("(#C.*)", "", self.dic_vertex_names[k], count=1), f"starts at {np.mean(v):.2f} and finishes at {np.mean(self.finish_times[k]):.2f} in average")
+        print("")
+            
     def csr_matrix_to_edge_list(self, csr_matrix):
         rows, cols = csr_matrix.nonzero()
         weights = csr_matrix.data
@@ -1334,5 +1460,3 @@ class ProcessInOutDAG:
                     self.vertex_names.pop(i)
                     
                     
-
-
