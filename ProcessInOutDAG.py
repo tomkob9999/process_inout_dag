@@ -1,7 +1,10 @@
 # Process In-Out DAG
-# Version: 2.0.1
+# Version: 2.0.2
 # Last Update: 2024/02/24
 # Author: Tomio Kobayashi
+#
+# pip install simpy
+
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -127,7 +130,7 @@ class ProcessInOutDAG:
             workers = simpy.Resource(self.simpy_env, capacity=9999999)
             self.simpy_env.process(self.task(s, flow_seq, workers, silent=silent))
             
-    def start_flow(self, target_vertices, silent=False, sim_repeats=1):
+    def start_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True):
         
         dic_target_vertices = {}
         for target_vertex in target_vertices:
@@ -158,9 +161,20 @@ class ProcessInOutDAG:
         
         self.sim_nodesets = set()
         
-        for target_vertex in target_vertices:
-            self.sim_nodesets |= set(self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=dic_target_vertices[target_vertex]))]).nodes)
+        if fromSink:
+            tmp_target_vetcices = []
+            for target_vertex in target_vertices:
+                self.sim_nodesets |= set(self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=dic_target_vertices[target_vertex], orientation="reverse"))]).nodes)
+                tmp_target_vetcices += [node for node, in_degree in self.G.in_degree() if in_degree == 0]
+            dic_target_vertices = {self.dic_vertex_names[t]:t for t in tmp_target_vetcices}
+            target_vertices = [self.dic_vertex_names[t] for t in tmp_target_vetcices]
+        else:
+            for target_vertex in target_vertices:
+                self.sim_nodesets |= set(self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=dic_target_vertices[target_vertex]))]).nodes)
         
+#         print("target_vertices", target_vertices)
+#         print("dic_target_vertices", dic_target_vertices)
+            
         for i in range(sim_repeats):
 #             print("i", i)
             self.simpy_env = simpy.Environment()
@@ -1463,3 +1477,4 @@ class ProcessInOutDAG:
                     self.vertex_names.pop(i)
                     
                     
+
