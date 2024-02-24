@@ -1,7 +1,7 @@
 # logical_weight
 #
-# Version: 1.0.8
-# Last Update: 2024/02/07
+# Version: 1.1.0
+# Last Update: 2024/02/24
 # Author: Tomio Kobayashi
 #
 # Average of max and min of multiple random variables.  In case of error, securely. max and min are returned
@@ -15,11 +15,13 @@ class logical_weight:
     def get_avg_max(rands, sigma=1.):
         nloop = 3000
         return np.mean([max([np.random.normal(r, sigma) for r in rands]) for i in range(nloop)])
+#         return max([np.mean([np.random.normal(r, sigma) for r in rands]) for i in range(nloop)])
 
     # Good for non-zero values.  Long tailed
     def get_avg_max_nonzero(rands, sigma=1.):
         nloop = 3000
-        ret = np.log(np.mean([max([np.random.lognormal(r, sigma) for r in rands]) for i in range(nloop)]))
+#         ret = np.log(np.mean([max([np.random.lognormal(r, sigma) for r in rands]) for i in range(nloop)]))
+        ret = np.mean([max([np.log(np.random.lognormal(r, sigma)+1) for r in rands]) for i in range(nloop)])
         if ret == float('inf'):
             return max(rands)
         else:
@@ -32,7 +34,9 @@ class logical_weight:
     # Good for non-zero values.  Long tailed
     def get_avg_min_nonzero(rands, sigma=1.):
         nloop = 3000
-        ret = np.log(np.mean([min([np.random.lognormal(r, sigma) for r in rands]) for i in range(nloop)]))
+#         ret = np.log(np.mean([min([np.random.lognormal(r, sigma) for r in rands]) for i in range(nloop)]))
+#         ret = np.mean(np.log([min([np.random.lognormal(r, sigma) for r in rands]) for i in range(nloop)]))
+        ret = np.mean([min([np.log(np.random.lognormal(r, sigma)+1) for r in rands]) for i in range(nloop)])
         if ret == float('inf'):
             return min(rands)
         else:
