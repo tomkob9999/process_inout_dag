@@ -162,10 +162,12 @@ class ProcessInOutDAG:
         self.sim_nodesets = set()
         
         if fromSink:
-            tmp_target_vetcices = []
+#             tmp_target_vetcices = []
+            tmp_target_vetcices = set()
             for target_vertex in target_vertices:
                 self.sim_nodesets |= set(self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=dic_target_vertices[target_vertex], orientation="reverse"))]).nodes)
-                tmp_target_vetcices += [node for node, in_degree in self.G.in_degree() if in_degree == 0]
+#                 tmp_target_vetcices += [node for node, in_degree in self.G.in_degree() if in_degree == 0]
+                tmp_target_vetcices != set([node for node, in_degree in self.G.in_degree() if in_degree == 0])
             dic_target_vertices = {self.dic_vertex_names[t]:t for t in tmp_target_vetcices}
             target_vertices = [self.dic_vertex_names[t] for t in tmp_target_vetcices]
         else:
@@ -1477,4 +1479,3 @@ class ProcessInOutDAG:
                     self.vertex_names.pop(i)
                     
                     
-
