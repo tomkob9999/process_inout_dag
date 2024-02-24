@@ -1,6 +1,6 @@
 # Process In-Out DAG
-# Version: 2.0.2
-# Last Update: 2024/02/24
+# Version: 2.0.3
+# Last Update: 2024/02/25
 # Author: Tomio Kobayashi
 #
 # pip install simpy
@@ -151,6 +151,7 @@ class ProcessInOutDAG:
         # Set up and start the simulation
         print("")
         print('Flow Simulation Started')
+        print("----------------")
 #         random.seed(42)  # For reproducible results
         
         self.flow_counter = 0
@@ -167,13 +168,14 @@ class ProcessInOutDAG:
             for target_vertex in target_vertices:
                 self.sim_nodesets |= set(self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=dic_target_vertices[target_vertex], orientation="reverse"))]).nodes)
 #                 tmp_target_vetcices += [node for node, in_degree in self.G.in_degree() if in_degree == 0]
-                tmp_target_vetcices != set([node for node, in_degree in self.G.in_degree() if in_degree == 0])
+                tmp_target_vetcices |= set([node for node, in_degree in self.G.in_degree() if in_degree == 0])
             dic_target_vertices = {self.dic_vertex_names[t]:t for t in tmp_target_vetcices}
             target_vertices = [self.dic_vertex_names[t] for t in tmp_target_vetcices]
         else:
             for target_vertex in target_vertices:
                 self.sim_nodesets |= set(self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=dic_target_vertices[target_vertex]))]).nodes)
         
+#         print("self.sim_nodesets", self.sim_nodesets)
 #         print("target_vertices", target_vertices)
 #         print("dic_target_vertices", dic_target_vertices)
             
@@ -187,11 +189,13 @@ class ProcessInOutDAG:
             self.flow_counter += 1
             self.simpy_env.run()
         
-        print("----------------")
+        outputs = []
         for k, v in self.start_times.items():
 #             print(self.dic_vertex_names[k], f"starts at {np.mean(v):.2f}, and finishes at {np.mean(self.finish_times[k]):.2f} in average")
             print(re.sub("(#C.*)", "", self.dic_vertex_names[k], count=1), f"starts at {np.mean(v):.2f} and finishes at {np.mean(self.finish_times[k]):.2f} in average")
+            outputs.append([re.sub("(#C.*)", "", self.dic_vertex_names[k], count=1), np.mean(v), np.mean(self.finish_times[k]), np.mean(self.finish_times[k]) - np.mean(v)])
         print("")
+        return outputs
             
     def csr_matrix_to_edge_list(self, csr_matrix):
         rows, cols = csr_matrix.nonzero()
@@ -1477,5 +1481,4 @@ class ProcessInOutDAG:
             for i in range(len(copy.deepcopy(self.vertex_names))):
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
-                    
                     
