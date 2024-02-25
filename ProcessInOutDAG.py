@@ -1,5 +1,5 @@
 # Process In-Out DAG
-# Version: 2.0.7
+# Version: 2.0.8
 # Last Update: 2024/02/25
 # Author: Tomio Kobayashi
 #
@@ -103,7 +103,9 @@ class ProcessInOutDAG:
         
             self.task_triggered[flow_seq].add(target_vertex)
             if not silent:
-                print(self.dic_vertex_names[target_vertex], "for", flow_seq, f"started at {self.simpy_env.now:.2f} with wait time {wait_time:.2f}")
+                # wait time is not supported as the current implementation cannot handle concurrent processes due to shared variables
+#                 print(self.dic_vertex_names[target_vertex], "for", flow_seq, f"started at {self.simpy_env.now:.2f} with wait time {wait_time:.2f}")
+                print(self.dic_vertex_names[target_vertex], "for", flow_seq, f"started at {self.simpy_env.now:.2f}")
 
             succs_set = set(self.G.successors(target_vertex))
             weight = 0
@@ -133,7 +135,7 @@ class ProcessInOutDAG:
             workers = simpy.Resource(self.simpy_env, capacity=9999999)
             self.simpy_env.process(self.task(s, flow_seq, workers, silent=silent))
             
-    def start_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True, figsize = (12, 8)):
+    def start_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True, figsize = (12, 8), task_occurrences=1, task_interval=0):
         
         dic_target_vertices = {}
         for target_vertex in target_vertices:
@@ -178,13 +180,15 @@ class ProcessInOutDAG:
             
         for i in range(sim_repeats):
             self.simpy_env = simpy.Environment()
-            for target_vertex in target_vertices:
-                # Start process and run
-                cap = self.dic_capacity[target_vertex] if target_vertex in self.dic_capacity else 9999999
-                workers = simpy.Resource(self.simpy_env, capacity=cap)
-                self.simpy_env.process(self.task(dic_target_vertices[target_vertex], self.flow_counter, workers, silent=silent))
-            self.flow_counter += 1
-            self.simpy_env.run()
+            for t in range(task_occurrences):
+                for target_vertex in target_vertices:
+                    # Start process and run
+                    cap = self.dic_capacity[target_vertex] if target_vertex in self.dic_capacity else 9999999
+                    workers = simpy.Resource(self.simpy_env, capacity=cap)
+                    self.simpy_env.process(self.task(dic_target_vertices[target_vertex], self.flow_counter, workers, silent=silent))
+                self.flow_counter += 1
+                self.simpy_env.run()
+            
         if fromSink:
             subgraph = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=org_dic_target_vertices[org_target_vertices[0]], orientation="reverse"))])
             
@@ -212,8 +216,11 @@ class ProcessInOutDAG:
         
         outputs = []
         for k, v in self.start_times.items():
-            print(re.sub("(#C.*)", "", self.dic_vertex_names[k], count=1), f"starts at {np.mean(v):.2f} after waiting for {np.mean(self.wait_times[k]):.2f} and finishes at {np.mean(self.finish_times[k]):.2f} in average")
-            outputs.append([re.sub("(#C.*)", "", self.dic_vertex_names[k], count=1), np.mean(v), np.mean(self.finish_times[k]), np.mean(self.finish_times[k]) - np.mean(v), np.mean(self.wait_times[k])])
+            # wait time is not supported as the current implementation cannot handle concurrent processes due to shared variables
+#             print(re.sub("(#C.*)", "", self.dic_vertex_names[k], count=1), f"starts at {np.mean(v):.2f} after waiting for {np.mean(self.wait_times[k]):.2f} and finishes at {np.mean(self.finish_times[k]):.2f} in average")
+#             outputs.append([re.sub("(#C.*)", "", self.dic_vertex_names[k], count=1), np.mean(v), np.mean(self.finish_times[k]), np.mean(self.finish_times[k]) - np.mean(v), np.mean(self.wait_times[k])])
+            print(re.sub("(#C.*)", "", self.dic_vertex_names[k], count=1), f"starts at {np.mean(v):.2f} and finishes at {np.mean(self.finish_times[k]):.2f} in average")
+            outputs.append([re.sub("(#C.*)", "", self.dic_vertex_names[k], count=1), np.mean(v), np.mean(self.finish_times[k]), np.mean(self.finish_times[k]) - np.mean(v)])
         print("")
         return outputs
             
@@ -1514,3 +1521,5 @@ class ProcessInOutDAG:
                     self.vertex_names.pop(i)
                     
                     
+
+
