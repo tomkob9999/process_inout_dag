@@ -1,5 +1,5 @@
 # Process In-Out DAG
-# Version: 2.0.6
+# Version: 2.0.7
 # Last Update: 2024/02/25
 # Author: Tomio Kobayashi
 #
@@ -59,13 +59,14 @@ class ProcessInOutDAG:
         self.task_triggered = {}
         self.start_times = {}
         self.finish_times = {}
+        self.wait_times = {}
         self.sim_nodesets = set()
+        self.dic_capacity = {}
         
     # SIMULATOR 
     
     def myeval(self, __ccc___, __inp___):
         for __jjjj___ in __ccc___:
-#             print("__jjjj___", __jjjj___)
             exec(__jjjj___[0] + " = " + str(__jjjj___[1]))
         return eval(__inp___)
 
@@ -80,20 +81,11 @@ class ProcessInOutDAG:
             return
         
         
-#         preds_set = set(self.G.predecessors(target_vertex))
         preds_set = set([p for p in self.G.predecessors(target_vertex) if p in self.sim_nodesets])
         
         if self.dic_vertex_names[target_vertex] in self.dic_conds:
-#             s = [(p, True if p in self.task_finished[flow_seq] else False) for p in preds_set]
-#             ss = self.dic_conds[self.dic_vertex_names[target_vertex]].replace("&", " and ").replace("|", " or ")
             dic_opt = {self.dic_vertex_id[k[0]]: v for k, v in self.dic_opts.items() if self.dic_vertex_id[k[1]] == target_vertex}
-    
-#             print("self.dic_vertex_names", self.dic_vertex_names)
-#             print("target_vertex", target_vertex)
-#             print("self.dic_opts", self.dic_opts)
-#             print("dic_opt", dic_opt)
             res = self.myeval([(self.dic_vertex_names[p], True if p in self.task_finished[flow_seq] or (p in dic_opt and random.random() > dic_opt[p]) else False) for p in preds_set], self.dic_conds[self.dic_vertex_names[target_vertex]].replace("&", " and ").replace("|", " or "))
-#             print("res", res)
             if not res:
                 return
         else:
@@ -101,52 +93,54 @@ class ProcessInOutDAG:
                 if p != target_vertex and p not in self.task_finished[flow_seq]:
                     return
 
-        self.task_triggered[flow_seq].add(target_vertex)
-            
-        succs_set = set(self.G.successors(target_vertex))
-        weight = 0
-        if len(succs_set) > 0:
-#             if not silent:
-# #                 print(self.dic_vertex_names[target_vertex])
-#                 print("FLOW", flow_seq, f"COMPLETED AT {self.simpy_env.now:.2f}")
-# #             print("self.task_finished", self.task_finished)
-#             return
-            weight = max([self.G[target_vertex][s]["weight"] for s in list(succs_set)])
-#         time_takes = max(np.random.normal(weight, min(weight, 3)), 0.5)
-        time_takes = np.log(np.random.lognormal(weight, min(weight, 3))+1)
-            
-        start_time = self.simpy_env.now
-        if target_vertex not in self.start_times:
-            self.start_times[target_vertex] = []
-        self.start_times[target_vertex].append(start_time)
+        arrive = self.simpy_env.now
+        with workers.request() as req:
+            results = yield req
+            wait_time = self.simpy_env.now - arrive
+            if target_vertex not in self.start_times:
+                self.wait_times[target_vertex] = []
+            self.wait_times[target_vertex].append(wait_time)
+        
+            self.task_triggered[flow_seq].add(target_vertex)
+            if not silent:
+                print(self.dic_vertex_names[target_vertex], "for", flow_seq, f"started at {self.simpy_env.now:.2f} with wait time {wait_time:.2f}")
 
-        yield self.simpy_env.timeout(time_takes)
-        
-        finish_time = self.simpy_env.now
-        if target_vertex not in self.finish_times:
-            self.finish_times[target_vertex] = []
-        self.finish_times[target_vertex].append(finish_time)
-        if not silent:
-            print(self.dic_vertex_names[target_vertex], "for", flow_seq, f"fiinished at {finish_time:.2f}")
-        
-        self.task_finished[flow_seq].add(target_vertex)
-        
-        
-        # Start process and run
-        for s in list(succs_set):
-            workers = simpy.Resource(self.simpy_env, capacity=9999999)
-            self.simpy_env.process(self.task(s, flow_seq, workers, silent=silent))
+            succs_set = set(self.G.successors(target_vertex))
+            weight = 0
+            if len(succs_set) > 0:
+                weight = max([self.G[target_vertex][s]["weight"] for s in list(succs_set)])
+            time_takes = np.log(np.random.lognormal(weight, min(weight, 3))+1)
+
+            start_time = self.simpy_env.now
+            if target_vertex not in self.start_times:
+                self.start_times[target_vertex] = []
+            self.start_times[target_vertex].append(start_time)
+
+            yield self.simpy_env.timeout(time_takes)
+
+            finish_time = self.simpy_env.now
+            if target_vertex not in self.finish_times:
+                self.finish_times[target_vertex] = []
+            self.finish_times[target_vertex].append(finish_time)
+            if not silent:
+                print(self.dic_vertex_names[target_vertex], "for", flow_seq, f"fiinished at {finish_time:.2f}")
+
+            self.task_finished[flow_seq].add(target_vertex)
+
+            # Start process and run
+            for s in list(succs_set):
+                cap = self.dic_capacity[s] if s in self.dic_capacity else 9999999
+                workers = simpy.Resource(self.simpy_env, capacity=9999999)
+                self.simpy_env.process(self.task(s, flow_seq, workers, silent=silent))
             
-    def start_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True):
+    def start_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True, figsize = (12, 8)):
         
         dic_target_vertices = {}
         for target_vertex in target_vertices:
             if isinstance(target_vertex, str):
                 if target_vertex not in self.dic_vertex_id:
                     f = [v for k, v in self.dic_vertex_id.items() if target_vertex == re.sub("(#C.*)", "", k, count=1)]
-#                     f = [re.sub("(#C.*)", "", k, count=1) for k, v in self.dic_vertex_id.items() if target_vertex == re.sub("(#C.*)", "", k, count=1)]
                     if len(f) > 0:
-#                         dic_target_vertices[target_vertex] = f[0]
                         dic_target_vertices[re.sub("(#C.*)", "", target_vertex, count=1)] = f[0]
                     else:
                         print(target_vertex + " is not an element")
@@ -172,49 +166,30 @@ class ProcessInOutDAG:
         self.sim_nodesets = set()
         
         if fromSink:
-#             tmp_target_vetcices = []
             tmp_target_vetcices = set()
             for target_vertex in target_vertices:
                 self.sim_nodesets |= set(self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=dic_target_vertices[target_vertex], orientation="reverse"))]).nodes)
-#                 tmp_target_vetcices += [node for node, in_degree in self.G.in_degree() if in_degree == 0]
                 tmp_target_vetcices |= set([node for node, in_degree in self.G.in_degree() if in_degree == 0])
             dic_target_vertices = {self.dic_vertex_names[t]:t for t in tmp_target_vetcices}
             target_vertices = [self.dic_vertex_names[t] for t in tmp_target_vetcices]
         else:
             for target_vertex in target_vertices:
                 self.sim_nodesets |= set(self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=dic_target_vertices[target_vertex]))]).nodes)
-        
-#         print("self.sim_nodesets", self.sim_nodesets)
-#         print("target_vertices", target_vertices)
-#         print("dic_target_vertices", dic_target_vertices)
             
         for i in range(sim_repeats):
-#             print("i", i)
             self.simpy_env = simpy.Environment()
             for target_vertex in target_vertices:
                 # Start process and run
-                workers = simpy.Resource(self.simpy_env, capacity=9999999)
+                cap = self.dic_capacity[target_vertex] if target_vertex in self.dic_capacity else 9999999
+                workers = simpy.Resource(self.simpy_env, capacity=cap)
                 self.simpy_env.process(self.task(dic_target_vertices[target_vertex], self.flow_counter, workers, silent=silent))
             self.flow_counter += 1
             self.simpy_env.run()
-        
-#         print("self.G.predecessors(self.sim_nodesets[0])", self.G.predecessors(self.sim_nodesets.pop())[0])
-#         dd = {s:max([np.mean(self.finish_times[p]) for p in self.G.predecessors(s)]) if len(list(self.G.predecessors(s))) > 0 else 0 for s in self.sim_nodesets}
-#         print("dd", dd)
-        
         if fromSink:
-    #         subgraph = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=target_vertex, orientation="reverse"))])
             subgraph = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=org_dic_target_vertices[org_target_vertices[0]], orientation="reverse"))])
             
             succs = [self.dic_vertex_names[s] for s in subgraph]
-            
-#             avg_duration_p = {s:max([np.mean(self.finish_times[p]) for p in self.G.predecessors(s)]) if len(list(self.G.predecessors(s))) > 0 else 0 for s in self.sim_nodesets}
             avg_duration_p = {k: np.mean(v) for k, v in self.start_times.items()}
-#             for s in self.sim_nodesets:
-#                 if s not in avg_duration_p:
-#                     avg_duration_p[s] = np.mean([self.finish_times[p] for p in self.G.predecessors(s)])
-#                     avg_duration_p[s] = np.min([self.finish_times[p] for p in self.G.predecessors(s)])
-# #             print("avg_duration_p", avg_duration_p)
         
             position, wait_edges = self.find_pos(subgraph, use_expected=False, use_lognormal=True, avg_duration_p=avg_duration_p)
 
@@ -224,18 +199,12 @@ class ProcessInOutDAG:
             node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
             print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
             print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
-#             if title == "":
             title = "Task Origins with Simulator-Based Weighted Pipelining"
-#             title += " (" + str(max([v[0] for k, v in position.items()])) + " steps)"
             title += " (" + str(int(self.max_pos)) + " steps)"
 
             selected_vertices1 = list(selected_vertices1)
             selected_vertices2 = list(selected_vertices2)
             selected_vertices3 = [target_vertex]
-
-#             if figsize is None:
-            figsize = (12, 8)
-
             self.draw_selected_vertices_reverse_proc2(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
                             title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, excludeComp=False, 
                                                       showExpectationBased=False)
@@ -243,9 +212,8 @@ class ProcessInOutDAG:
         
         outputs = []
         for k, v in self.start_times.items():
-#             print(self.dic_vertex_names[k], f"starts at {np.mean(v):.2f}, and finishes at {np.mean(self.finish_times[k]):.2f} in average")
-            print(re.sub("(#C.*)", "", self.dic_vertex_names[k], count=1), f"starts at {np.mean(v):.2f} and finishes at {np.mean(self.finish_times[k]):.2f} in average")
-            outputs.append([re.sub("(#C.*)", "", self.dic_vertex_names[k], count=1), np.mean(v), np.mean(self.finish_times[k]), np.mean(self.finish_times[k]) - np.mean(v)])
+            print(re.sub("(#C.*)", "", self.dic_vertex_names[k], count=1), f"starts at {np.mean(v):.2f} after waiting for {np.mean(self.wait_times[k]):.2f} and finishes at {np.mean(self.finish_times[k]):.2f} in average")
+            outputs.append([re.sub("(#C.*)", "", self.dic_vertex_names[k], count=1), np.mean(v), np.mean(self.finish_times[k]), np.mean(self.finish_times[k]) - np.mean(v), np.mean(self.wait_times[k])])
         print("")
         return outputs
             
@@ -300,17 +268,12 @@ class ProcessInOutDAG:
                 else:
                     tot = 0
                     weight_params = {k: avg_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()} if not use_weight_one else {k: avg_duration[self.dic_vertex_id[k]] + 1 for k, v in weights[t].items()} 
-    #                 normal_sigma = min(max([v for k, v in weight_params.items()]), sigma)
                     normal_sigma = min(max([v for k, v in weights[t].items()]), sigma)
                     if use_expected:
                         dic_opt = {k[0]: v for k, v in self.dic_opts.items() if k[1] == self.dic_vertex_names[t]}
                         if self.dic_vertex_names[t] in self.dic_conds:
-    #                         tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts, use_lognormal=False, normal_sigma=normal_sigma)
-#                             tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts, use_lognormal=use_lognormal, sigma=normal_sigma)
                             tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=dic_opt, use_lognormal=use_lognormal, sigma=normal_sigma)
                         else:
-    #                         tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=self.dic_opts, use_lognormal=False, normal_sigma=normal_sigma)
-#                             tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=self.dic_opts, use_lognormal=use_lognormal, sigma=normal_sigma)
                             tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=dic_opt, use_lognormal=use_lognormal, sigma=normal_sigma)
                     else:
                         tot = max([v for k, v in weight_params.items()])
@@ -326,7 +289,6 @@ class ProcessInOutDAG:
         max_pos = max_duration
         
         self.max_pos = max_duration
-#         pos = {k: (int(np.round(avg_duration[k], 0)), 0) for k in the_graph.nodes}
         div = 1 if use_weight_one or len(avg_duration) < 15 or not use_expected else 2
         pos = {k: (int(np.round(avg_duration[k]/div, 0)), 0) for k in the_graph.nodes}
 
@@ -455,10 +417,8 @@ class ProcessInOutDAG:
             max_height = max([v[1] for k, v in pos.items()])
             for k, v in pos.items():
                 if v[0] % 3 == 1:
-#                     pos[k] = (v[0], v[1] + max_height * 0.05)
                     pos[k] = (v[0], v[1] + max_height * 0.1)
                 if v[0] % 3 == 2:
-#                     pos[k] = (v[0], v[1] - max_height * 0.05)
                     pos[k] = (v[0], v[1] - max_height * 0.1)
                     
         # Draw the graph
@@ -488,23 +448,14 @@ class ProcessInOutDAG:
         node_labels1 = {k: v for k, v in node_labels.items() if k in subgraph1 and k not in subgraph2 and k not in subgraph3}
         node_colors = ['skyblue' for n in selected_vertices1]
         for i, s in enumerate(selected_vertices1):
-#             if s in node_labels1 and node_labels1[s][-3:-1] == "#C":
-#                 node_colors[i] = node_labels1[s][-2:]
-#                 node_labels1[s] = node_labels1[s][:-3]
             if s in node_labels1:
                 match = re.search(pattern, node_labels1[s])
                 if match:
                     matched_str = str(match.group()[2:])
-#                     print("node_labels1[s]", node_labels1[s])
-#                     print("matched_str", matched_str)
-#                     print("match.group()", match.group())
-#                     print("match.group()[2:]", match.group()[2:])
                     node_colors[i] = matched_str if len(matched_str) > 1 else "C" + match.group()[2:]
                     node_labels1[s] = re.sub(pattern, "", node_labels1[s], count=1)
     
         for i in node_labels:
-#             if node_labels[i][-3:-1] == "#C":
-#                 node_labels[i] = node_labels[i][:-3]
             match = re.search(pattern, node_labels[i])
             if match:
                 node_labels[i] = re.sub(pattern, "", node_labels[i], count=1)
@@ -803,6 +754,25 @@ class ProcessInOutDAG:
 #             self.dic_opts[conds[0]] = float(conds[1])
             self.dic_opts[(conds[0], conds[1])] = float(conds[2])
 
+    def read_capacity_list_from_file(self, filename=None, intext=""):
+#         with open(filename, "r") as file:
+#             for line in file:
+        lines = []
+        if intext == "":
+            with open(filename, "r") as file:
+                for line in file:
+                    lines.append(line)
+        else:
+            lines = intext.split("\n")
+        
+        lines = [line for line in lines if len(line) > 0]
+        
+        for line in lines:
+
+            conds = line.strip().split("\t")
+            self.dic_capacity[conds[0]] = conds[1]
+
+            
     def read_edge_list_from_file(self, filename=None, intext=""):
 #         edges = []
 #         with open(filename, "r") as file:
@@ -1544,8 +1514,3 @@ class ProcessInOutDAG:
                     self.vertex_names.pop(i)
                     
                     
-
-
-
-
-
