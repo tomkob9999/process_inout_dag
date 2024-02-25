@@ -1,5 +1,5 @@
 # Process In-Out DAG
-# Version: 2.0.4
+# Version: 2.0.5
 # Last Update: 2024/02/25
 # Author: Tomio Kobayashi
 #
@@ -86,7 +86,7 @@ class ProcessInOutDAG:
         if self.dic_vertex_names[target_vertex] in self.dic_conds:
             s = [(p, True if p in self.task_finished[flow_seq] else False) for p in preds_set]
             ss = self.dic_conds[self.dic_vertex_names[target_vertex]].replace("&", " and ").replace("|", " or ")
-            res = self.myeval([(self.dic_vertex_names[p], True if p in self.task_finished[flow_seq] else False) for p in preds_set], self.dic_conds[self.dic_vertex_names[target_vertex]].replace("&", " and ").replace("|", " or "))
+            res = self.myeval([(self.dic_vertex_names[p], True if p in self.task_finished[flow_seq] or (p in self.dic_opts and random.rondom > self.dic_opts[p]) else False) for p in preds_set], self.dic_conds[self.dic_vertex_names[target_vertex]].replace("&", " and ").replace("|", " or "))
 #             print("res", res)
             if not res:
                 return
