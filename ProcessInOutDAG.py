@@ -93,8 +93,8 @@ class ProcessInOutDAG:
                 if p != target_vertex and p not in self.task_finished[flow_seq]:
                     return
 
-        arrive = self.simpy_env.now
         with workers.request() as req:
+            arrive = self.simpy_env.now
             results = yield req
             wait_time = self.simpy_env.now - arrive
             if target_vertex not in self.start_times:
@@ -127,11 +127,11 @@ class ProcessInOutDAG:
 
             self.task_finished[flow_seq].add(target_vertex)
 
-            # Start process and run
-            for s in list(succs_set):
-                cap = self.dic_capacity[s] if s in self.dic_capacity else 9999999
-                workers = simpy.Resource(self.simpy_env, capacity=9999999)
-                self.simpy_env.process(self.task(s, flow_seq, workers, silent=silent))
+        # Start process and run
+        for s in list(succs_set):
+            cap = self.dic_capacity[s] if s in self.dic_capacity else 9999999
+            workers = simpy.Resource(self.simpy_env, capacity=9999999)
+            self.simpy_env.process(self.task(s, flow_seq, workers, silent=silent))
             
     def start_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True, figsize = (12, 8)):
         
