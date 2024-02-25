@@ -104,13 +104,14 @@ class ProcessInOutDAG:
         self.task_triggered[flow_seq].add(target_vertex)
             
         succs_set = set(self.G.successors(target_vertex))
-        if len(succs_set) == 0:
-            if not silent:
-#                 print(self.dic_vertex_names[target_vertex])
-                print("FLOW", flow_seq, f"COMPLETED AT {self.simpy_env.now:.2f}")
-#             print("self.task_finished", self.task_finished)
-            return
-        weight = max([self.G[target_vertex][s]["weight"] for s in list(succs_set)])
+        weight = 0
+        if len(succs_set) > 0:
+#             if not silent:
+# #                 print(self.dic_vertex_names[target_vertex])
+#                 print("FLOW", flow_seq, f"COMPLETED AT {self.simpy_env.now:.2f}")
+# #             print("self.task_finished", self.task_finished)
+#             return
+            weight = max([self.G[target_vertex][s]["weight"] for s in list(succs_set)])
 #         time_takes = max(np.random.normal(weight, min(weight, 3)), 0.5)
         time_takes = np.log(np.random.lognormal(weight, min(weight, 3))+1)
             
@@ -209,10 +210,11 @@ class ProcessInOutDAG:
             
 #             avg_duration_p = {s:max([np.mean(self.finish_times[p]) for p in self.G.predecessors(s)]) if len(list(self.G.predecessors(s))) > 0 else 0 for s in self.sim_nodesets}
             avg_duration_p = {k: np.mean(v) for k, v in self.start_times.items()}
-            for s in self.sim_nodesets:
-                if s not in avg_duration_p:
-                    avg_duration_p[s] = np.mean([self.finish_times[p] for p in self.G.predecessors(s)])
-#             print("avg_duration_p", avg_duration_p)
+#             for s in self.sim_nodesets:
+#                 if s not in avg_duration_p:
+#                     avg_duration_p[s] = np.mean([self.finish_times[p] for p in self.G.predecessors(s)])
+#                     avg_duration_p[s] = np.min([self.finish_times[p] for p in self.G.predecessors(s)])
+# #             print("avg_duration_p", avg_duration_p)
         
             position, wait_edges = self.find_pos(subgraph, use_expected=False, use_lognormal=True, avg_duration_p=avg_duration_p)
 
@@ -1542,5 +1544,8 @@ class ProcessInOutDAG:
                     self.vertex_names.pop(i)
                     
                     
+
+
+
 
 
