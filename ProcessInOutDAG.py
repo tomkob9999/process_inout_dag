@@ -191,7 +191,8 @@ class ProcessInOutDAG:
 
                 
         for i in range(sim_repeats):
-            self.simpy_env = simpy.Environment()        
+            self.simpy_env = simpy.Environment()
+            self.all_workers = {}
             for n in self.sim_nodesets:
                 cap = self.dic_capacity[self.dic_vertex_names[n]] if self.dic_vertex_names[n] in self.dic_capacity else 9999999
                 self.all_workers[n] = simpy.Resource(self.simpy_env, capacity=cap)
