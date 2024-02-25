@@ -1,5 +1,5 @@
 # Process In-Out DAG
-# Version: 2.0.5
+# Version: 2.0.6
 # Last Update: 2024/02/25
 # Author: Tomio Kobayashi
 #
@@ -84,9 +84,15 @@ class ProcessInOutDAG:
         preds_set = set([p for p in self.G.predecessors(target_vertex) if p in self.sim_nodesets])
         
         if self.dic_vertex_names[target_vertex] in self.dic_conds:
-            s = [(p, True if p in self.task_finished[flow_seq] else False) for p in preds_set]
-            ss = self.dic_conds[self.dic_vertex_names[target_vertex]].replace("&", " and ").replace("|", " or ")
-            res = self.myeval([(self.dic_vertex_names[p], True if p in self.task_finished[flow_seq] or (p in self.dic_opts and random.rondom > self.dic_opts[p]) else False) for p in preds_set], self.dic_conds[self.dic_vertex_names[target_vertex]].replace("&", " and ").replace("|", " or "))
+#             s = [(p, True if p in self.task_finished[flow_seq] else False) for p in preds_set]
+#             ss = self.dic_conds[self.dic_vertex_names[target_vertex]].replace("&", " and ").replace("|", " or ")
+            dic_opt = {self.dic_vertex_id[k[0]]: v for k, v in self.dic_opts.items() if self.dic_vertex_id[k[1]] == target_vertex}
+    
+#             print("self.dic_vertex_names", self.dic_vertex_names)
+#             print("target_vertex", target_vertex)
+#             print("self.dic_opts", self.dic_opts)
+#             print("dic_opt", dic_opt)
+            res = self.myeval([(self.dic_vertex_names[p], True if p in self.task_finished[flow_seq] or (p in dic_opt and random.random() > dic_opt[p]) else False) for p in preds_set], self.dic_conds[self.dic_vertex_names[target_vertex]].replace("&", " and ").replace("|", " or "))
 #             print("res", res)
             if not res:
                 return
@@ -201,7 +207,11 @@ class ProcessInOutDAG:
             
             succs = [self.dic_vertex_names[s] for s in subgraph]
             
-            avg_duration_p = {s:max([np.mean(self.finish_times[p]) for p in self.G.predecessors(s)]) if len(list(self.G.predecessors(s))) > 0 else 0 for s in self.sim_nodesets}
+#             avg_duration_p = {s:max([np.mean(self.finish_times[p]) for p in self.G.predecessors(s)]) if len(list(self.G.predecessors(s))) > 0 else 0 for s in self.sim_nodesets}
+            avg_duration_p = {k: np.mean(v) for k, v in self.start_times.items()}
+            for s in self.sim_nodesets:
+                if s not in avg_duration_p:
+                    avg_duration_p[s] = np.mean([self.finish_times[p] for p in self.G.predecessors(s)])
 #             print("avg_duration_p", avg_duration_p)
         
             position, wait_edges = self.find_pos(subgraph, use_expected=False, use_lognormal=True, avg_duration_p=avg_duration_p)
@@ -213,7 +223,7 @@ class ProcessInOutDAG:
             print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
             print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
 #             if title == "":
-            title = "Data Origins with Simulator-Based Weighted Pipelining"
+            title = "Task Origins with Simulator-Based Weighted Pipelining"
 #             title += " (" + str(max([v[0] for k, v in position.items()])) + " steps)"
             title += " (" + str(int(self.max_pos)) + " steps)"
 
@@ -291,12 +301,15 @@ class ProcessInOutDAG:
     #                 normal_sigma = min(max([v for k, v in weight_params.items()]), sigma)
                     normal_sigma = min(max([v for k, v in weights[t].items()]), sigma)
                     if use_expected:
+                        dic_opt = {k[0]: v for k, v in self.dic_opts.items() if k[1] == self.dic_vertex_names[t]}
                         if self.dic_vertex_names[t] in self.dic_conds:
     #                         tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts, use_lognormal=False, normal_sigma=normal_sigma)
-                            tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts, use_lognormal=use_lognormal, sigma=normal_sigma)
+#                             tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=self.dic_opts, use_lognormal=use_lognormal, sigma=normal_sigma)
+                            tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=dic_opt, use_lognormal=use_lognormal, sigma=normal_sigma)
                         else:
     #                         tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=self.dic_opts, use_lognormal=False, normal_sigma=normal_sigma)
-                            tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=self.dic_opts, use_lognormal=use_lognormal, sigma=normal_sigma)
+#                             tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=self.dic_opts, use_lognormal=use_lognormal, sigma=normal_sigma)
+                            tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=dic_opt, use_lognormal=use_lognormal, sigma=normal_sigma)
                     else:
                         tot = max([v for k, v in weight_params.items()])
                     avg_duration[t] = tot
@@ -785,7 +798,8 @@ class ProcessInOutDAG:
         
         for line in lines:
             conds = line.strip().split("\t")
-            self.dic_opts[conds[0]] = float(conds[1])
+#             self.dic_opts[conds[0]] = float(conds[1])
+            self.dic_opts[(conds[0], conds[1])] = float(conds[2])
 
     def read_edge_list_from_file(self, filename=None, intext=""):
 #         edges = []
@@ -1528,3 +1542,5 @@ class ProcessInOutDAG:
                     self.vertex_names.pop(i)
                     
                     
+
+
