@@ -1,5 +1,5 @@
 # Process In-Out DAG
-# Version: 2.1.0
+# Version: 2.1.1
 # Last Update: 2024/02/26
 # Author: Tomio Kobayashi
 #
@@ -65,42 +65,47 @@ class ProcessInOutDAG:
     # SIMULATOR 
     
     class flowman:
-        def __init__(self, env, parent):
+        def __init__(self, env, flow_seq):
             
             self.simpy_env = env
-            self.task_finished = {}
-            self.task_triggered = {}
+            self.flow_seq = flow_seq
+#             self.task_finished = {}
+#             self.task_triggered = {}
+            self.task_finished = set()
+            self.task_triggered = set()
             self.start_times = {}
             self.finish_times = {}
             self.wait_times = {}
 
-            self.parent = parent
+#             self.parent = parent
             
         def myeval(self, __ccc___, __inp___):
             for __jjjj___ in __ccc___:
                 exec(__jjjj___[0] + " = " + str(__jjjj___[1]))
             return eval(__inp___)
 
-        def task(self, target_vertex, flow_seq, workers, silent=False):
+#         def task(self, target_vertex, flow_seq, workers, silent=False):
+        def task(self, target_vertex, workers, G, sim_nodesets, dic_vertex_names, dic_vertex_id, dic_conds, dic_opts, all_workers, silent=False):
 
-            if flow_seq not in self.task_triggered:
-                self.task_triggered[flow_seq] = set()
-            if flow_seq not in self.task_finished:
-                self.task_finished[flow_seq] = set()
+#             if flow_seq not in self.task_triggered:
+#                 self.task_triggered[flow_seq] = set()
+#             if flow_seq not in self.task_finished:
+#                 self.task_finished[flow_seq] = set()
 
-            if target_vertex in self.task_triggered[flow_seq]:
+#             if target_vertex in self.task_triggered[flow_seq]:
+            if target_vertex in self.task_triggered:
                 return
 
-            preds_set = set([p for p in self.parent.G.predecessors(target_vertex) if p in self.parent.sim_nodesets])
-            if self.parent.dic_vertex_names[target_vertex] in self.parent.dic_conds:
-                dic_opt = {self.parent.dic_vertex_id[k[0]]: v for k, v in self.parent.dic_opts.items() if self.parent.dic_vertex_id[k[1]] == target_vertex}
-                res = self.myeval([(self.parent.dic_vertex_names[p], True if p in self.task_finished[flow_seq] or (p in dic_opt and random.random() > dic_opt[p]) else False) for p in preds_set], 
-                                  self.parent.dic_conds[self.parent.dic_vertex_names[target_vertex]].replace("&", " and ").replace("|", " or "))
+            preds_set = set([p for p in G.predecessors(target_vertex) if p in sim_nodesets])
+            if dic_vertex_names[target_vertex] in dic_conds:
+                dic_opt = {dic_vertex_id[k[0]]: v for k, v in dic_opts.items() if dic_vertex_id[k[1]] == target_vertex}
+                res = self.myeval([(dic_vertex_names[p], True if p in self.task_finished or (p in dic_opt and random.random() > dic_opt[p]) else False) for p in preds_set], 
+                                  dic_conds[dic_vertex_names[target_vertex]].replace("&", " and ").replace("|", " or "))
                 if not res:
                     return
             else:
                 for p in preds_set:
-                    if p != target_vertex and p not in self.task_finished[flow_seq]:
+                    if p != target_vertex and p not in self.task_finished:
                         return
 
             
@@ -113,16 +118,17 @@ class ProcessInOutDAG:
                     self.wait_times[target_vertex] = []
                 self.wait_times[target_vertex].append(wait_time)
 
-                self.task_triggered[flow_seq].add(target_vertex)
+#                 self.task_triggered[flow_seq].add(target_vertex)
+                self.task_triggered.add(target_vertex)
                 if not silent:
                     # wait time is not supported as the current implementation cannot handle concurrent processes due to shared variables
-                    print(self.dic_vertex_names[target_vertex], "for", flow_seq, f"started at {self.simpy_env.now:.2f} with wait time {wait_time:.2f}")
-#                     print(self.parent.dic_vertex_names[target_vertex], "for", flow_seq, f"started at {self.simpy_env.now:.2f}")
+                    print(dic_vertex_names[target_vertex], "for", self.flow_seq, f"started at {self.simpy_env.now:.2f} with wait time {wait_time:.2f}")
+#                     print(dic_vertex_names[target_vertex], "for", flow_seq, f"started at {self.simpy_env.now:.2f}")
 
-                succs_set = set(self.parent.G.successors(target_vertex))
+                succs_set = set(G.successors(target_vertex))
                 weight = 0
                 if len(succs_set) > 0:
-                    weight = max([self.parent.G[target_vertex][s]["weight"] for s in list(succs_set)])
+                    weight = max([G[target_vertex][s]["weight"] for s in list(succs_set)])
                 time_takes = np.log(np.random.lognormal(weight, min(weight, 3))+1)
 
                 start_time = self.simpy_env.now
@@ -137,15 +143,16 @@ class ProcessInOutDAG:
                     self.finish_times[target_vertex] = []
                 self.finish_times[target_vertex].append(finish_time)
                 if not silent:
-                    print(self.parent.dic_vertex_names[target_vertex], "for", flow_seq, f"fiinished at {finish_time:.2f}")
+                    print(dic_vertex_names[target_vertex], "for", self.flow_seq, f"fiinished at {finish_time:.2f}")
 
-                self.task_finished[flow_seq].add(target_vertex)
+#                 self.task_finished[flow_seq].add(target_vertex)
+                self.task_finished.add(target_vertex)
 
             # Start process and run
             for s in list(succs_set):
-#                 cap = self.parent.dic_capacity[self.parent.dic_vertex_names[target_vertex]] if self.parent.dic_vertex_names[target_vertex] in self.parent.dic_capacity else 9999999
-#                 workers = simpy.Resource(self.simpy_env, capacity=cap)
-                self.simpy_env.process(self.task(s, flow_seq, self.parent.all_workers[s], silent=silent))
+#                 self.simpy_env.process(self.task(s, flow_seq, all_workers[s], silent=silent))
+                self.simpy_env.process(self.task(s, all_workers[s], G, sim_nodesets, dic_vertex_names, dic_vertex_id, dic_conds, dic_opts, all_workers, silent=silent))
+                
        
     def start_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True, figsize = (12, 8), task_occurrences=1, task_interval=0):
         
@@ -200,15 +207,14 @@ class ProcessInOutDAG:
             self.sim_runs.append({})
             self.flow_counter = 0
             for t in range(task_occurrences):
-                self.sim_runs[i][self.flow_counter] = ProcessInOutDAG.flowman(self.simpy_env, self)
+                self.sim_runs[i][self.flow_counter] = ProcessInOutDAG.flowman(self.simpy_env, self.flow_counter)
 #                 self.flowmans[self.flow_counter] = ProcessInOutDAG.flowman(self.simpy_env, self)
                 for target_vertex in target_vertices:
                     # Start process and run
                     cap = self.dic_capacity[target_vertex] if target_vertex in self.dic_capacity else 9999999
-#                     workers = simpy.Resource(self.simpy_env, capacity=cap)
-#                     self.simpy_env.process(self.task(dic_target_vertices[target_vertex], self.flow_counter, workers, silent=silent))
-#                     self.simpy_env.process(self.sim_runs[i][self.flow_counter].task(dic_target_vertices[target_vertex], self.flow_counter, workers, silent=silent))
-                    self.simpy_env.process(self.sim_runs[i][self.flow_counter].task(dic_target_vertices[target_vertex], self.flow_counter, self.all_workers[dic_target_vertices[target_vertex]], silent=silent))
+#                     self.simpy_env.process(self.sim_runs[i][self.flow_counter].task(dic_target_vertices[target_vertex], self.flow_counter, self.all_workers[dic_target_vertices[target_vertex]], silent=silent))
+                    self.simpy_env.process(self.sim_runs[i][self.flow_counter].task(dic_target_vertices[target_vertex], self.all_workers[dic_target_vertices[target_vertex]],
+                            self.G, self.sim_nodesets, self.dic_vertex_names, self.dic_vertex_id, self.dic_conds, self.dic_opts, self.all_workers, silent=silent))
                 self.flow_counter += 1
                 self.simpy_env.timeout(task_interval)
             self.simpy_env.run()
@@ -221,7 +227,7 @@ class ProcessInOutDAG:
             avg_duration_p = {ss: np.mean([np.mean(v.start_times[ss]) for s in self.sim_runs for k, v in s.items()]) for ss in self.sim_nodesets}
 #             print("avg_duration_p", avg_duration_p)
     
-            mydag.sim_runs[0][0].start_times
+#             mydag.sim_runs[0][0].start_times
 
             position, wait_edges = self.find_pos(subgraph, use_expected=False, use_lognormal=True, avg_duration_p=avg_duration_p)
 
