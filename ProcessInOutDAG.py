@@ -1,5 +1,5 @@
 # Process In-Out DAG
-# Version: 2.1.3
+# Version: 2.1.4
 # Last Update: 2024/02/27
 # Author: Tomio Kobayashi
 #
@@ -310,27 +310,25 @@ class ProcessInOutDAG:
                 
         if avg_duration_p is not None:
             avg_duration = avg_duration_p
+            use_expected = True
         else:
 
             for t in topological_order:
-#                 print("t", t)
                 if t not in weights:
                     avg_duration[t] = 0
                     cum_duration[t] = 0
                 else:
                     tot = 0
-                    weight_params = {k: avg_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()} if not use_weight_one else {k: avg_duration[self.dic_vertex_id[k]] + 1 for k, v in weights[t].items()} 
-#                     print("weight_params", weight_params)
+                    weight_params = {k: avg_duration[self.dic_vertex_id[k]] + v*(1 if (k, self.dic_vertex_names[t]) not in self.dic_opts else self.dic_opts[(k, self.dic_vertex_names[t])]) for k, v in weights[t].items()} if not use_weight_one else {k: avg_duration[self.dic_vertex_id[k]] + 1 for k, v in weights[t].items()}
                     normal_sigma = min(max([v for k, v in weights[t].items()]), sigma)
                     if use_expected:
-                        dic_opt = {k[0]: v for k, v in self.dic_opts.items() if k[1] == self.dic_vertex_names[t]}
+#                         dic_opt = {k[0]: v for k, v in self.dic_opts.items() if k[1] == self.dic_vertex_names[t]}
                         if self.dic_vertex_names[t] in self.dic_conds:
 #                             tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=dic_opt, use_lognormal=use_lognormal, sigma=normal_sigma)
                             tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, use_lognormal=use_lognormal, sigma=normal_sigma)
                         else:
 #                             tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=dic_opt, use_lognormal=use_lognormal, sigma=normal_sigma)
                             tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, use_lognormal=use_lognormal, sigma=normal_sigma)
-#                         print("tot", tot)
                     else:
                         tot = max([v for k, v in weight_params.items()])
                     avg_duration[t] = tot
@@ -338,6 +336,7 @@ class ProcessInOutDAG:
                     cum_duration[t] = max([v for k, v in weight_params_cum.items()])
                     
 #         print("avg_duration", avg_duration)
+        
         max_duration = max([v for k, v in avg_duration.items()])
         avg_duration_r = {k: max_duration - v for k, v in avg_duration.items()}
         self.avg_duration = avg_duration
