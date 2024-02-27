@@ -1,6 +1,6 @@
 # Process In-Out DAG
-# Version: 2.1.2
-# Last Update: 2024/02/26
+# Version: 2.1.3
+# Last Update: 2024/02/27
 # Author: Tomio Kobayashi
 #
 # pip install simpy
@@ -240,6 +240,7 @@ class ProcessInOutDAG:
             selected_vertices2 = set([n for n in subgraph.nodes if self.dic_vertex_names[n][0:5] == "proc_"])
 
             node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
+            
             print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
             print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
             title = "Task Origins with Simulator-Based Weighted Pipelining"
@@ -248,6 +249,8 @@ class ProcessInOutDAG:
             selected_vertices1 = list(selected_vertices1)
             selected_vertices2 = list(selected_vertices2)
             selected_vertices3 = [target_vertex]
+            
+        
             self.draw_selected_vertices_reverse_proc2(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
                             title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, excludeComp=False, 
                                                       showExpectationBased=False)
@@ -310,25 +313,31 @@ class ProcessInOutDAG:
         else:
 
             for t in topological_order:
+#                 print("t", t)
                 if t not in weights:
                     avg_duration[t] = 0
                     cum_duration[t] = 0
                 else:
                     tot = 0
                     weight_params = {k: avg_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()} if not use_weight_one else {k: avg_duration[self.dic_vertex_id[k]] + 1 for k, v in weights[t].items()} 
+#                     print("weight_params", weight_params)
                     normal_sigma = min(max([v for k, v in weights[t].items()]), sigma)
                     if use_expected:
                         dic_opt = {k[0]: v for k, v in self.dic_opts.items() if k[1] == self.dic_vertex_names[t]}
                         if self.dic_vertex_names[t] in self.dic_conds:
-                            tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=dic_opt, use_lognormal=use_lognormal, sigma=normal_sigma)
+#                             tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=dic_opt, use_lognormal=use_lognormal, sigma=normal_sigma)
+                            tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, use_lognormal=use_lognormal, sigma=normal_sigma)
                         else:
-                            tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=dic_opt, use_lognormal=use_lognormal, sigma=normal_sigma)
+#                             tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=dic_opt, use_lognormal=use_lognormal, sigma=normal_sigma)
+                            tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, use_lognormal=use_lognormal, sigma=normal_sigma)
+#                         print("tot", tot)
                     else:
                         tot = max([v for k, v in weight_params.items()])
                     avg_duration[t] = tot
                     weight_params_cum = {k: cum_duration[self.dic_vertex_id[k]] + v for k, v in weights[t].items()}
                     cum_duration[t] = max([v for k, v in weight_params_cum.items()])
                     
+#         print("avg_duration", avg_duration)
         max_duration = max([v for k, v in avg_duration.items()])
         avg_duration_r = {k: max_duration - v for k, v in avg_duration.items()}
         self.avg_duration = avg_duration
@@ -1582,4 +1591,3 @@ class ProcessInOutDAG:
                     self.vertex_names.pop(i)
                     
                     
-
