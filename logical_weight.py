@@ -1,7 +1,7 @@
 # logical_weight
 #
-# Version: 1.1.2
-# Last Update: 2024/02/24
+# Version: 1.1.3
+# Last Update: 2024/02/27
 # Author: Tomio Kobayashi
 #
 # Average of max and min of multiple random variables.  In case of error, securely. max and min are returned
@@ -11,6 +11,9 @@ import numpy as np
 import re
 
 class logical_weight:
+    def lognormal(mu, sigma):
+        return np.log(np.random.lognormal(mu, min(mu, sigma))+1)
+    
     def get_avg_max(rands, sigma=1.):
         nloop = 3000
         return np.mean([max([np.random.normal(r, sigma) for r in rands]) for i in range(nloop)])
@@ -97,5 +100,5 @@ class logical_weight:
                     exp = re.sub(pattern, str(out_len), exp, count=1)
                 else:
                     break
-
-        return float(exp) 
+#         return float(exp) 
+        return logical_weight.get_avg_max_nonzero([float(exp)], sigma=sigma) if use_lognormal else logical_weight.get_avg_max([float(exp)], sigma=sigma)
