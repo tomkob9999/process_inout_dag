@@ -1,6 +1,6 @@
 # logical_weight
 #
-# Version: 1.1.1
+# Version: 1.1.2
 # Last Update: 2024/02/24
 # Author: Tomio Kobayashi
 #
@@ -60,14 +60,16 @@ class logical_weight:
 
 
 #     def calc_avg_result_weight(inp_exp, weights, use_lognormal=False, loop_limit=2000, opt_steps={}, normal_sigma=1, log_normal_sigma=0.5):
-    def calc_avg_result_weight(inp_exp, weights, use_lognormal=False, loop_limit=2000, opt_steps={}, sigma=1.):
+#     def calc_avg_result_weight(inp_exp, weights, use_lognormal=False, loop_limit=2000, opt_steps={}, sigma=1.):
+    def calc_avg_result_weight(inp_exp, weights, use_lognormal=False, loop_limit=2000, sigma=1.):
 
         exp = inp_exp
 
         for k, v in weights.items():
-            multi_factor = opt_steps[k] if k in opt_steps else 1.0
-            exp = exp.replace(k, str(v*multi_factor))
-
+#             multi_factor = opt_steps[k] if k in opt_steps else 1.0
+#             exp = exp.replace(k, str(v*multi_factor))
+            exp = exp.replace(k, str(v*1.0))
+#         print("exp", exp)
         pattern_and = "\((\s*[^\|\(\)]*\s*&\s[^\|\(\)]*\s*)+\)"
         pattern_or = "\((\s*[^\|\(\)]*\s*\|\s[^\|\(\)]*\s*)+\)"
 
