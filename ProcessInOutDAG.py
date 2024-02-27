@@ -1,6 +1,6 @@
 # Process In-Out DAG
-# Version: 2.1.4
-# Last Update: 2024/02/27
+# Version: 2.1.5
+# Last Update: 2024/02/28
 # Author: Tomio Kobayashi
 #
 # pip install simpy
@@ -70,8 +70,6 @@ class ProcessInOutDAG:
             
             self.simpy_env = env
             self.flow_seq = flow_seq
-#             self.task_finished = {}
-#             self.task_triggered = {}
             self.task_finished = set()
             self.task_triggered = set()
             self.start_times = {}
@@ -88,12 +86,6 @@ class ProcessInOutDAG:
             self.all_workers = all_workers
             
             self.silent = silent
-
-#             for s in sim_nodesets:
-#                 self.start_times[s] = 0
-#                 self.finish_times[s] = 0
-#                 self.wait_times[s] = 0
-#             self.parent = parent
             
         def myeval(self, __ccc___, __inp___):
             for __jjjj___ in __ccc___:
@@ -102,10 +94,12 @@ class ProcessInOutDAG:
 
         def task(self, target_vertex, workers):
 
-            if target_vertex in self.task_triggered:
-                return
-
             preds_set = set([p for p in self.G.predecessors(target_vertex) if p in self.sim_nodesets])
+
+            # to allow cycle
+            if target_vertex in self.task_triggered and len(preds_set) > 1:
+                return
+            
             if self.dic_vertex_names[target_vertex] in self.dic_conds:
                 dic_opt = {self.dic_vertex_id[k[0]]: v for k, v in self.dic_opts.items() if self.dic_vertex_id[k[1]] == target_vertex}
                 res = self.myeval([(self.dic_vertex_names[p], True if p in self.task_finished or (p in dic_opt and random.random() > dic_opt[p]) else False) for p in preds_set], 
@@ -186,7 +180,6 @@ class ProcessInOutDAG:
         print("")
         print('Flow Simulation Started')
         print("----------------")
-#         random.seed(42)  # For reproducible results
         
         self.flow_counter = 0
         
@@ -204,9 +197,7 @@ class ProcessInOutDAG:
                 self.sim_nodesets |= set(self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=dic_target_vertices[target_vertex]))]).nodes)
             
         self.sim_runs = []
-        
 
-                
         for i in range(sim_repeats):
             self.simpy_env = simpy.Environment()
             self.all_workers = {}
@@ -228,32 +219,32 @@ class ProcessInOutDAG:
         if fromSink:
             subgraph = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=org_dic_target_vertices[org_target_vertices[0]], orientation="reverse"))])
 
-            succs = [self.dic_vertex_names[s] for s in subgraph]
-#             avg_duration_p = {ss: np.mean([np.mean(v.start_times[ss]) for s in self.sim_runs for k, v in s.items()]) for ss in self.sim_nodesets}
-#             avg_duration_p = {ss: np.mean([np.mean(v.start_times[ss]) for s in self.sim_runs for k, v in s.items() if ss in v.start_times]) for ss in self.sim_nodesets }
-            avg_duration_p = {ss: np.mean([np.mean(v.start_times[ss]) for s in self.sim_runs for k, v in s.items() if ss in v.start_times]) for ss in self.sim_nodesets }
-            avg_duration_p = {k: v if not np.isnan(v) else 0 for k, v in avg_duration_p.items()}
-    
-            position, wait_edges = self.find_pos(subgraph, use_expected=False, use_lognormal=True, avg_duration_p=avg_duration_p)
+            if not nx.is_directed_acyclic_graph(subgraph):
+                print("The graph is not a Directed Acyclic Graph (DAG), so the diagram cannot be drawn")
+            else:
+                succs = [self.dic_vertex_names[s] for s in subgraph]
+                avg_duration_p = {ss: np.mean([np.mean(v.start_times[ss]) for s in self.sim_runs for k, v in s.items() if ss in v.start_times]) for ss in self.sim_nodesets }
+                avg_duration_p = {k: v if not np.isnan(v) else 0 for k, v in avg_duration_p.items()}
 
-            selected_vertices1 = set([n for n in subgraph.nodes])
-            selected_vertices2 = set([n for n in subgraph.nodes if self.dic_vertex_names[n][0:5] == "proc_"])
+                position, wait_edges = self.find_pos(subgraph, use_expected=False, use_lognormal=True, avg_duration_p=avg_duration_p)
 
-            node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
+                selected_vertices1 = set([n for n in subgraph.nodes])
+                selected_vertices2 = set([n for n in subgraph.nodes if self.dic_vertex_names[n][0:5] == "proc_"])
+
+                node_labels = {i: name for i, name in enumerate(self.vertex_names) if i in selected_vertices1 or i in selected_vertices2}
+
+                print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
+                print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
+                title = "Task Origins with Simulator-Based Weighted Pipelining"
+                title += " (" + str(int(self.max_pos)) + " steps)"
+
+                selected_vertices1 = list(selected_vertices1)
+                selected_vertices2 = list(selected_vertices2)
+                selected_vertices3 = [target_vertex]
             
-            print("Number of Elements: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] != "proc_"])))
-            print("Number of Processes: " + str(len([1 for k in selected_vertices1 if self.dic_vertex_names[k][0:5] == "proc_"])))
-            title = "Task Origins with Simulator-Based Weighted Pipelining"
-            title += " (" + str(int(self.max_pos)) + " steps)"
-
-            selected_vertices1 = list(selected_vertices1)
-            selected_vertices2 = list(selected_vertices2)
-            selected_vertices3 = [target_vertex]
-            
-        
-            self.draw_selected_vertices_reverse_proc2(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
-                            title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, excludeComp=False, 
-                                                      showExpectationBased=False)
+                self.draw_selected_vertices_reverse_proc2(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
+                                title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, excludeComp=False, 
+                                                          showExpectationBased=False)
             
         outputs = [["task", "start_time", "finish_time", "execution_time", "wait_time"]]
         start_times = avg_duration_p
@@ -435,10 +426,7 @@ class ProcessInOutDAG:
 
         # Set figure size to be larger
         plt.figure(figsize=figsize)
-
-#         # Set figure size to be larger
-#         node_labels = {node: "\n".join(["\n".join(textwrap.wrap(s, width=5)) for s in label.replace("_", "_\n").replace(" ", "\n").split("\n")]) for node, label in node_labels.items()}
-    
+        
         # Show stats of procs
         has_proc = len([k for k in self.dic_vertex_id if k[0:5]  == "proc_"]) > 0
         
@@ -663,16 +651,17 @@ class ProcessInOutDAG:
         # Convert the adjacency matrix to a NumPy array of integers
         adjacency_matrix = np.array(adjacency_matrix, dtype=int)
                     
-        if not nx.is_directed_acyclic_graph(nx.DiGraph(adjacency_matrix)):
-            print("The graph is not a Directed Acyclic Graph (DAG).")
+        # allow cycles to be imported to support cycles in simulations
+#         if not nx.is_directed_acyclic_graph(nx.DiGraph(adjacency_matrix)):
+#             print("The graph is not a Directed Acyclic Graph (DAG).")
 
-            # Find cycles in the graph
-            cycles = list(nx.simple_cycles(nx.DiGraph(adjacency_matrix)))
+#             # Find cycles in the graph
+#             cycles = list(nx.simple_cycles(nx.DiGraph(adjacency_matrix)))
 
-            print("Cycles in the graph:")
-            for cycle in cycles:
-                print(cycle)
-            return
+#             print("Cycles in the graph:")
+#             for cycle in cycles:
+#                 print(cycle)
+#             return
         
         self.csr_matrix = csr_matrix(adjacency_matrix)
         self.csr_matrix_T = self.csr_matrix.transpose()
@@ -1590,3 +1579,4 @@ class ProcessInOutDAG:
                     self.vertex_names.pop(i)
                     
                     
+
