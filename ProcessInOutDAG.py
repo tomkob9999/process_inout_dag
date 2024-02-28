@@ -1,5 +1,5 @@
 # Process In-Out DAG
-# Version: 2.1.5
+# Version: 2.1.6
 # Last Update: 2024/02/28
 # Author: Tomio Kobayashi
 #
@@ -62,11 +62,12 @@ class ProcessInOutDAG:
         self.sim_runs = []
         
         self.all_workers = {}
+        self.logic_calc = logical_weight()
         
     # SIMULATOR 
     
     class flowman:
-        def __init__(self, env, flow_seq, G, sim_nodesets, dic_vertex_names, dic_vertex_id, dic_conds, dic_opts, dic_bran, all_workers, silent=False):
+        def __init__(self, env, flow_seq, G, sim_nodesets, dic_vertex_names, dic_vertex_id, dic_conds, dic_opts, dic_bran, all_workers, silent=False, hooks={}):
             
             self.simpy_env = env
             self.flow_seq = flow_seq
@@ -86,6 +87,10 @@ class ProcessInOutDAG:
             self.all_workers = all_workers
             
             self.silent = silent
+            self.logic_calc = logical_weight()
+            
+            self.storage = {}
+            self.hooks = hooks
             
         def myeval(self, __ccc___, __inp___):
             for __jjjj___ in __ccc___:
@@ -111,7 +116,6 @@ class ProcessInOutDAG:
                     if p != target_vertex and p not in self.task_finished:
                         return
 
-            
             with workers.request() as req:
                 arrive = self.simpy_env.now
                 results = yield req
@@ -129,13 +133,16 @@ class ProcessInOutDAG:
                 weight = 0
                 if len(succs_set) > 0:
                     weight = max([self.G[target_vertex][s]["weight"] for s in list(succs_set)])
-                time_takes = np.log(np.random.lognormal(weight, min(weight, 3))+1)
+#                 time_takes = np.log(np.random.lognormal(weight, min(weight, 3))+1)
+                time_takes = logical_weight.lognormal(weight, min(weight, 3))
 
                 start_time = self.simpy_env.now
                 if target_vertex not in self.start_times:
                     self.start_times[target_vertex] = []
                 self.start_times[target_vertex].append(start_time)
 
+                if target_vertex in self.hooks:
+                    self.hooks[target_vertex]()
                 yield self.simpy_env.timeout(time_takes)
 
                 finish_time = self.simpy_env.now
@@ -158,7 +165,7 @@ class ProcessInOutDAG:
                     self.simpy_env.process(self.task(s, self.all_workers[s]))
                 
        
-    def start_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True, figsize = (12, 8), task_occurrences=1, task_interval=0):
+    def start_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True, figsize = (12, 5), task_occurrences=1, task_interval=0, hooks={}):
         
         dic_target_vertices = {}
         for target_vertex in target_vertices:
@@ -208,7 +215,7 @@ class ProcessInOutDAG:
             self.flow_counter = 0
             for t in range(task_occurrences):
                 self.sim_runs[i][self.flow_counter] = ProcessInOutDAG.flowman(self.simpy_env, self.flow_counter,
-                            self.G, self.sim_nodesets, self.dic_vertex_names, self.dic_vertex_id, self.dic_conds, self.dic_opts, self.dic_bran, self.all_workers, silent=silent)
+                            self.G, self.sim_nodesets, self.dic_vertex_names, self.dic_vertex_id, self.dic_conds, self.dic_opts, self.dic_bran, self.all_workers, silent=silent, hooks=hooks)
                 for target_vertex in target_vertices:
                     cap = self.dic_capacity[target_vertex] if target_vertex in self.dic_capacity else 9999999
                     self.simpy_env.process(self.sim_runs[i][self.flow_counter].task(dic_target_vertices[target_vertex], self.all_workers[dic_target_vertices[target_vertex]]))
@@ -316,10 +323,12 @@ class ProcessInOutDAG:
 #                         dic_opt = {k[0]: v for k, v in self.dic_opts.items() if k[1] == self.dic_vertex_names[t]}
                         if self.dic_vertex_names[t] in self.dic_conds:
 #                             tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, opt_steps=dic_opt, use_lognormal=use_lognormal, sigma=normal_sigma)
-                            tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, use_lognormal=use_lognormal, sigma=normal_sigma)
+#                             tot = logical_weight.calc_avg_result_weight(self.dic_conds[self.dic_vertex_names[t]], weight_params, use_lognormal=use_lognormal, sigma=normal_sigma)
+                            tot = self.logic_calc.calc_avg_result_weight_memo(self.dic_conds[self.dic_vertex_names[t]], weight_params, use_lognormal=use_lognormal, sigma=normal_sigma)
                         else:
 #                             tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, opt_steps=dic_opt, use_lognormal=use_lognormal, sigma=normal_sigma)
-                            tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, use_lognormal=use_lognormal, sigma=normal_sigma)
+#                             tot = logical_weight.calc_avg_result_weight(" & ".join([k for k, v in weights[t].items()]), weight_params, use_lognormal=use_lognormal, sigma=normal_sigma)
+                            tot = self.logic_calc.calc_avg_result_weight_memo(" & ".join([k for k, v in weights[t].items()]), weight_params, use_lognormal=use_lognormal, sigma=normal_sigma)
                     else:
                         tot = max([v for k, v in weight_params.items()])
                     avg_duration[t] = tot
@@ -392,7 +401,7 @@ class ProcessInOutDAG:
         return newpos, weight_list
 
     def draw_selected_vertices_reverse_proc2(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, 
-                                            pos, wait_edges=None, reverse=False, figsize=(12, 8), showWeight=False, forStretch=False, excludeComp=False, showExpectationBased=False):
+                                            pos, wait_edges=None, reverse=False, figsize=(12, 5), showWeight=False, forStretch=False, excludeComp=False, showExpectationBased=False):
         
         pattern = "(#C.*)"
         
@@ -1106,7 +1115,7 @@ class ProcessInOutDAG:
         selected_vertices3 = [target_vertex]
         
         if figsize is None:
-            figsize = (12, 8)
+            figsize = (12, 5)
         
         self.draw_selected_vertices_reverse_proc2(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
                         title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, excludeComp=excludeComp, 
@@ -1164,7 +1173,7 @@ class ProcessInOutDAG:
         selected_vertices3 = [target_vertex]
         
         if figsize is None:
-            figsize = (12, 8)
+            figsize = (12, 5)
 
         self.draw_selected_vertices_reverse_proc2(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
                                 title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, excludeComp=excludeComp)
@@ -1232,7 +1241,7 @@ class ProcessInOutDAG:
         selected_vertices3 = [target_vertex]
         
         if figsize is None:
-            figsize = (12, 8)
+            figsize = (12, 5)
         
         self.draw_selected_vertices_reverse_proc2(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
                         title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, 
@@ -1299,7 +1308,7 @@ class ProcessInOutDAG:
         selected_vertices3 = [target_vertex]
         
         if figsize is None:
-            figsize = (12, 8)
+            figsize = (12, 5)
 
         self.draw_selected_vertices_reverse_proc2(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
                         title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, excludeComp=excludeComp)
@@ -1579,4 +1588,3 @@ class ProcessInOutDAG:
                     self.vertex_names.pop(i)
                     
                     
-
