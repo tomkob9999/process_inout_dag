@@ -1,5 +1,5 @@
 # Process In-Out DAG
-# Version: 2.1.6
+# Version: 2.1.7
 # Last Update: 2024/02/28
 # Author: Tomio Kobayashi
 #
@@ -67,7 +67,7 @@ class ProcessInOutDAG:
     # SIMULATOR 
     
     class flowman:
-        def __init__(self, env, flow_seq, G, sim_nodesets, dic_vertex_names, dic_vertex_id, dic_conds, dic_opts, dic_bran, all_workers, silent=False, hooks={}):
+        def __init__(self, env, flow_seq, G, sim_nodesets, dic_vertex_names, dic_vertex_id, dic_conds, dic_opts, dic_bran, all_workers, silent=False, hooks={}, cond_hooks={}):
             
             self.simpy_env = env
             self.flow_seq = flow_seq
@@ -91,6 +91,7 @@ class ProcessInOutDAG:
             
             self.storage = {}
             self.hooks = hooks
+            self.cond_hooks = cond_hooks
             
         def myeval(self, __ccc___, __inp___):
             for __jjjj___ in __ccc___:
@@ -116,6 +117,10 @@ class ProcessInOutDAG:
                     if p != target_vertex and p not in self.task_finished:
                         return
 
+            # to allow cycle
+            if target_vertex in self.cond_hooks and not self.cond_hooks[target_vertex]():
+                return
+            
             with workers.request() as req:
                 arrive = self.simpy_env.now
                 results = yield req
@@ -165,7 +170,7 @@ class ProcessInOutDAG:
                     self.simpy_env.process(self.task(s, self.all_workers[s]))
                 
        
-    def start_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True, figsize = (12, 5), task_occurrences=1, task_interval=0, hooks={}):
+    def start_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True, figsize = (12, 5), task_occurrences=1, task_interval=0, hooks={}, cond_hooks={}):
         
         dic_target_vertices = {}
         for target_vertex in target_vertices:
@@ -215,7 +220,7 @@ class ProcessInOutDAG:
             self.flow_counter = 0
             for t in range(task_occurrences):
                 self.sim_runs[i][self.flow_counter] = ProcessInOutDAG.flowman(self.simpy_env, self.flow_counter,
-                            self.G, self.sim_nodesets, self.dic_vertex_names, self.dic_vertex_id, self.dic_conds, self.dic_opts, self.dic_bran, self.all_workers, silent=silent, hooks=hooks)
+                            self.G, self.sim_nodesets, self.dic_vertex_names, self.dic_vertex_id, self.dic_conds, self.dic_opts, self.dic_bran, self.all_workers, silent=silent, hooks=hooks, cond_hooks=cond_hooks)
                 for target_vertex in target_vertices:
                     cap = self.dic_capacity[target_vertex] if target_vertex in self.dic_capacity else 9999999
                     self.simpy_env.process(self.sim_runs[i][self.flow_counter].task(dic_target_vertices[target_vertex], self.all_workers[dic_target_vertices[target_vertex]]))
@@ -1586,5 +1591,3 @@ class ProcessInOutDAG:
             for i in range(len(copy.deepcopy(self.vertex_names))):
                 if i not in self.G.nodes:
                     self.vertex_names.pop(i)
-                    
-                    
