@@ -1,6 +1,6 @@
 # Process In-Out DAG
-# Version: 2.1.7
-# Last Update: 2024/02/28
+# Version: 2.1.8
+# Last Update: 2024/02/29
 # Author: Tomio Kobayashi
 #
 # pip install simpy
@@ -67,7 +67,7 @@ class ProcessInOutDAG:
     # SIMULATOR 
     
     class flowman:
-        def __init__(self, env, flow_seq, G, sim_nodesets, dic_vertex_names, dic_vertex_id, dic_conds, dic_opts, dic_bran, all_workers, silent=False, hooks={}, cond_hooks={}):
+        def __init__(self, env, flow_seq, G, sim_nodesets, dic_vertex_names, dic_vertex_id, dic_conds, dic_opts, dic_bran, all_workers, silent=False, hooks={}, cond_hooks={}, bran_hooks={}):
             
             self.simpy_env = env
             self.flow_seq = flow_seq
@@ -92,6 +92,7 @@ class ProcessInOutDAG:
             self.storage = {}
             self.hooks = hooks
             self.cond_hooks = cond_hooks
+            self.bran_hooks = bran_hooks
             
         def myeval(self, __ccc___, __inp___):
             for __jjjj___ in __ccc___:
@@ -103,24 +104,37 @@ class ProcessInOutDAG:
             preds_set = set([p for p in self.G.predecessors(target_vertex) if p in self.sim_nodesets])
 
             # to allow cycle
-            if target_vertex in self.task_triggered and len(preds_set) > 1:
-                return
+#             if target_vertex in self.task_triggered and len(preds_set) > 1:
+#                 return
             
-            if self.dic_vertex_names[target_vertex] in self.dic_conds:
+            # if conditional hooks are defined for this vertex
+            if target_vertex in self.cond_hooks:
+                if not self.cond_hooks[target_vertex]():
+                    return
+            # if conditions are defined for this vertex
+            elif self.dic_vertex_names[target_vertex] in self.dic_conds:
                 dic_opt = {self.dic_vertex_id[k[0]]: v for k, v in self.dic_opts.items() if self.dic_vertex_id[k[1]] == target_vertex}
                 res = self.myeval([(self.dic_vertex_names[p], True if p in self.task_finished or (p in dic_opt and random.random() > dic_opt[p]) else False) for p in preds_set], 
                                   self.dic_conds[self.dic_vertex_names[target_vertex]].replace("&", " and ").replace("|", " or "))
                 if not res:
                     return
+            # if the vertex is already finished and the precedessors are more than 1
+            elif target_vertex in self.task_finished and len(preds_set) > 1:
+                return
+            # default behavior: if any of predecessor is not finished yet, return
             else:
                 for p in preds_set:
-                    if p != target_vertex and p not in self.task_finished:
+#                     if p != target_vertex and p not in self.task_finished:
+                    if p not in self.task_finished:
                         return
-
-            # to allow cycle
-            if target_vertex in self.cond_hooks and not self.cond_hooks[target_vertex]():
+            
+            # if the vertex is already triggered and the precedessors are more than 1
+            if target_vertex in self.task_triggered:
                 return
             
+#             print("self.task_triggered is being added", target_vertex)
+            self.task_triggered.add(target_vertex)
+                
             with workers.request() as req:
                 arrive = self.simpy_env.now
                 results = yield req
@@ -129,8 +143,6 @@ class ProcessInOutDAG:
                 if target_vertex not in self.wait_times:
                     self.wait_times[target_vertex] = []
                 self.wait_times[target_vertex].append(wait_time)
-
-                self.task_triggered.add(target_vertex)
                 if not self.silent:
                     print(self.dic_vertex_names[target_vertex], "for", self.flow_seq, f"started at {self.simpy_env.now:.2f} with wait time {wait_time:.2f}")
 
@@ -158,9 +170,14 @@ class ProcessInOutDAG:
                     print(self.dic_vertex_names[target_vertex], "for", self.flow_seq, f"fiinished at {finish_time:.2f}")
 
                 self.task_finished.add(target_vertex)
+                self.task_triggered.remove(target_vertex)
 
             # Start process and run
-            if target_vertex in self.dic_bran and all([s in [f[0] for f in self.dic_bran[target_vertex]] for s in list(succs_set)]):
+            if target_vertex in self.bran_hooks:
+                brans = self.bran_hooks[target_vertex]()
+                for s in list(brans):
+                    self.simpy_env.process(self.task(s, self.all_workers[s]))
+            elif target_vertex in self.dic_bran and all([s in [f[0] for f in self.dic_bran[target_vertex]] for s in list(succs_set)]):
                 items = [f[0] for f in self.dic_bran[target_vertex]]
                 probabilities = [f[1] for f in self.dic_bran[target_vertex]]
                 picked_item = random.choices(items, weights=probabilities, k=1)[0]
@@ -170,7 +187,7 @@ class ProcessInOutDAG:
                     self.simpy_env.process(self.task(s, self.all_workers[s]))
                 
        
-    def start_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True, figsize = (12, 5), task_occurrences=1, task_interval=0, hooks={}, cond_hooks={}):
+    def start_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True, figsize = (12, 5), task_occurrences=1, task_interval=0, hooks={}, cond_hooks={}, bran_hooks={}):
         
         dic_target_vertices = {}
         for target_vertex in target_vertices:
@@ -220,7 +237,7 @@ class ProcessInOutDAG:
             self.flow_counter = 0
             for t in range(task_occurrences):
                 self.sim_runs[i][self.flow_counter] = ProcessInOutDAG.flowman(self.simpy_env, self.flow_counter,
-                            self.G, self.sim_nodesets, self.dic_vertex_names, self.dic_vertex_id, self.dic_conds, self.dic_opts, self.dic_bran, self.all_workers, silent=silent, hooks=hooks, cond_hooks=cond_hooks)
+                            self.G, self.sim_nodesets, self.dic_vertex_names, self.dic_vertex_id, self.dic_conds, self.dic_opts, self.dic_bran, self.all_workers, silent=silent, hooks=hooks, cond_hooks=cond_hooks, bran_hooks=bran_hooks)
                 for target_vertex in target_vertices:
                     cap = self.dic_capacity[target_vertex] if target_vertex in self.dic_capacity else 9999999
                     self.simpy_env.process(self.sim_runs[i][self.flow_counter].task(dic_target_vertices[target_vertex], self.all_workers[dic_target_vertices[target_vertex]]))

@@ -1,13 +1,10 @@
-start_time = time.time()
-
-
 
 mydag = ProcessInOutDAG()
 
 
-
 intext = """
-requests_apple	1		
+starter	4		
+requests_apple	1	starter	
 questioned_apple	3	requests_apple	
 answered_apple	2	questioned_apple	
 detailed_apple	3	answered_apple	
@@ -15,7 +12,7 @@ estimated_apple	2	detailed_apple
 prioritized_apple	4	estimated_apple	
 reviewed_apple	2	prioritized_apple	
 refined_apple	3	reviewed_apple	
-requests_orange	1		
+requests_orange	1	starter	
 questioned_orange	5	requests_orange	
 answered_orange	3	questioned_orange	
 detailed_orange	6	answered_orange	
@@ -30,14 +27,88 @@ approved	2	scoped
 
 mydag.data_import(intext=intext, is_oup_list=True)
 
-
-mydag.read_cond_list_from_file("/kaggle/input/cond-list5/cond_list5.txt") # and
-
-
-mydag.read_opt_list_from_file("/kaggle/input/cond-list10/opt_list10.txt") # orange-5%
+print("data_import() finished", measure(start_time))
+start_time = time.time()
 
 
-# mydag.start_flow(["requests_apple", "requests_orange"], silent=True, sim_repeats=3000, fromSink=False)
-# mydag.start_flow(["requests_apple", "requests_orange"], silent=False, sim_repeats=1, fromSink=False)
-res = mydag.start_flow(["approved"], silent=True, sim_repeats=3000, fromSink=True)
-# mydag.start_flow(["approved"], silent=False, sim_repeats=1, fromSink=True)
+intext = """
+scoped	(refined_apple | refined_orange)
+"""
+
+mydag.read_cond_list_from_file(intext=intext)
+print("read_cond_list_from_file() finished", measure(start_time))
+start_time = time.time()
+
+# intext = """
+# refined_orange	scoped	.05
+# """
+
+# # mydag.read_opt_list_from_file("/kaggle/input/cond-list9/opt_list9.txt") # apple-5%
+# # mydag.read_opt_list_from_file("/kaggle/input/cond-list10/opt_list10.txt") # orange-5%
+# mydag.read_opt_list_from_file(intext=intext)
+# print("read_opt_list_from_file() finished", measure(start_time))
+# start_time = time.time()
+
+
+mydag.dic_capacity["starter"] = 60
+mydag.dic_capacity["requests_apple"] = 70
+mydag.dic_capacity["questioned_apple"] = 40
+mydag.dic_capacity["answered_apple"] = 50
+mydag.dic_capacity["detailed_apple"] = 40
+mydag.dic_capacity["estimated_apple"] = 50
+mydag.dic_capacity["prioritized_apple"] = 30
+mydag.dic_capacity["reviewed_apple"] = 40
+mydag.dic_capacity["refined_apple"] = 70
+mydag.dic_capacity["requests_orange"] = 90
+mydag.dic_capacity["questioned_orange"] = 50
+mydag.dic_capacity["answered_orange"] = 60
+mydag.dic_capacity["detailed_orange"] = 40
+mydag.dic_capacity["estimated_orange"] = 50
+mydag.dic_capacity["prioritized_orange"] = 30
+mydag.dic_capacity["reviewed_orange"] = 40
+mydag.dic_capacity["refined_orange"] = 60
+mydag.dic_capacity["scoped"] = 20
+
+
+# intext = """
+# starter	requests_apple	0.9	
+# starter	requests_orange	0.1	
+# """
+
+# mydag.read_bran_list_from_file(intext=intext)
+# print("read_bran_list_from_file() finished", measure(start_time))
+# start_time = time.time()
+
+def func3():
+    mydag.sim_runs[0][0].storage["val"] = "GOD"
+        
+myhooks = {3: func3,
+          5: lambda: print(mydag.sim_runs[0][0].storage["val"])
+          }
+
+    
+myhooks_cond = {
+          4: lambda: mydag.sim_runs[0][0].storage["val"] == "GOD"
+          }
+
+myhooks_bran = {
+          0: lambda: [9]
+          }
+
+# res = mydag.start_flow(["approved"], figsize=(12,5), silent=True, sim_repeats=30, fromSink=True)
+# res = mydag.start_flow(["approved"], figsize=(12,5), silent=False, sim_repeats=1, fromSink=True, hooks=myhooks, cond_hooks=myhooks_cond, bran_hooks=myhooks_bran)
+res = mydag.start_flow(["approved"], figsize=(12,5), silent=False, sim_repeats=1, fromSink=True, hooks=myhooks, cond_hooks=myhooks_cond, bran_hooks=myhooks_bran)
+# res = mydag.start_flow(["approved"], figsize=(12,5), silent=True, sim_repeats=1, fromSink=True, task_occurrences=300, task_interval=100)
+# mydag.start_flow(["requests_orange"])
+print("res", res)
+start_time = time.time()
+
+mydag.drawOrigins("approved", figsize=(12,5))
+# print("drawOrigins() finished", measure(start_time))
+# start_time = time.time()
+
+mydag.drawOriginsStretch("approved", figsize=(12,5), showWeight=showWeight, showExpectationBased=True)
+# # mydag.drawOriginsStretch("COL46", showWeight=showWeight, showExpectationBased=True, use_lognormal=False)
+# # mydag.drawOriginsStretch("COL51", showWeight=showWeight, showExpectationBased=True)
+print("drawOriginsStretch() finished", measure(start_time))
+start_time = time.time()
