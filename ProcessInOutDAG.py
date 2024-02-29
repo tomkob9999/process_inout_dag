@@ -1,5 +1,5 @@
 # Process In-Out DAG
-# Version: 2.1.9
+# Version: 2.2.0
 # Last Update: 2024/02/29
 # Author: Tomio Kobayashi
 #
@@ -67,7 +67,8 @@ class ProcessInOutDAG:
     # SIMULATOR 
     
     class flowman:
-        def __init__(self, env, flow_seq, G, sim_nodesets, dic_vertex_names, dic_vertex_id, dic_conds, dic_opts, dic_bran, all_workers=None, silent=False, hooks={}, cond_hooks={}, bran_hooks={}):
+        def __init__(self, env, flow_seq, G, sim_nodesets, dic_vertex_names, dic_vertex_id, dic_conds, dic_opts, dic_bran, all_workers=None, silent=False, inp_data=None, hooks={}, cond_hooks={}, 
+                     bran_hooks={}):
             
             self.simpy_env = env
             self.flow_seq = flow_seq
@@ -94,6 +95,9 @@ class ProcessInOutDAG:
             self.cond_hooks = cond_hooks
             self.bran_hooks = bran_hooks
             
+            self.storage["input"] = inp_data
+            self.storage["output"] = None
+            
         def myeval(self, __ccc___, __inp___):
             for __jjjj___ in __ccc___:
                 exec(__jjjj___[0] + " = " + str(__jjjj___[1]))
@@ -109,7 +113,7 @@ class ProcessInOutDAG:
             
             # if conditional hooks are defined for this vertex
             if target_vertex in self.cond_hooks:
-                if not self.cond_hooks[target_vertex]():
+                if not self.cond_hooks[target_vertex](self):
                     return
             # if conditions are defined for this vertex
             elif self.dic_vertex_names[target_vertex] in self.dic_conds:
@@ -159,7 +163,7 @@ class ProcessInOutDAG:
                 self.start_times[target_vertex].append(start_time)
 
                 if target_vertex in self.hooks:
-                    self.hooks[target_vertex]()
+                    self.hooks[target_vertex](self)
                 yield self.simpy_env.timeout(time_takes)
 
                 finish_time = self.simpy_env.now
@@ -174,7 +178,7 @@ class ProcessInOutDAG:
 
             # Start process and run
             if target_vertex in self.bran_hooks:
-                brans = self.bran_hooks[target_vertex]()
+                brans = self.bran_hooks[target_vertex](self)
                 for s in list(brans):
                     self.simpy_env.process(self.task(s, self.all_workers[s]))
             elif target_vertex in self.dic_bran and all([s in [f[0] for f in self.dic_bran[target_vertex]] for s in list(succs_set)]):
@@ -196,7 +200,7 @@ class ProcessInOutDAG:
 
             # if conditional hooks are defined for this vertex
             if target_vertex in self.cond_hooks:
-                if not self.cond_hooks[target_vertex]():
+                if not self.cond_hooks[target_vertex](self):
                     return
             # if conditions are defined for this vertex
             elif self.dic_vertex_names[target_vertex] in self.dic_conds:
@@ -222,12 +226,6 @@ class ProcessInOutDAG:
     #             print("self.task_triggered is being added", target_vertex)
             self.task_triggered.add(target_vertex)
 
-#             arrive = self.simpy_env.now
-#             wait_time = self.simpy_env.now - arrive
-
-#             if target_vertex not in self.wait_times:
-#                 self.wait_times[target_vertex] = []
-#             self.wait_times[target_vertex].append(wait_time)
             if not self.silent:
                 print(self.dic_vertex_names[target_vertex], "for", self.flow_seq, f"started at {self.simpy_env.now:.2f}")
 
@@ -244,7 +242,7 @@ class ProcessInOutDAG:
             self.start_times[target_vertex].append(start_time)
 
             if target_vertex in self.hooks:
-                self.hooks[target_vertex]()
+                self.hooks[target_vertex](self)
             yield self.simpy_env.timeout(time_takes)
 
             finish_time = self.simpy_env.now
@@ -260,7 +258,7 @@ class ProcessInOutDAG:
             # Start process and run
             worker = simpy.Resource(self.simpy_env, capacity=999999)
             if target_vertex in self.bran_hooks:
-                brans = self.bran_hooks[target_vertex]()
+                brans = self.bran_hooks[target_vertex](self)
                 for s in list(brans):
                     self.simpy_env.process(self.task_exec(s))
             elif target_vertex in self.dic_bran and all([s in [f[0] for f in self.dic_bran[target_vertex]] for s in list(succs_set)]):
@@ -273,7 +271,7 @@ class ProcessInOutDAG:
                     self.simpy_env.process(self.task_exec(s))
                 
                 
-    def simulate_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True, figsize = (12, 5), task_occurrences=1, task_interval=0, hooks={}, cond_hooks={}, bran_hooks={}):
+    def simulate_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True, figsize = (12, 5), task_occurrences=1, task_interval=0, inp_data=None, hooks={}, cond_hooks={}, bran_hooks={}):
         
         dic_target_vertices = {}
         for target_vertex in target_vertices:
@@ -323,7 +321,7 @@ class ProcessInOutDAG:
             self.flow_counter = 0
             for t in range(task_occurrences):
                 self.sim_runs[i][self.flow_counter] = ProcessInOutDAG.flowman(self.simpy_env, self.flow_counter,
-                            self.G, self.sim_nodesets, self.dic_vertex_names, self.dic_vertex_id, self.dic_conds, self.dic_opts, self.dic_bran, self.all_workers, silent=silent, hooks=hooks, cond_hooks=cond_hooks, bran_hooks=bran_hooks)
+                            self.G, self.sim_nodesets, self.dic_vertex_names, self.dic_vertex_id, self.dic_conds, self.dic_opts, self.dic_bran, self.all_workers, silent=silent, inp_data=inp_data, hooks=hooks, cond_hooks=cond_hooks, bran_hooks=bran_hooks)
                 for target_vertex in target_vertices:
                     cap = self.dic_capacity[target_vertex] if target_vertex in self.dic_capacity else 9999999
                     self.simpy_env.process(self.sim_runs[i][self.flow_counter].task(dic_target_vertices[target_vertex], self.all_workers[dic_target_vertices[target_vertex]]))
@@ -375,7 +373,7 @@ class ProcessInOutDAG:
         return outputs
 
     
-    def execute_flow(self, flow_counter, target_vertices, fromSink=False, silent=True, hooks={}, cond_hooks={}, bran_hooks={}):
+    def execute_flow(self, flow_counter, target_vertices, fromSink=False, silent=True, inp_data=None, hooks={}, cond_hooks={}, bran_hooks={}):
         
         dic_target_vertices = {}
         for target_vertex in target_vertices:
@@ -409,10 +407,12 @@ class ProcessInOutDAG:
                 self.sim_nodesets |= set(self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=dic_target_vertices[target_vertex]))]).nodes)
                 
         fm = ProcessInOutDAG.flowman(self.simpy_env, self.flow_counter,
-                    self.G, self.sim_nodesets, self.dic_vertex_names, self.dic_vertex_id, self.dic_conds, self.dic_opts, self.dic_bran, silent=silent, hooks=hooks, cond_hooks=cond_hooks, bran_hooks=bran_hooks)
+                    self.G, self.sim_nodesets, self.dic_vertex_names, self.dic_vertex_id, self.dic_conds, self.dic_opts, self.dic_bran, silent=silent, inp_data=inp_data, hooks=hooks, cond_hooks=cond_hooks, bran_hooks=bran_hooks)
         for target_vertex in target_vertices:
             self.simpy_env.process(fm.task_exec(dic_target_vertices[target_vertex]))
         self.simpy_env.run()
+        
+        return fm.storage["output"]
     
     def csr_matrix_to_edge_list(self, csr_matrix):
         rows, cols = csr_matrix.nonzero()
