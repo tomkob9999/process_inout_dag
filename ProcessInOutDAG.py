@@ -1,5 +1,5 @@
 # Process In-Out DAG
-# Version: 2.1.8
+# Version: 2.1.9
 # Last Update: 2024/02/29
 # Author: Tomio Kobayashi
 #
@@ -67,7 +67,7 @@ class ProcessInOutDAG:
     # SIMULATOR 
     
     class flowman:
-        def __init__(self, env, flow_seq, G, sim_nodesets, dic_vertex_names, dic_vertex_id, dic_conds, dic_opts, dic_bran, all_workers, silent=False, hooks={}, cond_hooks={}, bran_hooks={}):
+        def __init__(self, env, flow_seq, G, sim_nodesets, dic_vertex_names, dic_vertex_id, dic_conds, dic_opts, dic_bran, all_workers=None, silent=False, hooks={}, cond_hooks={}, bran_hooks={}):
             
             self.simpy_env = env
             self.flow_seq = flow_seq
@@ -185,9 +185,95 @@ class ProcessInOutDAG:
             else:
                 for s in list(succs_set):
                     self.simpy_env.process(self.task(s, self.all_workers[s]))
+
+        def task_exec(self, target_vertex):
+
+            preds_set = set([p for p in self.G.predecessors(target_vertex) if p in self.sim_nodesets])
+
+            # to allow cycle
+    #             if target_vertex in self.task_triggered and len(preds_set) > 1:
+    #                 return
+
+            # if conditional hooks are defined for this vertex
+            if target_vertex in self.cond_hooks:
+                if not self.cond_hooks[target_vertex]():
+                    return
+            # if conditions are defined for this vertex
+            elif self.dic_vertex_names[target_vertex] in self.dic_conds:
+                dic_opt = {self.dic_vertex_id[k[0]]: v for k, v in self.dic_opts.items() if self.dic_vertex_id[k[1]] == target_vertex}
+                res = self.myeval([(self.dic_vertex_names[p], True if p in self.task_finished or (p in dic_opt and random.random() > dic_opt[p]) else False) for p in preds_set], 
+                                  self.dic_conds[self.dic_vertex_names[target_vertex]].replace("&", " and ").replace("|", " or "))
+                if not res:
+                    return
+            # if the vertex is already finished and the precedessors are more than 1
+            elif target_vertex in self.task_finished and len(preds_set) > 1:
+                return
+            # default behavior: if any of predecessor is not finished yet, return
+            else:
+                for p in preds_set:
+    #                     if p != target_vertex and p not in self.task_finished:
+                    if p not in self.task_finished:
+                        return
+
+            # if the vertex is already triggered and the precedessors are more than 1
+            if target_vertex in self.task_triggered:
+                return
+
+    #             print("self.task_triggered is being added", target_vertex)
+            self.task_triggered.add(target_vertex)
+
+#             arrive = self.simpy_env.now
+#             wait_time = self.simpy_env.now - arrive
+
+#             if target_vertex not in self.wait_times:
+#                 self.wait_times[target_vertex] = []
+#             self.wait_times[target_vertex].append(wait_time)
+            if not self.silent:
+                print(self.dic_vertex_names[target_vertex], "for", self.flow_seq, f"started at {self.simpy_env.now:.2f}")
+
+            succs_set = set(self.G.successors(target_vertex))
+            weight = 0
+            if len(succs_set) > 0:
+                weight = max([self.G[target_vertex][s]["weight"] for s in list(succs_set)])
+#                 time_takes = np.log(np.random.lognormal(weight, min(weight, 3))+1)
+            time_takes = logical_weight.lognormal(weight, min(weight, 3))
+
+            start_time = self.simpy_env.now
+            if target_vertex not in self.start_times:
+                self.start_times[target_vertex] = []
+            self.start_times[target_vertex].append(start_time)
+
+            if target_vertex in self.hooks:
+                self.hooks[target_vertex]()
+            yield self.simpy_env.timeout(time_takes)
+
+            finish_time = self.simpy_env.now
+            if target_vertex not in self.finish_times:
+                self.finish_times[target_vertex] = []
+            self.finish_times[target_vertex].append(finish_time)
+            if not self.silent:
+                print(self.dic_vertex_names[target_vertex], "for", self.flow_seq, f"fiinished at {finish_time:.2f}")
+
+            self.task_finished.add(target_vertex)
+            self.task_triggered.remove(target_vertex)
+
+            # Start process and run
+            worker = simpy.Resource(self.simpy_env, capacity=999999)
+            if target_vertex in self.bran_hooks:
+                brans = self.bran_hooks[target_vertex]()
+                for s in list(brans):
+                    self.simpy_env.process(self.task_exec(s))
+            elif target_vertex in self.dic_bran and all([s in [f[0] for f in self.dic_bran[target_vertex]] for s in list(succs_set)]):
+                items = [f[0] for f in self.dic_bran[target_vertex]]
+                probabilities = [f[1] for f in self.dic_bran[target_vertex]]
+                picked_item = random.choices(items, weights=probabilities, k=1)[0]
+                self.simpy_env.process(self.task_exec(picked_item))
+            else:
+                for s in list(succs_set):
+                    self.simpy_env.process(self.task_exec(s))
                 
-       
-    def start_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True, figsize = (12, 5), task_occurrences=1, task_interval=0, hooks={}, cond_hooks={}, bran_hooks={}):
+                
+    def simulate_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True, figsize = (12, 5), task_occurrences=1, task_interval=0, hooks={}, cond_hooks={}, bran_hooks={}):
         
         dic_target_vertices = {}
         for target_vertex in target_vertices:
@@ -287,7 +373,47 @@ class ProcessInOutDAG:
                 
         print("")
         return outputs
-            
+
+    
+    def execute_flow(self, flow_counter, target_vertices, fromSink=False, silent=True, hooks={}, cond_hooks={}, bran_hooks={}):
+        
+        dic_target_vertices = {}
+        for target_vertex in target_vertices:
+            if isinstance(target_vertex, str):
+                if target_vertex not in self.dic_vertex_id:
+                    f = [v for k, v in self.dic_vertex_id.items() if target_vertex == re.sub("(#C.*)", "", k, count=1)]
+                    if len(f) > 0:
+                        dic_target_vertices[re.sub("(#C.*)", "", target_vertex, count=1)] = f[0]
+                    else:
+                        print(target_vertex + " is not an element")
+                        return
+                else:
+                    dic_target_vertices[target_vertex] = self.dic_vertex_id[target_vertex]
+                
+        org_target_vertices = copy.deepcopy(target_vertices)
+        org_dic_target_vertices = copy.deepcopy(dic_target_vertices)
+    
+        
+        self.flow_counter = flow_counter
+        self.sim_nodesets = set()
+
+        if fromSink:
+            tmp_target_vetcices = set()
+            for target_vertex in target_vertices:
+                self.sim_nodesets |= set(self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=dic_target_vertices[target_vertex], orientation="reverse"))]).nodes)
+                tmp_target_vetcices |= set([node for node, in_degree in self.G.in_degree() if in_degree == 0])
+            dic_target_vertices = {self.dic_vertex_names[t]:t for t in tmp_target_vetcices}
+            target_vertices = [self.dic_vertex_names[t] for t in tmp_target_vetcices]
+        else:
+            for target_vertex in target_vertices:
+                self.sim_nodesets |= set(self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=dic_target_vertices[target_vertex]))]).nodes)
+                
+        fm = ProcessInOutDAG.flowman(self.simpy_env, self.flow_counter,
+                    self.G, self.sim_nodesets, self.dic_vertex_names, self.dic_vertex_id, self.dic_conds, self.dic_opts, self.dic_bran, silent=silent, hooks=hooks, cond_hooks=cond_hooks, bran_hooks=bran_hooks)
+        for target_vertex in target_vertices:
+            self.simpy_env.process(fm.task_exec(dic_target_vertices[target_vertex]))
+        self.simpy_env.run()
+    
     def csr_matrix_to_edge_list(self, csr_matrix):
         rows, cols = csr_matrix.nonzero()
         weights = csr_matrix.data
