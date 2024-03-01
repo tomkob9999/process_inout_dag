@@ -95,6 +95,7 @@ myhooks_bran = {
 #           0: lambda: [9]
           }
 
+mydag.reference["one"] = "something"
 # res = mydag.simulate_flow(["approved"], figsize=(12,5), silent=True, sim_repeats=3000, fromSink=True)
 # res = mydag.simulate_flow(["approved"], figsize=(12,5), silent=False, sim_repeats=1, fromSink=True, inp_data="Hello Kitty", hooks=myhooks, cond_hooks=myhooks_cond, bran_hooks=myhooks_bran)
 # res = mydag.simulate_flow(["approved"], figsize=(12,5), silent=False, sim_repeats=1, fromSink=True)

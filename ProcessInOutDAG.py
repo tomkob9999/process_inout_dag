@@ -1,6 +1,6 @@
 # Process In-Out DAG
-# Version: 2.2.0
-# Last Update: 2024/02/29
+# Version: 2.2.1
+# Last Update: 2024/03/01
 # Author: Tomio Kobayashi
 #
 # pip install simpy
@@ -63,11 +63,12 @@ class ProcessInOutDAG:
         
         self.all_workers = {}
         self.logic_calc = logical_weight()
+        self.reference = {}
         
     # SIMULATOR 
     
     class flowman:
-        def __init__(self, env, flow_seq, G, sim_nodesets, dic_vertex_names, dic_vertex_id, dic_conds, dic_opts, dic_bran, all_workers=None, silent=False, inp_data=None, hooks={}, cond_hooks={}, 
+        def __init__(self, env, flow_seq, G, sim_nodesets, dic_vertex_names, dic_vertex_id, dic_conds, dic_opts, dic_bran, all_workers=None, reference={}, silent=False, inp_data=None, hooks={}, cond_hooks={}, 
                      bran_hooks={}):
             
             self.simpy_env = env
@@ -97,6 +98,7 @@ class ProcessInOutDAG:
             
             self.storage["input"] = inp_data
             self.storage["output"] = None
+            self.reference = reference
             
         def myeval(self, __ccc___, __inp___):
             for __jjjj___ in __ccc___:
@@ -321,7 +323,7 @@ class ProcessInOutDAG:
             self.flow_counter = 0
             for t in range(task_occurrences):
                 self.sim_runs[i][self.flow_counter] = ProcessInOutDAG.flowman(self.simpy_env, self.flow_counter,
-                            self.G, self.sim_nodesets, self.dic_vertex_names, self.dic_vertex_id, self.dic_conds, self.dic_opts, self.dic_bran, self.all_workers, silent=silent, inp_data=inp_data, hooks=hooks, cond_hooks=cond_hooks, bran_hooks=bran_hooks)
+                            self.G, self.sim_nodesets, self.dic_vertex_names, self.dic_vertex_id, self.dic_conds, self.dic_opts, self.dic_bran, self.all_workers, reference=self.reference, silent=silent, inp_data=inp_data, hooks=hooks, cond_hooks=cond_hooks, bran_hooks=bran_hooks)
                 for target_vertex in target_vertices:
                     cap = self.dic_capacity[target_vertex] if target_vertex in self.dic_capacity else 9999999
                     self.simpy_env.process(self.sim_runs[i][self.flow_counter].task(dic_target_vertices[target_vertex], self.all_workers[dic_target_vertices[target_vertex]]))
@@ -407,7 +409,7 @@ class ProcessInOutDAG:
                 self.sim_nodesets |= set(self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=dic_target_vertices[target_vertex]))]).nodes)
                 
         fm = ProcessInOutDAG.flowman(self.simpy_env, self.flow_counter,
-                    self.G, self.sim_nodesets, self.dic_vertex_names, self.dic_vertex_id, self.dic_conds, self.dic_opts, self.dic_bran, silent=silent, inp_data=inp_data, hooks=hooks, cond_hooks=cond_hooks, bran_hooks=bran_hooks)
+                    self.G, self.sim_nodesets, self.dic_vertex_names, self.dic_vertex_id, self.dic_conds, self.dic_opts, self.dic_bran, reference=self.reference, silent=silent, inp_data=inp_data, hooks=hooks, cond_hooks=cond_hooks, bran_hooks=bran_hooks)
         for target_vertex in target_vertices:
             self.simpy_env.process(fm.task_exec(dic_target_vertices[target_vertex]))
         self.simpy_env.run()
