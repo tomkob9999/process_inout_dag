@@ -97,8 +97,9 @@ class ProcessInOutDAG:
             self.bran_hooks = bran_hooks
             
             self.storage["input"] = inp_data
-            self.storage["output"] = None
+#             self.storage["output"] = None
             self.storage["outputs"] = {}
+            self.storage["outputs"]["finally"] = None
             self.reference = reference
             
         def myeval(self, __ccc___, __inp___):
@@ -419,7 +420,8 @@ class ProcessInOutDAG:
             self.simpy_env.process(fm.task_exec(dic_target_vertices[target_vertex]))
         self.simpy_env.run()
         
-        return fm.storage["output"]
+#         return fm.storage["output"]
+        return fm.storage["outputs"]["finally"]
     
     def csr_matrix_to_edge_list(self, csr_matrix):
         rows, cols = csr_matrix.nonzero()
