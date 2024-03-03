@@ -97,7 +97,7 @@ class ProcessInOutDAG:
             self.bran_hooks = bran_hooks
             
             self.storage["input"] = inp_data
-#             self.storage["output"] = None
+            self.storage["output"] = None
             self.storage["outputs"] = {}
             self.reference = reference
             
