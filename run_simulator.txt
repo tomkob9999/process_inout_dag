@@ -1,3 +1,6 @@
+
+showWeight = True
+
 mydag = ProcessInOutDAG()
 
 
@@ -75,36 +78,39 @@ mydag.dic_capacity["scoped"] = 20
 # mydag.read_bran_list_from_file(intext=intext)
 
 def func3(task):
-#     mydag.sim_runs[0][0].storage["val"] = "GOD"
     task.storage["val"] = "GOD"
-    task.storage["output"] = "THE_END"
     print("task.storage[input]", task.storage["input"])
     print("task.flow_seq", task.flow_seq)
+    print("task.reference[one]", task.reference["one"])
+    print("storage", task.storage)
+    return "func3 finished"
         
-myhooks = {3: func3,
-          5: lambda task: print(task.storage["val"])
+myhooks = {"questioned_orange": func3,
+          "detailed_orange": lambda task: print(task.storage["val"]),
+          "scoped": func3
           }
 
     
 myhooks_cond = {
-#           4: lambda task: mydag.sim_runs[0][0].storage["val"] == "GOD"
-          4: lambda task: task.storage["val"] == "GOD"
+          "answered_orange": lambda task: task.storage["val"] == "GOD"
           }
 
 myhooks_bran = {
-#           0: lambda: [9]
+          "starter": lambda task: ["requests_orange"]
           }
 
 mydag.reference["one"] = "something"
 # res = mydag.simulate_flow(["approved"], figsize=(12,5), silent=True, sim_repeats=3000, fromSink=True)
-# res = mydag.simulate_flow(["approved"], figsize=(12,5), silent=False, sim_repeats=1, fromSink=True, inp_data="Hello Kitty", hooks=myhooks, cond_hooks=myhooks_cond, bran_hooks=myhooks_bran)
+res = mydag.simulate_flow(["approved"], figsize=(12,5), silent=False, sim_repeats=1, fromSink=True, inp_data="Hello Kitty", hooks=myhooks, cond_hooks=myhooks_cond, bran_hooks=myhooks_bran)
 # res = mydag.simulate_flow(["approved"], figsize=(12,5), silent=False, sim_repeats=1, fromSink=True)
 # res = mydag.simulate_flow(["approved"], figsize=(12,5), silent=False, sim_repeats=1, fromSink=True, hooks=myhooks, cond_hooks=myhooks_cond, bran_hooks=myhooks_bran)
 # res = mydag.simulate_flow(["approved"], figsize=(12,5), silent=True, sim_repeats=1, fromSink=True, task_occurrences=300, task_interval=100)
 
-res = mydag.execute_flow(33, ["approved"], fromSink=True, silent=True, inp_data="Hello Kitty", hooks=myhooks, cond_hooks=myhooks_cond, bran_hooks=myhooks_bran)
+# res = mydag.execute_flow(33, ["approved"], fromSink=True, silent=True, inp_data="Hello Kitty", hooks=myhooks, cond_hooks=myhooks_cond, bran_hooks=myhooks_bran)
 print("res", res)
 
 mydag.drawOrigins("approved", figsize=(12,5))
 
 mydag.drawOriginsStretch("approved", figsize=(12,5), showWeight=showWeight, showExpectationBased=True)
+# # mydag.drawOriginsStretch("COL46", showWeight=showWeight, showExpectationBased=True, use_lognormal=False)
+# # mydag.drawOriginsStretch("COL51", showWeight=showWeight, showExpectationBased=True)

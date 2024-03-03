@@ -1,6 +1,6 @@
 # Process In-Out DAG
-# Version: 2.2.1
-# Last Update: 2024/03/01
+# Version: 2.2.2
+# Last Update: 2024/03/03
 # Author: Tomio Kobayashi
 #
 # pip install simpy
@@ -97,7 +97,8 @@ class ProcessInOutDAG:
             self.bran_hooks = bran_hooks
             
             self.storage["input"] = inp_data
-            self.storage["output"] = None
+#             self.storage["output"] = None
+            self.storage["outputs"] = {}
             self.reference = reference
             
         def myeval(self, __ccc___, __inp___):
@@ -114,8 +115,8 @@ class ProcessInOutDAG:
 #                 return
             
             # if conditional hooks are defined for this vertex
-            if target_vertex in self.cond_hooks:
-                if not self.cond_hooks[target_vertex](self):
+            if self.dic_vertex_names[target_vertex] in self.cond_hooks:
+                if not self.cond_hooks[self.dic_vertex_names[target_vertex]](self):
                     return
             # if conditions are defined for this vertex
             elif self.dic_vertex_names[target_vertex] in self.dic_conds:
@@ -164,8 +165,9 @@ class ProcessInOutDAG:
                     self.start_times[target_vertex] = []
                 self.start_times[target_vertex].append(start_time)
 
-                if target_vertex in self.hooks:
-                    self.hooks[target_vertex](self)
+                if self.dic_vertex_names[target_vertex] in self.hooks:
+#                     self.hooks[target_vertex](self)
+                    self.storage["outputs"][self.dic_vertex_names[target_vertex]] = self.hooks[self.dic_vertex_names[target_vertex]](self)
                 yield self.simpy_env.timeout(time_takes)
 
                 finish_time = self.simpy_env.now
@@ -179,10 +181,11 @@ class ProcessInOutDAG:
                 self.task_triggered.remove(target_vertex)
 
             # Start process and run
-            if target_vertex in self.bran_hooks:
-                brans = self.bran_hooks[target_vertex](self)
+            if self.dic_vertex_names[target_vertex] in self.bran_hooks:
+                brans = self.bran_hooks[self.dic_vertex_names[target_vertex]](self)
                 for s in list(brans):
-                    self.simpy_env.process(self.task(s, self.all_workers[s]))
+#                     self.simpy_env.process(self.task(s, self.all_workers[s]))
+                    self.simpy_env.process(self.task(self.dic_vertex_id[s], self.all_workers[self.dic_vertex_id[s]]))
             elif target_vertex in self.dic_bran and all([s in [f[0] for f in self.dic_bran[target_vertex]] for s in list(succs_set)]):
                 items = [f[0] for f in self.dic_bran[target_vertex]]
                 probabilities = [f[1] for f in self.dic_bran[target_vertex]]
@@ -201,8 +204,8 @@ class ProcessInOutDAG:
     #                 return
 
             # if conditional hooks are defined for this vertex
-            if target_vertex in self.cond_hooks:
-                if not self.cond_hooks[target_vertex](self):
+            if self.dic_vertex_names[target_vertex] in self.cond_hooks:
+                if not self.cond_hooks[self.dic_vertex_names[target_vertex]](self):
                     return
             # if conditions are defined for this vertex
             elif self.dic_vertex_names[target_vertex] in self.dic_conds:
@@ -243,8 +246,9 @@ class ProcessInOutDAG:
                 self.start_times[target_vertex] = []
             self.start_times[target_vertex].append(start_time)
 
-            if target_vertex in self.hooks:
-                self.hooks[target_vertex](self)
+            if self.dic_vertex_names[target_vertex] in self.hooks:
+#                 self.hooks[target_vertex](self)
+                self.storage["outputs"][self.dic_vertex_names[target_vertex]] = self.hooks[self.dic_vertex_names[target_vertex]](self)
             yield self.simpy_env.timeout(time_takes)
 
             finish_time = self.simpy_env.now
@@ -259,10 +263,11 @@ class ProcessInOutDAG:
 
             # Start process and run
             worker = simpy.Resource(self.simpy_env, capacity=999999)
-            if target_vertex in self.bran_hooks:
-                brans = self.bran_hooks[target_vertex](self)
+            if self.dic_vertex_names[target_vertex] in self.bran_hooks:
+                brans = self.bran_hooks[self.dic_vertex_names[target_vertex]](self)
                 for s in list(brans):
-                    self.simpy_env.process(self.task_exec(s))
+#                     self.simpy_env.process(self.task_exec(s))
+                    self.simpy_env.process(self.task_exec(self.dic_vertex_id[s]))
             elif target_vertex in self.dic_bran and all([s in [f[0] for f in self.dic_bran[target_vertex]] for s in list(succs_set)]):
                 items = [f[0] for f in self.dic_bran[target_vertex]]
                 probabilities = [f[1] for f in self.dic_bran[target_vertex]]
