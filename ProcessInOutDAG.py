@@ -1,6 +1,6 @@
 # Process In-Out DAG
-# Version: 2.2.2
-# Last Update: 2024/03/03
+# Version: 2.2.4
+# Last Update: 2024/03/23
 # Author: Tomio Kobayashi
 #
 # pip install simpy
@@ -558,7 +558,7 @@ class ProcessInOutDAG:
         return newpos, weight_list
 
     def draw_selected_vertices_reverse_proc2(self, G, selected_vertices1, selected_vertices2, selected_vertices3, title, node_labels, 
-                                            pos, wait_edges=None, reverse=False, figsize=(12, 5), showWeight=False, forStretch=False, excludeComp=False, showExpectationBased=False):
+                                            pos, wait_edges=None, reverse=False, figsize=(12, 5), showWeight=False, forStretch=False, excludeComp=False, showExpectationBased=False, pivotColorPink=False):
         
         pattern = "(#C.*)"
         
@@ -664,11 +664,23 @@ class ProcessInOutDAG:
                     matched_str = str(match.group()[2:])
                     node_colors[i] = matched_str if len(matched_str) > 1 else "C" + match.group()[2:]
                     node_labels1[s] = re.sub(pattern, "", node_labels1[s], count=1)
-    
-        for i in node_labels:
-            match = re.search(pattern, node_labels[i])
-            if match:
-                node_labels[i] = re.sub(pattern, "", node_labels[i], count=1)
+
+        if not pivotColorPink:
+            node_labels3 = {k: v for k, v in node_labels.items() if k in subgraph3}
+            node_colors3 = ['skyblue' for n in selected_vertices3]
+            for i, s in enumerate(selected_vertices3):
+                if s in node_labels3:
+                    match = re.search(pattern, node_labels3[s])
+                    if match:
+                        matched_str = str(match.group()[2:])
+                        node_colors3[i] = matched_str if len(matched_str) > 1 else "C" + match.group()[2:]
+                        node_labels3[s] = re.sub(pattern, "", node_labels3[s], count=1)
+
+
+            for i in node_labels:
+                match = re.search(pattern, node_labels[i])
+                if match:
+                    node_labels[i] = re.sub(pattern, "", node_labels[i], count=1)
                 
         
         # Set figure size to be larger
@@ -695,8 +707,11 @@ class ProcessInOutDAG:
         else:
             nx.draw(subgraph2, pos, linewidths=0, with_labels=True, labels=node_labels2, node_size=defNodeSize, node_color='orange', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
 
-        nx.draw(subgraph3, pos, linewidths=0, with_labels=True, labels=node_labels3, node_size=defNodeSize, node_color='pink', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
-        
+        if pivotColorPink:
+            nx.draw(subgraph3, pos, linewidths=0, with_labels=True, labels=node_labels3, node_size=defNodeSize, node_color='pink', font_size=10, font_color='black', arrowsize=10, edgecolors='black')
+        else:
+            nx.draw(subgraph3, pos, linewidths=1, with_labels=True, labels=node_labels3, node_size=defNodeSize, nodelist=selected_vertices3, node_color=node_colors3, font_size=defFontSize, font_color=defFontColor, arrowsize=10, edgecolors='black')
+     
         if excludeComp:
             nx.draw(subgraph_comp, pos, linewidths=0, with_labels=True, labels=node_labels1, node_size=defNodeSize, node_color='#DDDDDD', font_size=defFontSize, font_color=defFontColor, arrowsize=10, edgecolors='black')
     
@@ -826,8 +841,10 @@ class ProcessInOutDAG:
 
 #             print("Cycles in the graph:")
 #             for cycle in cycles:
-#                 print(cycle)
-#             return
+# #                 print(cycle)
+#                 print(self.dic_vertex_names[cycle[0]], "->", self.dic_vertex_names[cycle[1]])
+#                 self.dic_vertex_names
+# #             return
         
         self.csr_matrix = csr_matrix(adjacency_matrix)
         self.csr_matrix_T = self.csr_matrix.transpose()
@@ -861,6 +878,18 @@ class ProcessInOutDAG:
         print("Centrality Stats of the Largest Connected Component")
         print("---")
         self.showStats(largest_G)
+            
+        if not nx.is_directed_acyclic_graph(nx.DiGraph(adjacency_matrix)):
+            print("The graph is not a Directed Acyclic Graph (DAG).")
+
+            # Find cycles in the graph
+            cycles = list(nx.simple_cycles(nx.DiGraph(adjacency_matrix)))
+
+            print("Cycles in the graph:")
+            for cycle in cycles:
+#                 print(cycle)
+                print(self.dic_vertex_names[cycle[0]], "->", self.dic_vertex_names[cycle[1]])
+            
             
     def write_edge_list_to_file(self, filename, intext=""):
         
@@ -1220,7 +1249,7 @@ class ProcessInOutDAG:
             
 
         
-    def drawOriginsStretch(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False, showExpectationBased=False, use_lognormal=True):
+    def drawOriginsStretch(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False, showExpectationBased=False, use_lognormal=True, pivotColorPink=False):
 
 #         if isinstance(target_vertex, str):
 #             if target_vertex not in self.dic_vertex_id:
@@ -1248,7 +1277,8 @@ class ProcessInOutDAG:
 
             print("Cycles in the graph:")
             for cycle in cycles:
-                print(cycle)
+#                 print(cycle)
+                print(self.dic_vertex_names[cycle[0]], "->", self.dic_vertex_names[cycle[1]])
             return
         
         subgraph = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=target_vertex, orientation="reverse"))])
@@ -1276,9 +1306,9 @@ class ProcessInOutDAG:
         
         self.draw_selected_vertices_reverse_proc2(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
                         title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, excludeComp=excludeComp, 
-                                                  showExpectationBased=showExpectationBased)
+                                                  showExpectationBased=showExpectationBased, pivotColorPink=pivotColorPink)
         
-    def drawOrigins(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False, use_lognormal=True):
+    def drawOrigins(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False, use_lognormal=True, pivotColorPink=False):
 
 #         if isinstance(target_vertex, str):
 #             if target_vertex not in self.dic_vertex_id:
@@ -1306,7 +1336,8 @@ class ProcessInOutDAG:
 
             print("Cycles in the graph:")
             for cycle in cycles:
-                print(cycle)
+#                 print(cycle)
+                print(self.dic_vertex_names[cycle[0]], "->", self.dic_vertex_names[cycle[1]])
             return
         
         subgraph = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=target_vertex, orientation="reverse"))])
@@ -1333,10 +1364,10 @@ class ProcessInOutDAG:
             figsize = (12, 5)
 
         self.draw_selected_vertices_reverse_proc2(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
-                                title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, excludeComp=excludeComp)
+                                title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, excludeComp=excludeComp, pivotColorPink=pivotColorPink)
     
 
-    def drawOffspringsStretch(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False, showExpectationBased=False, use_lognormal=True):
+    def drawOffspringsStretch(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False, showExpectationBased=False, use_lognormal=True, pivotColorPink=False):
 
 #         if isinstance(target_vertex, str):
 #             if target_vertex not in self.dic_vertex_id:
@@ -1371,7 +1402,8 @@ class ProcessInOutDAG:
 
             print("Cycles in the graph:")
             for cycle in cycles:
-                print(cycle)
+#                 print(cycle)
+                print(self.dic_vertex_names[cycle[0]], "->", self.dic_vertex_names[cycle[1]])
             return
         
 
@@ -1402,9 +1434,9 @@ class ProcessInOutDAG:
         
         self.draw_selected_vertices_reverse_proc2(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
                         title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, 
-                                                 excludeComp=excludeComp, showExpectationBased=showExpectationBased)
+                                                 excludeComp=excludeComp, showExpectationBased=showExpectationBased, pivotColorPink=pivotColorPink)
         
-    def drawOffsprings(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False, use_lognormal=True):
+    def drawOffsprings(self, target_vertex, title="", figsize=None, showWeight=False, excludeComp=False, use_lognormal=True, pivotColorPink=False):
 
 #         if isinstance(target_vertex, str):
 #             if target_vertex not in self.dic_vertex_id:
@@ -1439,7 +1471,8 @@ class ProcessInOutDAG:
 
             print("Cycles in the graph:")
             for cycle in cycles:
-                print(cycle)
+#                 print(cycle)
+                print(self.dic_vertex_names[cycle[0]], "->", self.dic_vertex_names[cycle[1]])
             return
         
 
@@ -1468,7 +1501,7 @@ class ProcessInOutDAG:
             figsize = (12, 5)
 
         self.draw_selected_vertices_reverse_proc2(self.G_T, selected_vertices1,selected_vertices2, selected_vertices3, 
-                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, excludeComp=excludeComp)
+                        title=title, node_labels=node_labels, pos=position, reverse=True, figsize=figsize, showWeight=showWeight, excludeComp=excludeComp, pivotColorPink=pivotColorPink)
         
 
     
