@@ -1,6 +1,6 @@
 # Process In-Out DAG
-# Version: 2.2.4
-# Last Update: 2024/03/23
+# Version: 2.2.5
+# Last Update: 2024/10/05
 # Author: Tomio Kobayashi
 #
 # pip install simpy
@@ -280,6 +280,7 @@ class ProcessInOutDAG:
                 
                 
     def simulate_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True, figsize = (12, 5), task_occurrences=1, task_interval=0, inp_data=None, hooks={}, cond_hooks={}, bran_hooks={}):
+
         
         dic_target_vertices = {}
         for target_vertex in target_vertices:
@@ -317,6 +318,7 @@ class ProcessInOutDAG:
             for target_vertex in target_vertices:
                 self.sim_nodesets |= set(self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=dic_target_vertices[target_vertex]))]).nodes)
             
+#         print("target_vertices", target_vertices)
         self.sim_runs = []
 
         for i in range(sim_repeats):
@@ -334,7 +336,9 @@ class ProcessInOutDAG:
                     cap = self.dic_capacity[target_vertex] if target_vertex in self.dic_capacity else 9999999
                     self.simpy_env.process(self.sim_runs[i][self.flow_counter].task(dic_target_vertices[target_vertex], self.all_workers[dic_target_vertices[target_vertex]]))
                 self.flow_counter += 1
-                self.simpy_env.timeout(task_interval)
+#                 self.simpy_env.timeout(task_interval)
+                next_interval = np.random.exponential(task_interval)
+                self.simpy_env.timeout(next_interval)
             self.simpy_env.run()
         
         if fromSink:
@@ -361,7 +365,8 @@ class ProcessInOutDAG:
 
                 selected_vertices1 = list(selected_vertices1)
                 selected_vertices2 = list(selected_vertices2)
-                selected_vertices3 = [target_vertex]
+#                 selected_vertices3 = [target_vertex]
+                selected_vertices3 = []
             
                 self.draw_selected_vertices_reverse_proc2(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
                                 title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, excludeComp=False, 
@@ -374,7 +379,7 @@ class ProcessInOutDAG:
         wait_times = {ss: np.mean([np.mean(v.wait_times[ss]) for s in self.sim_runs for k, v in s.items() if ss in v.wait_times]) for ss in self.sim_nodesets}
         wait_times = {k: v if not np.isnan(v) else 0 for k, v in wait_times.items()}
         for n in self.sim_nodesets:
-            print(re.sub("(#C.*)", "", self.dic_vertex_names[n], count=1), f"starts at {start_times[n]:.2f} after {wait_times[n]:.2f} of wait time and finishes at {finish_times[n]:.2f}")
+            print(re.sub("(#C.*)", "", self.dic_vertex_names[n], count=1), f"starts at {start_times[n]:.2f} with wait time {wait_times[n]:.2f} and finishes at {finish_times[n]:.2f}")
             outputs.append([re.sub("(#C.*)", "", self.dic_vertex_names[n], count=1), start_times[n], finish_times[n], finish_times[n] - start_times[n], wait_times[n]])
                 
         print("")
@@ -785,7 +790,7 @@ class ProcessInOutDAG:
             self.suggest_opportunities(subgraph1)
 
             
-        plt.title("Expecation Based - " + title if showExpectationBased else title)
+        plt.title("Expectation Based - " + title if showExpectationBased else title)
         plt.show()
     
     
