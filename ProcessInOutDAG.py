@@ -1,5 +1,5 @@
 # Process In-Out DAG
-# Version: 2.2.5
+# Version: 2.2.7
 # Last Update: 2024/10/05
 # Author: Tomio Kobayashi
 #
@@ -366,7 +366,12 @@ class ProcessInOutDAG:
                 selected_vertices1 = list(selected_vertices1)
                 selected_vertices2 = list(selected_vertices2)
 #                 selected_vertices3 = [target_vertex]
-                selected_vertices3 = []
+#                 selected_vertices3 = []
+                selected_vertices3 = [self.dic_vertex_id[t] for t in target_vertices]
+#                 print("selected_vertices1", selected_vertices1)
+#                 print("target_vertices", target_vertices)
+#                 print("target_vertices", [self.dic_vertex_id[t] for t in target_vertices])
+                
             
                 self.draw_selected_vertices_reverse_proc2(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
                                 title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, excludeComp=False, 
