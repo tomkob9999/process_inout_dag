@@ -1,5 +1,5 @@
 # Process In-Out DAG
-# Version: 2.2.7
+# Version: 2.2.8
 # Last Update: 2024/10/05
 # Author: Tomio Kobayashi
 #
@@ -279,7 +279,7 @@ class ProcessInOutDAG:
                     self.simpy_env.process(self.task_exec(s))
                 
                 
-    def simulate_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True, figsize = (12, 5), task_occurrences=1, task_interval=0, inp_data=None, hooks={}, cond_hooks={}, bran_hooks={}):
+    def simulate_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True, figsize = (12, 5), task_occurrences=1, avg_arrivals=1, inp_data=None, hooks={}, cond_hooks={}, bran_hooks={}):
 
         
         dic_target_vertices = {}
@@ -337,7 +337,7 @@ class ProcessInOutDAG:
                     self.simpy_env.process(self.sim_runs[i][self.flow_counter].task(dic_target_vertices[target_vertex], self.all_workers[dic_target_vertices[target_vertex]]))
                 self.flow_counter += 1
 #                 self.simpy_env.timeout(task_interval)
-                next_interval = np.random.exponential(task_interval)
+                next_interval = np.random.exponential(1/avg_arrivals)
                 self.simpy_env.timeout(next_interval)
             self.simpy_env.run()
         
@@ -368,9 +368,6 @@ class ProcessInOutDAG:
 #                 selected_vertices3 = [target_vertex]
 #                 selected_vertices3 = []
                 selected_vertices3 = [self.dic_vertex_id[t] for t in target_vertices]
-#                 print("selected_vertices1", selected_vertices1)
-#                 print("target_vertices", target_vertices)
-#                 print("target_vertices", [self.dic_vertex_id[t] for t in target_vertices])
                 
             
                 self.draw_selected_vertices_reverse_proc2(self.G, selected_vertices1,selected_vertices2, selected_vertices3, 
