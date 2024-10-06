@@ -1,5 +1,5 @@
 # Process In-Out DAG
-# Version: 2.2.8
+# Version: 2.2.9
 # Last Update: 2024/10/05
 # Author: Tomio Kobayashi
 #
@@ -329,6 +329,7 @@ class ProcessInOutDAG:
                 self.all_workers[n] = simpy.Resource(self.simpy_env, capacity=cap)
             self.sim_runs.append({})
             self.flow_counter = 0
+            intervals = []
             for t in range(task_occurrences):
                 self.sim_runs[i][self.flow_counter] = ProcessInOutDAG.flowman(self.simpy_env, self.flow_counter,
                             self.G, self.sim_nodesets, self.dic_vertex_names, self.dic_vertex_id, self.dic_conds, self.dic_opts, self.dic_bran, self.all_workers, reference=self.reference, silent=silent, inp_data=inp_data, hooks=hooks, cond_hooks=cond_hooks, bran_hooks=bran_hooks)
@@ -338,7 +339,9 @@ class ProcessInOutDAG:
                 self.flow_counter += 1
 #                 self.simpy_env.timeout(task_interval)
                 next_interval = np.random.exponential(1/avg_arrivals)
+                intervals.append(next_interval)
                 self.simpy_env.timeout(next_interval)
+#             print("np.mean(intervals)", np.mean(intervals))
             self.simpy_env.run()
         
         if fromSink:
