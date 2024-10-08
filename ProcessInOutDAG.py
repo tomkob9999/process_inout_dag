@@ -1,5 +1,5 @@
 # Process In-Out DAG
-# Version: 2.2.10
+# Version: 2.3.0
 # Last Update: 2024/10/05
 # Author: Tomio Kobayashi
 #
@@ -78,6 +78,7 @@ class ProcessInOutDAG:
             self.start_times = {}
             self.finish_times = {}
             self.wait_times = {}
+            self.queue_length = {}
             
             self.G = G
             self.sim_nodesets = sim_nodesets
@@ -147,14 +148,20 @@ class ProcessInOutDAG:
                 
             with workers.request() as req:
         
+                if target_vertex not in self.queue_length:
+                    self.queue_length[target_vertex] = []
+                self.queue_length[target_vertex].append(len(workers.queue))
+
+                if target_vertex not in self.optouts:
+                    self.optouts[target_vertex] = 0
                 if avg_optout_queue > 0 and np.random.random() < 1 - np.exp(-1/avg_optout_queue * len(workers.queue)):
 #                     self.optouts += 1
 #                     print("OPT OUT!!")
-                    if self.dic_vertex_names[target_vertex] not in self.optouts:
-                        self.optouts[self.dic_vertex_names[target_vertex]] = 1
-                    else:
-                        self.optouts[self.dic_vertex_names[target_vertex]] += 1
-                
+#                     if self.dic_vertex_names[target_vertex] not in self.optouts:
+#                     if target_vertex not in self.optouts:
+#                         self.optouts[target_vertex] = 1
+#                     else:
+                    self.optouts[target_vertex] += 1
                     return
                 yield self.simpy_env.timeout(yield_time)
                 
@@ -376,17 +383,6 @@ class ProcessInOutDAG:
                 succs = [self.dic_vertex_names[s] for s in subgraph]
                 avg_duration_p = {ss: np.mean([np.mean(v.start_times[ss]) for s in self.sim_runs for k, v in s.items() if ss in v.start_times]) for ss in self.sim_nodesets }
                 avg_duration_p = {k: v if not np.isnan(v) else 0 for k, v in avg_duration_p.items()}
-
-#                 avg_optouts = np.sum([v.optouts for s in self.sim_runs for k, v in s.items()])
-                sum_optouts = {}
-                for k, vv in self.dic_vertex_names.items():
-                    numnum = 0
-                    for ss in [v.optouts for s in self.sim_runs for k, v in s.items()]:
-                        if vv in ss:
-                            numnum += ss[vv]
-                    if numnum > 0:
-                        sum_optouts[vv] = numnum
-                print("Number of Opt-outs:", sum_optouts)
                 
                 position, wait_edges = self.find_pos(subgraph, use_expected=False, use_lognormal=True, avg_duration_p=avg_duration_p)
 
@@ -411,15 +407,26 @@ class ProcessInOutDAG:
                                 title=title, node_labels=node_labels, pos=position, figsize=figsize, showWeight=showWeight, forStretch=True, wait_edges=wait_edges, excludeComp=False, 
                                                           showExpectationBased=False)
             
-        outputs = [["task", "start_time", "finish_time", "execution_time", "wait_time"]]
+        outputs = [["task", "start_time", "finish_time", "execution_time", "wait_time", "queue_lengths", "opt_outs"]]
         start_times = avg_duration_p
         finish_times = {ss: np.mean([np.mean(v.finish_times[ss]) for s in self.sim_runs for k, v in s.items() if ss in v.finish_times]) for ss in self.sim_nodesets}
         finish_times = {k: v if not np.isnan(v) else 0 for k, v in finish_times.items()}
         wait_times = {ss: np.mean([np.mean(v.wait_times[ss]) for s in self.sim_runs for k, v in s.items() if ss in v.wait_times]) for ss in self.sim_nodesets}
         wait_times = {k: v if not np.isnan(v) else 0 for k, v in wait_times.items()}
+        queue_lengths = {ss: np.mean([np.mean(v.queue_length[ss]) for s in self.sim_runs for k, v in s.items() if ss in v.wait_times]) for ss in self.sim_nodesets}
+        queue_lengths = {k: v if not np.isnan(v) else 0 for k, v in queue_lengths.items()}
+        optouts = {ss: np.sum([np.sum(v.optouts[ss]) for s in self.sim_runs for k, v in s.items() if ss in v.optouts]) for ss in self.sim_nodesets}
+        optouts = {k: v if not np.isnan(v) else 0 for k, v in optouts.items()}
         for n in self.sim_nodesets:
-            print(re.sub("(#C.*)", "", self.dic_vertex_names[n], count=1), f"starts at {start_times[n]:.2f} with wait time {wait_times[n]:.2f} and finishes at {finish_times[n]:.2f}")
-            outputs.append([re.sub("(#C.*)", "", self.dic_vertex_names[n], count=1), start_times[n], finish_times[n], finish_times[n] - start_times[n], wait_times[n]])
+            print(re.sub("(#C.*)", "", self.dic_vertex_names[n], count=1))
+            print(f"    Average Start Time: {start_times[n]:.2f}")
+            print(f"    Average Finish Time: {finish_times[n]:.2f}")
+            print(f"    Average Execution Tie: {finish_times[n] - start_times[n]:.2f}")
+            print(f"    Average Wait Time: {wait_times[n]:.2f}")
+            print(f"    Average Queue Lengths: {queue_lengths[n]:.2f}")
+            print(f"    Total Opt-outs: {optouts[n]}")
+            
+            outputs.append([re.sub("(#C.*)", "", self.dic_vertex_names[n], count=1), start_times[n], finish_times[n], finish_times[n] - start_times[n], wait_times[n], queue_lengths[n], optouts[n]])
 
         return outputs
 
