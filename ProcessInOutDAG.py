@@ -1,5 +1,5 @@
 # Process In-Out DAG
-# Version: 2.2.9
+# Version: 2.2.10
 # Last Update: 2024/10/05
 # Author: Tomio Kobayashi
 #
@@ -101,13 +101,15 @@ class ProcessInOutDAG:
             self.storage["outputs"] = {}
             self.storage["outputs"]["finally"] = None
             self.reference = reference
+#             self.avg_optout_queue = 0
+            self.optouts = {}
             
         def myeval(self, __ccc___, __inp___):
             for __jjjj___ in __ccc___:
                 exec(__jjjj___[0] + " = " + str(__jjjj___[1]))
             return eval(__inp___)
 
-        def task(self, target_vertex, workers):
+        def task(self, target_vertex, workers, avg_optout_queue=0, yield_time=0):
 
             preds_set = set([p for p in self.G.predecessors(target_vertex) if p in self.sim_nodesets])
 
@@ -144,6 +146,18 @@ class ProcessInOutDAG:
             self.task_triggered.add(target_vertex)
                 
             with workers.request() as req:
+        
+                if avg_optout_queue > 0 and np.random.random() < 1 - np.exp(-1/avg_optout_queue * len(workers.queue)):
+#                     self.optouts += 1
+#                     print("OPT OUT!!")
+                    if self.dic_vertex_names[target_vertex] not in self.optouts:
+                        self.optouts[self.dic_vertex_names[target_vertex]] = 1
+                    else:
+                        self.optouts[self.dic_vertex_names[target_vertex]] += 1
+                
+                    return
+                yield self.simpy_env.timeout(yield_time)
+                
                 arrive = self.simpy_env.now
                 results = yield req
                 wait_time = self.simpy_env.now - arrive
@@ -194,7 +208,8 @@ class ProcessInOutDAG:
                 self.simpy_env.process(self.task(picked_item, self.all_workers[picked_item]))
             else:
                 for s in list(succs_set):
-                    self.simpy_env.process(self.task(s, self.all_workers[s]))
+#                     self.simpy_env.process(self.task(s, self.all_workers[s]))
+                    self.simpy_env.process(self.task(s, self.all_workers[s], avg_optout_queue))
 
         def task_exec(self, target_vertex):
 
@@ -279,8 +294,7 @@ class ProcessInOutDAG:
                     self.simpy_env.process(self.task_exec(s))
                 
                 
-    def simulate_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True, figsize = (12, 5), task_occurrences=1, avg_arrivals=1, inp_data=None, hooks={}, cond_hooks={}, bran_hooks={}):
-
+    def simulate_flow(self, target_vertices, silent=False, sim_repeats=1, fromSink=True, figsize = (12, 5), showWeight=True, task_occurrences=1, avg_arrivals=1, inp_data=None, hooks={}, cond_hooks={}, bran_hooks={}, avg_optout_queue=0):
         
         dic_target_vertices = {}
         for target_vertex in target_vertices:
@@ -333,14 +347,23 @@ class ProcessInOutDAG:
             for t in range(task_occurrences):
                 self.sim_runs[i][self.flow_counter] = ProcessInOutDAG.flowman(self.simpy_env, self.flow_counter,
                             self.G, self.sim_nodesets, self.dic_vertex_names, self.dic_vertex_id, self.dic_conds, self.dic_opts, self.dic_bran, self.all_workers, reference=self.reference, silent=silent, inp_data=inp_data, hooks=hooks, cond_hooks=cond_hooks, bran_hooks=bran_hooks)
-                for target_vertex in target_vertices:
-                    cap = self.dic_capacity[target_vertex] if target_vertex in self.dic_capacity else 9999999
-                    self.simpy_env.process(self.sim_runs[i][self.flow_counter].task(dic_target_vertices[target_vertex], self.all_workers[dic_target_vertices[target_vertex]]))
-                self.flow_counter += 1
-#                 self.simpy_env.timeout(task_interval)
+#                 intervals = []
                 next_interval = np.random.exponential(1/avg_arrivals)
                 intervals.append(next_interval)
-                self.simpy_env.timeout(next_interval)
+                for target_vertex in target_vertices:
+                    cap = self.dic_capacity[target_vertex] if target_vertex in self.dic_capacity else 9999999
+#                     self.sim_runs[i][self.flow_counter].avg_optout_queue = avg_optout_queue
+#                     next_interval = np.random.exponential(1/avg_arrivals)
+#                     intervals.append(next_interval)
+#                     self.simpy_env.process(self.sim_runs[i][self.flow_counter].task(dic_target_vertices[target_vertex], self.all_workers[dic_target_vertices[target_vertex]], avg_optout_queue, yield_time=np.random.exponential(1/avg_arrivals)))
+                    self.simpy_env.process(self.sim_runs[i][self.flow_counter].task(dic_target_vertices[target_vertex], self.all_workers[dic_target_vertices[target_vertex]], avg_optout_queue, yield_time=np.sum(intervals)))
+                    
+                self.flow_counter += 1
+#                 self.simpy_env.timeout(task_interval)
+#                 next_interval = np.random.exponential(1/avg_arrivals)
+#                 intervals.append(next_interval)
+#                 print("next_interval", next_interval)
+#                 self.simpy_env.timeout(next_interval)
 #             print("np.mean(intervals)", np.mean(intervals))
             self.simpy_env.run()
         
@@ -354,6 +377,17 @@ class ProcessInOutDAG:
                 avg_duration_p = {ss: np.mean([np.mean(v.start_times[ss]) for s in self.sim_runs for k, v in s.items() if ss in v.start_times]) for ss in self.sim_nodesets }
                 avg_duration_p = {k: v if not np.isnan(v) else 0 for k, v in avg_duration_p.items()}
 
+#                 avg_optouts = np.sum([v.optouts for s in self.sim_runs for k, v in s.items()])
+                sum_optouts = {}
+                for k, vv in self.dic_vertex_names.items():
+                    numnum = 0
+                    for ss in [v.optouts for s in self.sim_runs for k, v in s.items()]:
+                        if vv in ss:
+                            numnum += ss[vv]
+                    if numnum > 0:
+                        sum_optouts[vv] = numnum
+                print("Number of Opt-outs:", sum_optouts)
+                
                 position, wait_edges = self.find_pos(subgraph, use_expected=False, use_lognormal=True, avg_duration_p=avg_duration_p)
 
                 selected_vertices1 = set([n for n in subgraph.nodes])
@@ -386,8 +420,7 @@ class ProcessInOutDAG:
         for n in self.sim_nodesets:
             print(re.sub("(#C.*)", "", self.dic_vertex_names[n], count=1), f"starts at {start_times[n]:.2f} with wait time {wait_times[n]:.2f} and finishes at {finish_times[n]:.2f}")
             outputs.append([re.sub("(#C.*)", "", self.dic_vertex_names[n], count=1), start_times[n], finish_times[n], finish_times[n] - start_times[n], wait_times[n]])
-                
-        print("")
+
         return outputs
 
     
@@ -765,8 +798,6 @@ class ProcessInOutDAG:
                 plt.axvline(x=i, color="orange", linestyle=linestyle, linewidth=width)
 
         if showWeight:
-            
-            
 
             self.showStats(subgraph1)
             # Print the topological order
