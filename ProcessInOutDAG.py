@@ -1,6 +1,6 @@
 # Process In-Out DAG
-# Version: 2.3.0
-# Last Update: 2024/10/05
+# Version: 2.3.1
+# Last Update: 2024/11/15
 # Author: Tomio Kobayashi
 #
 # pip install simpy
@@ -180,7 +180,7 @@ class ProcessInOutDAG:
                 if len(succs_set) > 0:
                     weight = max([self.G[target_vertex][s]["weight"] for s in list(succs_set)])
 #                 time_takes = np.log(np.random.lognormal(weight, min(weight, 3))+1)
-                time_takes = logical_weight.lognormal(weight, min(weight, 3))
+                time_takes = logical_weight.lognormal(weight, min(weight, 3)) if weight > 0 else 0
 
                 start_time = self.simpy_env.now
                 if target_vertex not in self.start_times:
@@ -191,6 +191,10 @@ class ProcessInOutDAG:
 #                     self.hooks[target_vertex](self)
                     self.storage["outputs"][self.dic_vertex_names[target_vertex]] = self.hooks[self.dic_vertex_names[target_vertex]](self)
                 yield self.simpy_env.timeout(time_takes)
+#                 print("target_vertex", target_vertex)
+#                 print("weight", weight)
+
+#                 print("time_takes", time_takes) 
 
                 finish_time = self.simpy_env.now
                 if target_vertex not in self.finish_times:
@@ -328,11 +332,20 @@ class ProcessInOutDAG:
         
         self.sim_nodesets = set()
         
+        print("target_vertices", target_vertices)
+        
         if fromSink:
             tmp_target_vetcices = set()
             for target_vertex in target_vertices:
                 self.sim_nodesets |= set(self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=dic_target_vertices[target_vertex], orientation="reverse"))]).nodes)
                 tmp_target_vetcices |= set([node for node, in_degree in self.G.in_degree() if in_degree == 0])
+#                 print("self.G.nodes()", self.G.nodes)
+#                 print("self.G.in_degree()", self.G.in_degree())
+                aa = set([node for node, in_degree in self.G.in_degree() if in_degree == 0])
+                
+#                 print("aa", aa)
+#             print("self.sim_nodesets", self.sim_nodesets)
+#             print("tmp_target_vetcices", tmp_target_vetcices)
             dic_target_vertices = {self.dic_vertex_names[t]:t for t in tmp_target_vetcices}
             target_vertices = [self.dic_vertex_names[t] for t in tmp_target_vetcices]
         else:
@@ -417,17 +430,27 @@ class ProcessInOutDAG:
         queue_lengths = {k: v if not np.isnan(v) else 0 for k, v in queue_lengths.items()}
         optouts = {ss: np.sum([np.sum(v.optouts[ss]) for s in self.sim_runs for k, v in s.items() if ss in v.optouts]) for ss in self.sim_nodesets}
         optouts = {k: v if not np.isnan(v) else 0 for k, v in optouts.items()}
+        
         for n in self.sim_nodesets:
             print(re.sub("(#C.*)", "", self.dic_vertex_names[n], count=1))
             print(f"    Average Start Time: {start_times[n]:.2f}")
             print(f"    Average Finish Time: {finish_times[n]:.2f}")
-            print(f"    Average Execution Tie: {finish_times[n] - start_times[n]:.2f}")
+            print(f"    Average Execution Time: {finish_times[n] - start_times[n]:.2f}")
             print(f"    Average Wait Time: {wait_times[n]:.2f}")
             print(f"    Average Queue Lengths: {queue_lengths[n]:.2f}")
             print(f"    Total Opt-outs: {optouts[n]}")
             
             outputs.append([re.sub("(#C.*)", "", self.dic_vertex_names[n], count=1), start_times[n], finish_times[n], finish_times[n] - start_times[n], wait_times[n], queue_lengths[n], optouts[n]])
 
+        max_finish = np.max([v for k, v in finish_times.items()]) 
+        avg_lead_time = max_finish - np.min([v for k, v in start_times.items()]) 
+        print(f"Average Lead Time: {avg_lead_time:.2f}")
+        
+        cycle_time = max_finish/(task_occurrences*avg_arrivals)
+        throughput = 1/cycle_time
+        print(f"Cycle Time: {cycle_time:.2f}")
+        print(f"Throughput: {throughput:.2f}")
+        
         return outputs
 
     
@@ -849,7 +872,12 @@ class ProcessInOutDAG:
     
     def edge_list_to_adjacency_matrix(self, edges):
 
-        num_nodes = max(max(edge) for edge in edges) + 1  # Determine the number of nodes
+#         num_nodes = max(max(edge) for edge in edges) + 1  # Determine the number of nodes
+        rows = [edge[0] for edge in edges]
+        cols = [edge[1] for edge in edges]
+        weights = [edge[2] for edge in edges]
+        num_nodes = max(max(rows), max(cols))+1
+#         print("num_nodes", num_nodes)
         adjacency_matrix = np.zeros((num_nodes, num_nodes))
         for edge in edges:
             if len(edge) >= 3:
@@ -864,9 +892,12 @@ class ProcessInOutDAG:
         adjacency_matrix = None
         if is_oup_list:
             edges = self.read_oup_list_from_file(file_path, intext=intext)
+#             print("edges", edges)
             adjacency_matrix = self.edge_list_to_adjacency_matrix(edges)
+#             print("adjacency_matrix", adjacency_matrix)
         elif is_edge_list:
             edges = self.read_edge_list_from_file(file_path, intext=intext)
+#             print("edges2", edges)
             adjacency_matrix = self.edge_list_to_adjacency_matrix(edges)
         else:
             data = np.genfromtxt(file_path, delimiter='\t', dtype=str, encoding=None)
@@ -874,6 +905,7 @@ class ProcessInOutDAG:
             # Extract the names from the first record
             self.vertex_names = list(data[0])
 
+#             print("self.vertex_names", self.vertex_names)
             # Extract the adjacency matrix
             adjacency_matrix = data[1:]
         
@@ -982,7 +1014,8 @@ class ProcessInOutDAG:
 
         headers = [k[1] for k in sorted([(v, k) for k, v in dicfields.items()])]
         edges = [(vv, k, v[0]) for k, v in dictf.items() for vv in v[1]]
-
+#         print("headers", headers)
+#         print("edges", edges)
         self.vertex_names = headers
         return edges
     
@@ -1105,6 +1138,7 @@ class ProcessInOutDAG:
             else:
                 source, target, weight = map(int, line.strip().split())
                 edges.append((source, target, weight))
+#         print("edges", edges) 
         return edges
 
     def write_adjacency_matrix_to_file(self, filename):
