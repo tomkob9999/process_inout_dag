@@ -1,6 +1,6 @@
 # Process In-Out DAG
-# Version: 2.3.1
-# Last Update: 2024/11/15
+# Version: 2.3.2
+# Last Update: 2024/11/16
 # Author: Tomio Kobayashi
 #
 # pip install simpy
@@ -177,11 +177,12 @@ class ProcessInOutDAG:
 
                 succs_set = set(self.G.successors(target_vertex))
                 weight = 0
-                if len(succs_set) > 0:
+                if len(succs_set) > 0: 
                     weight = max([self.G[target_vertex][s]["weight"] for s in list(succs_set)])
+#                 if len(preds_set) > 0z.G[s][target_vertex]["weight"] for s in list(preds_set)])
 #                 time_takes = np.log(np.random.lognormal(weight, min(weight, 3))+1)
                 time_takes = logical_weight.lognormal(weight, min(weight, 3)) if weight > 0 else 0
-
+            
                 start_time = self.simpy_env.now
                 if target_vertex not in self.start_times:
                     self.start_times[target_vertex] = []
@@ -197,6 +198,12 @@ class ProcessInOutDAG:
 #                 print("time_takes", time_takes) 
 
                 finish_time = self.simpy_env.now
+    
+#                 print("target_vertex", target_vertex)
+#                 print("time_takes", time_takes)
+#                 print("start_time", start_time)
+#                 print("finish_time", finish_time)
+            
                 if target_vertex not in self.finish_times:
                     self.finish_times[target_vertex] = []
                 self.finish_times[target_vertex].append(finish_time)
@@ -387,6 +394,7 @@ class ProcessInOutDAG:
 #             print("np.mean(intervals)", np.mean(intervals))
             self.simpy_env.run()
         
+
         if fromSink:
             subgraph = self.G.edge_subgraph([(f[0], f[1]) for f in list(nx.edge_dfs(self.G, source=org_dic_target_vertices[org_target_vertices[0]], orientation="reverse"))])
 
@@ -397,6 +405,8 @@ class ProcessInOutDAG:
                 avg_duration_p = {ss: np.mean([np.mean(v.start_times[ss]) for s in self.sim_runs for k, v in s.items() if ss in v.start_times]) for ss in self.sim_nodesets }
                 avg_duration_p = {k: v if not np.isnan(v) else 0 for k, v in avg_duration_p.items()}
                 
+                min_start = np.min([v for k, v in avg_duration_p.items()])
+                avg_duration_p = {k: v - min_start for k, v in avg_duration_p.items()}
                 position, wait_edges = self.find_pos(subgraph, use_expected=False, use_lognormal=True, avg_duration_p=avg_duration_p)
 
                 selected_vertices1 = set([n for n in subgraph.nodes])
@@ -430,20 +440,31 @@ class ProcessInOutDAG:
         queue_lengths = {k: v if not np.isnan(v) else 0 for k, v in queue_lengths.items()}
         optouts = {ss: np.sum([np.sum(v.optouts[ss]) for s in self.sim_runs for k, v in s.items() if ss in v.optouts]) for ss in self.sim_nodesets}
         optouts = {k: v if not np.isnan(v) else 0 for k, v in optouts.items()}
-        
+
+#         min_start = np.min([v for k, v in start_times.items()]) 
+        max_start = np.max([v for k, v in start_times.items()]) 
+        max_finish = np.max([v for k, v in finish_times.items()]) 
         for n in self.sim_nodesets:
             print(re.sub("(#C.*)", "", self.dic_vertex_names[n], count=1))
-            print(f"    Average Start Time: {start_times[n]:.2f}")
-            print(f"    Average Finish Time: {finish_times[n]:.2f}")
-            print(f"    Average Execution Time: {finish_times[n] - start_times[n]:.2f}")
+            print(f"    Average Start Time: {start_times[n]:.2f}") 
+#             print(f"    Average Start Time: {start_times[n]-min_start:.2f}")
+            if max_finish == finish_times[n]:
+                print(f"    Average Finish Time: {start_times[n]:.2f}")
+    #             print(f"    Average Finish Time: {finish_times[n]-min_start:.2f}") 
+                print(f"    Average Execution Time: {0:.2f}")        
+            else:
+                print(f"    Average Finish Time: {finish_times[n]:.2f}")
+    #             print(f"    Average Finish Time: {finish_times[n]-min_start:.2f}") 
+                print(f"    Average Execution Time: {finish_times[n] - start_times[n]:.2f}")
             print(f"    Average Wait Time: {wait_times[n]:.2f}")
             print(f"    Average Queue Lengths: {queue_lengths[n]:.2f}")
             print(f"    Total Opt-outs: {optouts[n]}")
             
             outputs.append([re.sub("(#C.*)", "", self.dic_vertex_names[n], count=1), start_times[n], finish_times[n], finish_times[n] - start_times[n], wait_times[n], queue_lengths[n], optouts[n]])
 
-        max_finish = np.max([v for k, v in finish_times.items()]) 
-        avg_lead_time = max_finish - np.min([v for k, v in start_times.items()]) 
+        avg_lead_time = max_start - np.min([v for k, v in start_times.items()]) 
+#         avg_lead_time = max_finish - np.min([v for k, v in start_times.items()]) 
+        print("")
         print(f"Average Lead Time: {avg_lead_time:.2f}")
         
         cycle_time = max_finish/(task_occurrences*avg_arrivals)
@@ -981,11 +1002,50 @@ class ProcessInOutDAG:
             for edge in edges:
                 file.write(f"{edge[0]}\t{edge[1]}\t{edge[2]}\n")
     
+#     def read_oup_list_from_file(self, filename=None, intext=""):
+# #         Format is tab-delimited taxt file:
+# #             0 - Output Field Name
+# #             1 - Weight
+# #             2-n - Input Field Names
+#         dictf = {}
+#         dicfields = {}
+#         lines = []
+#         if intext == "":
+#             with open(filename, "r") as file:
+#                 for line in file:
+#                     lines.append(line)
+#         else:
+#             lines = intext.split("\n")
+        
+#         lines = [line for line in lines if len(line) > 0]
+        
+#         ini = True
+#         for line in lines:
+#             ff = line.strip().split("\t")
+#             for i in [0] + [j for j in range(2, len(ff), 1)]:
+#                 if ff[i] not in dicfields:
+#                     dicfields[ff[i]] = len(dicfields)
+
+#             oup_ind = dicfields[ff[0]]
+#             if dicfields[ff[0]] not in dictf:
+#                 inp = [dicfields[ff[i]] for i in range(2, len(ff), 1)]
+#                 dictf[oup_ind] = (int(ff[1]), inp)
+#             else:
+#                 dictf[oup_ind][1].extend([dicfields[ff[i]] for i in range(2, len(ff), 1)]) 
+
+#         headers = [k[1] for k in sorted([(v, k) for k, v in dicfields.items()])]
+#         edges = [(vv, k, v[0]) for k, v in dictf.items() for vv in v[1]]
+# #         print("headers", headers)
+# #         print("edges", edges)
+#         self.vertex_names = headers
+#         return edges
+
+
     def read_oup_list_from_file(self, filename=None, intext=""):
 #         Format is tab-delimited taxt file:
-#             0 - Output Field Name
+#             0 - Input Field Name
 #             1 - Weight
-#             2-n - Input Field Names
+#             2-n - Output Field Names
         dictf = {}
         dicfields = {}
         lines = []
@@ -1013,9 +1073,10 @@ class ProcessInOutDAG:
                 dictf[oup_ind][1].extend([dicfields[ff[i]] for i in range(2, len(ff), 1)]) 
 
         headers = [k[1] for k in sorted([(v, k) for k, v in dicfields.items()])]
-        edges = [(vv, k, v[0]) for k, v in dictf.items() for vv in v[1]]
+#         edges = [(vv, k, v[0]) for k, v in dictf.items() for vv in v[1]]
+        edges = [(k, vv, v[0]) for k, v in dictf.items() for vv in v[1]]
 #         print("headers", headers)
-#         print("edges", edges)
+#         print("edges", edges)  
         self.vertex_names = headers
         return edges
     
